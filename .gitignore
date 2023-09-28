@@ -154,3 +154,6 @@ cython_debug/
 
 # data folder
 data/
+
+# jukit
+.jukit/
