@@ -15,18 +15,6 @@ class ParquetWriter:
         self.source_dir = source_dir
         self.output_dir = output_dir
 
-    def node_filepath(self, filename: str) -> str:
-        os.makedirs(os.path.join(self.output_dir, "node"), exist_ok=True)
-        return os.path.join(self.output_dir, "node", f"{filename}.parquet")
-
-    def config_filepath(self, filename: str) -> str:
-        os.makedirs(os.path.join(self.output_dir, "config"), exist_ok=True)
-        return os.path.join(self.output_dir, "config", f"{filename}.parquet")
-
-    def edge_filepath(self, filename: str) -> str:
-        os.makedirs(os.path.join(self.output_dir, "edge"), exist_ok=True)
-        return os.path.join(self.output_dir, "edge", f"{filename}.parquet")
-
     def process_file(self, file: str) -> None:
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -54,7 +42,7 @@ class ParquetWriter:
             }
         )
 
-        node_df.write_parquet(self.node_filepath(data["file"]))
+        node_df.write_parquet(self._make_node_filepath(data["file"]))
 
     def process_config_data(self, data: dict[str, Any]) -> None:
         config_feat = {
@@ -70,7 +58,7 @@ class ParquetWriter:
                 "file_id": data["file"],
             }
         )
-        config_df.write_parquet((self.config_filepath(data["file"])))
+        config_df.write_parquet((self._make_config_filepath(data["file"])))
 
     def process_edge_data(self, data: dict[str, Any]) -> None:
         edge_df = pl.DataFrame(
@@ -81,4 +69,16 @@ class ParquetWriter:
             }
         )
 
-        edge_df.write_parquet(self.edge_filepath(data["file"]))
+        edge_df.write_parquet(self._make_edge_filepath(data["file"]))
+
+    def _make_node_filepath(self, filename: str) -> str:
+        os.makedirs(os.path.join(self.output_dir, "node"), exist_ok=True)
+        return os.path.join(self.output_dir, "node", f"{filename}.parquet")
+
+    def _make_config_filepath(self, filename: str) -> str:
+        os.makedirs(os.path.join(self.output_dir, "config"), exist_ok=True)
+        return os.path.join(self.output_dir, "config", f"{filename}.parquet")
+
+    def _make_edge_filepath(self, filename: str) -> str:
+        os.makedirs(os.path.join(self.output_dir, "edge"), exist_ok=True)
+        return os.path.join(self.output_dir, "edge", f"{filename}.parquet")
