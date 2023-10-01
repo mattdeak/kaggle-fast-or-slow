@@ -67,7 +67,7 @@ class ParquetWriter:
                 **config_feat,
                 "config_runtime": data["config_runtime"],
                 "config_runtime_normalizers": data["config_runtime_normalizers"],
-                "file": data["file"],
+                "file_id": data["file"],
             }
         )
         config_df.write_parquet((self.config_filepath(data["file"])))
@@ -77,7 +77,7 @@ class ParquetWriter:
             {
                 "from": data["edge_index"][:, 0],
                 "to": data["edge_index"][:, 1],
-                "file": data["file"],
+                "file_id": data["file"],
             }
         )
 
