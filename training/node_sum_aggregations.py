@@ -55,6 +55,8 @@ def main(sample: bool = False):
     val_file_ids = val_data.select("file_id").collect()["file_id"]
     X_train, y_train = to_X_and_y(train_data)
 
+    print("Size of training data:", X_train.shape)
+
     log_y_train = np.log(y_train)
 
     reg = XGBRegressor(
@@ -76,10 +78,13 @@ def main(sample: bool = False):
         wandb.config[k] = v
 
     train_preds = clf.predict(X_train)
+
+    del X_train
     train_slowdown = xla_slowdown_from_runtime_preds(
         train_file_ids, y_train, train_preds
     )
 
+    del y_train, train_preds
     wandb.log({"train_slowdown": train_slowdown})
 
     X_val, y_val = to_X_and_y(val_data)
