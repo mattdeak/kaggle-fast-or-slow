@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import polars as pl
+from joblib.externals.cloudpickle.cloudpickle import Literal
 from polars.type_aliases import IntoExpr
 
 from lib.feature_name_mapping import NODE_FEATURE_MAP
@@ -49,10 +50,12 @@ DEAD_COLS = [
 ]
 
 
-def get_data() -> pl.LazyFrame:
-    node_df = pl.scan_parquet("data/parquet/train/node/*.parquet", low_memory=True)
-    config_df = pl.scan_parquet("data/parquet/train/config/*.parquet", low_memory=True)
-    edge_df = pl.scan_parquet("data/parquet/train/edge/*.parquet", low_memory=True)
+def get_data(split: Literal["train", "valid", "test"] = "train") -> pl.LazyFrame:
+    node_df = pl.scan_parquet(f"data/parquet/{split}/node/*.parquet", low_memory=True)
+    config_df = pl.scan_parquet(
+        f"data/parquet/{split}/config/*.parquet", low_memory=True
+    )
+    edge_df = pl.scan_parquet(f"data/parquet/{split}/edge/*.parquet", low_memory=True)
 
     # These columns are all 0 when you sum the entire train node dataset, so we can remove them
     # as we have no instances of them in the dataset
