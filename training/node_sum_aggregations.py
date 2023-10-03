@@ -12,7 +12,7 @@ from lib.metrics import xla_slowdown_from_runtime_preds
 from lib.transforms.node_sum_pooling_with_graph_features_v1 import get_data
 
 sweep_configuration = {
-    "method": "bayes",
+    "method": "random",
     "name": "sweep",
     "metric": {"goal": "maximize", "name": "val_perf"},
     "parameters": {
