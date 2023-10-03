@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -26,13 +27,24 @@ sweep_configuration = {
     },
 }
 
+ArrowTable = Any
 
-def to_X_and_y(
+
+@dataclass
+class DataSplit:
+    X: ArrowTable
+    y: npt.NDArray[np.float_]
+    file_ids: list[str]
+
+
+def to_datasplit(
     df: pl.LazyFrame,
-) -> tuple[pyarrow.Table, npt.NDArray[np.float_]]:
-    X = df.drop(["file_id", "label"]).collect().to_arrow()
-    y = df.select("label").collect().to_numpy().ravel()
-    return X, y
+) -> DataSplit:
+    data = df.collect()
+    X = data.drop(["file_id", "label"]).to_arrow()
+    y = data["label"].to_numpy().ravel()
+    file_ids = data["file_id"].to_list()
+    return DataSplit(X, y, file_ids)
 
 
 def main(*, sample: bool = False, **hyperparameters: dict[str, Any]):
@@ -54,32 +66,29 @@ def main(*, sample: bool = False, **hyperparameters: dict[str, Any]):
         train_data = train_data.limit(1000)
         val_data = val_data.limit(1000)
 
-    train_file_ids = train_data.select("file_id").collect()["file_id"]
-    val_file_ids = val_data.select("file_id").collect()["file_id"]
-    X_train, y_train = to_X_and_y(train_data)
+    train = to_datasplit(train_data)
 
-    log_y_train = np.log(y_train)
-
+    log_y_train = np.log(train.y)
     reg = XGBRegressor(
         objective="reg:squarederror",
+        device="cuda",
         **hyperparameters,
     )
 
-    reg.fit(X_train, log_y_train)
-    train_preds = reg.predict(X_train)
+    reg.fit(train.X, log_y_train)
+    train_preds = reg.predict(train.X)
 
-    del X_train
     train_slowdown = xla_slowdown_from_runtime_preds(
-        train_file_ids, y_train, train_preds
+        train.file_ids, train.y, train_preds
     )
 
-    del y_train, train_preds
+    del train
     wandb.log({"train_perf": train_slowdown})
 
-    X_val, y_val = to_X_and_y(val_data)
+    val = to_datasplit(val_data)
 
-    val_preds = reg.predict(X_val)
-    val_slowdown = xla_slowdown_from_runtime_preds(val_file_ids, y_val, val_preds)
+    val_preds = reg.predict(val.X)
+    val_slowdown = xla_slowdown_from_runtime_preds(val.file_ids, val.y, val_preds)
     wandb.log({"val_perf": val_slowdown})
 
 
