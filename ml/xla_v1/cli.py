@@ -63,7 +63,11 @@ def train_and_eval(sample: bool):
     _train_and_eval(sample=sample)
 
 
-def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
+def _train_and_eval(
+    sample: bool = False,
+    max_configs_per_file: int = 700,
+    **hyperparameters: dict[str, Any],
+):
     with wandb.init(  # type: ignore
         project="kaggle-fast-or-slow",
         config={
@@ -75,8 +79,8 @@ def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
     ):
         model = build_model(**hyperparameters)
 
-        train_data = get_data("train")
-        val_data = get_data("valid")
+        train_data = get_data("train", max_configs_per_file=max_configs_per_file)
+        val_data = get_data("valid")  # no max_configs_per_file here
 
         if sample:
             train_data = train_data.limit(100)

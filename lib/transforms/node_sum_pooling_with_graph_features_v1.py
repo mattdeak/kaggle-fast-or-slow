@@ -50,7 +50,10 @@ DEAD_COLS = [
 ]
 
 
-def get_data(split: Literal["train", "valid", "test"] = "train") -> pl.LazyFrame:
+def get_data(
+    split: Literal["train", "valid", "test"] = "train",
+    max_configs_per_file: int | None = None,
+) -> pl.LazyFrame:
     node_df = pl.scan_parquet(f"data/parquet/{split}/node/*.parquet", low_memory=True)
     config_df = pl.scan_parquet(
         f"data/parquet/{split}/config/*.parquet", low_memory=True
@@ -89,16 +92,14 @@ def get_data(split: Literal["train", "valid", "test"] = "train") -> pl.LazyFrame
         },
     )
 
-    processed_config = (
-        config_df.with_columns(
-            (pl.col("config_runtime") / pl.col("config_runtime_normalizers")).alias(
-                "label"
-            )
+    processed_config = config_df.with_columns(
+        (pl.col("config_runtime") / pl.col("config_runtime_normalizers")).alias("label")
+    ).drop("config_runtime", "config_runtime_normalizers")
+
+    if max_configs_per_file is not None:
+        processed_config = processed_config.group_by("file_id").map_groups(
+            lambda x: sample, schema=None
         )
-        .drop("config_runtime", "config_runtime_normalizers")
-        .group_by("file_id")
-        .map_groups(sample, schema=None)
-    )
 
     # There are _a crazy amount_ of permutations for some files, so we'll randomly
     # sample no more than 1000 per file
@@ -135,5 +136,5 @@ def compute_graph_level_features(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def sample(df: pl.DataFrame) -> pl.DataFrame:
-    return df.sample(n=min(500, df.height))
+def sample(df: pl.DataFrame, max_configs: int = 500) -> pl.DataFrame:
+    return df.sample(n=min(max_configs, df.height))
