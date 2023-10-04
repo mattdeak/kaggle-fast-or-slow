@@ -45,7 +45,14 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
     print(train_metrics)
 
     model.save_model(f"models/{model_id}.xgb")
-    wandb.save(f"models/{model_id}.xgb")
+
+    art = wandb.Artifact(
+        model_id,
+        type="model",
+        description="XGBoost model trained on the full dataset, using the best hyperparameters from the sweep.",
+    )
+    art.add_file(f"models/{model_id}.xgb")
+    wandb.log_artifact(art)
 
     wandb.join()
     wandb.finish()
