@@ -66,10 +66,7 @@ def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
         notes="This approach simply sums all node features for the graph aggregation. We compute a few basic graph features, and then join on the config features. XGBoost is tuned on a log-transformed runtime value.",
         job_type="train_and_eval" if not sample else "debug",
     ):
-        params: dict[str, Any] = DEFAULT_CONFIGURATION.copy()
-        params.update(hyperparameters)
-
-        model = build_model(**params)
+        model = build_model(**hyperparameters)
 
         train_data = get_data("train")
         val_data = get_data("valid")
