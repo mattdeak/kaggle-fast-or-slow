@@ -5,48 +5,17 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import polars as pl
-import pyarrow
+import typer
 import wandb
 from xgboost import XGBRegressor
 
 from lib.metrics import xla_slowdown_from_runtime_preds
 from lib.transforms.node_sum_pooling_with_graph_features_v1 import get_data
 
-sweep_configuration = {
-    "method": "random",
-    "name": "sweep",
-    "metric": {"goal": "maximize", "name": "val_perf"},
-    "parameters": {
-        "learning_rate": {"values": [0.0001, 0.001, 0.01, 0.05, 0.1]},
-        "max_depth": {"values": np.arange(3, 14, 1).tolist()},
-        "min_child_weight": {"values": np.arange(1, 6, 1).tolist()},
-        "subsample": {"values": np.arange(0.5, 1.0, 0.1).tolist()},
-        "colsample_bytree": {"values": np.arange(0.5, 1.0, 0.1).tolist()},
-        "gamma": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
-        "n_estimators": {"values": [100, 200, 300, 400, 500]},
-    },
-}
-
-ArrowTable = Any
+app = typer.Typer()
 
 
-@dataclass
-class DataSplit:
-    X: ArrowTable
-    y: npt.NDArray[np.float_]
-    file_ids: list[str]
-
-
-def to_datasplit(
-    df: pl.LazyFrame,
-) -> DataSplit:
-    data = df.collect()
-    X = data.drop(["file_id", "label"]).to_arrow()
-    y = data["label"].to_numpy().ravel()
-    file_ids = data["file_id"].to_list()
-    return DataSplit(X, y, file_ids)
-
-
+@app.command()
 def main(*, sample: bool = False, **hyperparameters: dict[str, Any]):
     run = wandb.init(
         project="kaggle-fast-or-slow",
@@ -95,7 +64,6 @@ def main(*, sample: bool = False, **hyperparameters: dict[str, Any]):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", action="store_true")
-    parser.add_argument("--sweep", action="store_true")
     parser.add_argument("--retrain", action="store_true")
     args = parser.parse_args()
 

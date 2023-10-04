@@ -33,6 +33,9 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
 
     train(model, data)
 
+    model.save_model(f"models/{model_id}.xgb")
+    wandb.save(f"models/{model_id}.xgb")
+
 
 def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
     run = wandb.init(
