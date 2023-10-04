@@ -5,7 +5,7 @@ import typer
 
 import wandb
 from lib.transforms.node_sum_pooling_with_graph_features_v1 import get_data
-from ml.xla_v1.sweep import DEFAULT_CONFIGURATION, SWEEP_CONFIGURATION
+from ml.xla_v1.sweep import SWEEP_CONFIGURATION
 from ml.xla_v1.train import build_model, train, validate
 
 app = typer.Typer()
