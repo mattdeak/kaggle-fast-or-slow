@@ -56,7 +56,7 @@ def train_and_eval(sample: bool):
     _train_and_eval(sample=sample)
 
 
-def _train_and_eval(sample: bool = True, **hyperparameters: dict[str, Any]):
+def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
     with wandb.init(  # type: ignore
         project="kaggle-fast-or-slow",
         config={
