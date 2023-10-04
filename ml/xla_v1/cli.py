@@ -34,7 +34,7 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
         job_type="retrain_from_sweep",
     )
 
-    train_data = get_data("train")
+    train_data = get_data("train", max_configs_per_file=700)
     val_data = get_data("valid")
 
     # Join train and validation data, since we're retraining on the full dataset
