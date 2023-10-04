@@ -96,6 +96,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", action="store_true")
     parser.add_argument("--sweep", action="store_true")
+    parser.add_argument("--retrain", action="store_true")
     args = parser.parse_args()
 
     if args.sample:
