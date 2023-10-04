@@ -14,3 +14,13 @@ SWEEP_CONFIGURATION = {
         "n_estimators": {"values": [100, 200, 300, 400, 500]},
     },
 }
+
+DEFAULT_CONFIGURATION = {
+    "learning_rate": 0.01,
+    "max_depth": 3,
+    "min_child_weight": 1,
+    "subsample": 0.5,
+    "colsample_bytree": 0.5,
+    "gamma": 0,
+    "n_estimators": 100,
+}

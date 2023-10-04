@@ -2,10 +2,10 @@ from typing import Any
 
 import polars as pl
 import typer
-import wandb
 
+import wandb
 from lib.transforms.node_sum_pooling_with_graph_features_v1 import get_data
-from ml.xla_v1.sweep import SWEEP_CONFIGURATION
+from ml.xla_v1.sweep import DEFAULT_CONFIGURATION, SWEEP_CONFIGURATION
 from ml.xla_v1.train import build_model, train, validate
 
 app = typer.Typer()
@@ -24,6 +24,16 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
     best_run = sweep.best_run(order="val_perf")
     best_config = best_run.config
 
+    wandb.init(
+        project="kaggle-fast-or-slow",
+        config={
+            "data_pipeline": "node_sum_pooling_with_graph_features_v1",
+            "model": "xgboost_regressor",
+        },
+        notes="This is a full train on train + validation data, using the best hyperparameters from the sweep.",
+        job_type="retrain_from_sweep",
+    )
+
     train_data = get_data("train")
     val_data = get_data("valid")
 
@@ -31,37 +41,54 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
     data = pl.concat([train_data, val_data])
     model = build_model(**best_config)
 
-    train(model, data)
+    train_metrics = train(model, data)
+    print(train_metrics)
 
     model.save_model(f"models/{model_id}.xgb")
     wandb.save(f"models/{model_id}.xgb")
 
+    wandb.join()
+    wandb.finish()
 
-def _train_and_eval(sample: bool = False, **hyperparameters: dict[str, Any]):
-    run = wandb.init(
+
+@app.command()
+def train_and_eval(sample: bool):
+    _train_and_eval(sample=sample)
+
+
+def _train_and_eval(sample: bool = True, **hyperparameters: dict[str, Any]):
+    with wandb.init(  # type: ignore
         project="kaggle-fast-or-slow",
         config={
             "data_pipeline": "node_sum_pooling_with_graph_features_v1",
             "model": "xgboost_regressor",
         },
         notes="This approach simply sums all node features for the graph aggregation. We compute a few basic graph features, and then join on the config features. XGBoost is tuned on a log-transformed runtime value.",
-        job_type="train_and_eval",
-        mode="disabled" if sample else "online",  # don't record in sample mode
-    )
-    if run is None:
-        raise ValueError("Wandb run is None")
+        job_type="train_and_eval" if not sample else "debug",
+    ):
+        params: dict[str, Any] = DEFAULT_CONFIGURATION.copy()
+        params.update(hyperparameters)
 
-    model = build_model(**hyperparameters)
+        model = build_model(**params)
 
-    train_data = get_data("train")
-    val_data = get_data("valid")
+        train_data = get_data("train")
+        val_data = get_data("valid")
 
-    if sample:
-        train_data = train_data.limit(100)
-        val_data = val_data.limit(100)
+        if sample:
+            train_data = train_data.limit(100)
+            val_data = val_data.limit(100)
 
-    train_metrics = train(model, train_data)
-    run.log(train_metrics)
+        train_metrics = train(model, train_data)
+        print(train_metrics)
+        wandb.log(train_metrics)
 
-    val_metrics = validate(model, val_data)
-    run.log(val_metrics)
+        val_metrics = validate(model, val_data)
+        print(val_metrics)
+        wandb.log(val_metrics)
+
+        wandb.join()
+        wandb.finish()
+
+
+if __name__ == "__main__":
+    app()

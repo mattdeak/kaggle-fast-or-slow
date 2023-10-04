@@ -57,10 +57,10 @@ def train(
 
 def validate(model: XGBRegressor, data: pl.LazyFrame) -> dict[str, float]:
     val = to_datasplit(data)
-
     val_preds = model.predict(val.X)
+    log_y_val = np.log(val.y)
 
-    val_loss = np.sqrt(np.mean((val.y - val_preds) ** 2))
+    val_loss = np.sqrt(np.mean((log_y_val - val_preds) ** 2))
     val_slowdown = xla_slowdown_from_runtime_preds(val.file_ids, val.y, val_preds)
     return {"val_perf": val_slowdown, "val_loss": val_loss}
 
