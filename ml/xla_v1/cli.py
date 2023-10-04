@@ -18,7 +18,7 @@ def sweep(max_sweeps: int = 30):
 
 
 @app.command()
-def retrain_from_sweep(sweep_id: str, model_id: str):
+def retrain_from_sweep(sweep_id: str, model_id: str, max_configs_per_file: int = 700):
     api = wandb.Api()
     sweep = api.sweep(f"kaggle-fast-or-slow/{sweep_id}")
     best_run = sweep.best_run(order="val_perf")
@@ -34,7 +34,7 @@ def retrain_from_sweep(sweep_id: str, model_id: str):
         job_type="retrain_from_sweep",
     )
 
-    train_data = get_data("train", max_configs_per_file=700)
+    train_data = get_data("train", max_configs_per_file=max_configs_per_file)
     val_data = get_data("valid")
 
     # Join train and validation data, since we're retraining on the full dataset
