@@ -20,7 +20,7 @@ def sweep(max_sweeps: int = 30):
 @app.command()
 def retrain_from_sweep(sweep_id: str, model_id: str):
     api = wandb.Api()
-    sweep = api.sweep(sweep_id)
+    sweep = api.sweep(f"kaggle-fast-or-slow/{sweep_id}")
     best_run = sweep.best_run(order="val_perf")
     best_config = best_run.config
 
