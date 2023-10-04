@@ -98,7 +98,7 @@ def get_data(
 
     if max_configs_per_file is not None:
         processed_config = processed_config.group_by("file_id").map_groups(
-            lambda x: sample, schema=None
+            lambda x: sample(x, max_configs_per_file), schema=None
         )
 
     # There are _a crazy amount_ of permutations for some files, so we'll randomly
