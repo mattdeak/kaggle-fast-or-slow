@@ -43,10 +43,11 @@ class XLATileDataset(Dataset):
         "pre_transform.pt",
     ]
 
-    def __init__(self, *, processed: str, raw: str):
+    def __init__(self, *, processed: str, raw: str, limit: int | None = None):
         self.processed = processed
         self.raw = raw
         self._processed_file_names: list[str] = []
+        self.limit = limit
         super().__init__()
 
     @property
@@ -79,21 +80,20 @@ class XLATileDataset(Dataset):
             self._processed_file_names = os.listdir(self.processed_dir)
             return
 
+        if self.limit is not None:
+            raw_paths = self.raw_paths[: self.limit]
+        else:
+            raw_paths = self.raw_paths
+
         with ThreadPoolExecutor(max_workers=18) as pool:
             args = [
-                (raw_path, identifier)
-                for identifier, raw_path in enumerate(self.raw_paths)
+                (raw_path, identifier) for identifier, raw_path in enumerate(raw_paths)
             ]
-            results = pool.map(
+            pool.map(
                 self._process_file,
                 (raw_path for raw_path, _ in args),
                 (identifier for _, identifier in args),
             )
-
-        print(results)
-
-        for result in results:
-            print(result)
 
     def len(self):
         return len(self.processed_file_names)

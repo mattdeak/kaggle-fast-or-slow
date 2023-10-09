@@ -1,10 +1,7 @@
-import random
-from typing import Generator
-
-import numpy as np
 import torch
 import torch.nn.functional as F
-from torch_geometric.data import Data, DataLoader
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GCNConv, global_mean_pool
 from tqdm.auto import tqdm
 
@@ -18,15 +15,29 @@ class ModifiedGCN(torch.nn.Module):
         self,
         graph_input_dim: int,
         global_input_dim: int,
-        hidden_dim: int,
+        gcn_out_dims: list[int],
+        linear_dims: list[int],
         output_dim: int,
     ):
         super().__init__()
-        self.conv1 = GCNConv(graph_input_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, 8)
 
-        self.fc1 = torch.nn.Linear(global_input_dim + 8, 16)
-        self.fc2 = torch.nn.Linear(16, output_dim)
+        initial_conv = GCNConv(graph_input_dim, gcn_out_dims[0])
+        self.convs = torch.nn.ModuleList(
+            [initial_conv]
+            + [GCNConv(i, o) for i, o in zip(gcn_out_dims[:-1], gcn_out_dims[1:])]
+        )
+
+        first_linear = torch.nn.Linear(
+            gcn_out_dims[-1] + global_input_dim, linear_dims[0]
+        )
+
+        self.fcs = torch.nn.ModuleList(
+            [first_linear]
+            + [torch.nn.Linear(i, o) for i, o in zip(linear_dims[:-1], linear_dims[1:])]
+        )
+
+        output_linear = torch.nn.Linear(linear_dims[-1], output_dim)
+        self.fcs.append(output_linear)
 
     def forward(self, data: Data):
         x, edge_index, global_features = (
@@ -34,21 +45,18 @@ class ModifiedGCN(torch.nn.Module):
             data.edge_index,
             data["global_features"],
         )
-        x = self.conv1(x, edge_index)
-        x = F.leaky_relu(x)
 
-        x = self.conv2(x, edge_index)
-        x = F.leaky_relu(x)
+        for conv in self.convs:
+            x = conv(x, edge_index)
+            x = F.leaky_relu(x)
 
         pool = global_mean_pool(x, data.batch)
-        concat = torch.cat((pool, global_features), dim=1)
+        x = torch.cat((pool, global_features), dim=1)
 
-        x = self.fc1(concat)
+        for fc in self.fcs:
+            x = fc(x)
+            x = F.leaky_relu(x)
 
-        x = F.leaky_relu(x)
-        x = self.fc2(x)
-
-        x = F.leaky_relu(x)
         return x
 
 
@@ -57,35 +65,56 @@ class ModifiedGCN(torch.nn.Module):
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
 
-nn = ModifiedGCN(INPUT_DIM, GLOBAL_INPUT_DIM, 16, 1)
+GCN_DIMS = [64, 32, 16]
+LINEAR_DIMS = [128, 64, 32]
 
-# |%%--%%| <NhXS6Kuh4Q|rB1YNoqy5j>
-DIR = "data/npz/tile/xla/train"
+nn = ModifiedGCN(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 
-# |%%--%%| <rB1YNoqy5j|nfOme9DOd0>
+# |%%--%%| <NhXS6Kuh4Q|1NKjfOoHTI>
 
-from torch_geometric.data import DataLoader
+TRAIN_DIR = "data/npz/tile/xla/train"
+VALID_DIR = "data/npz/tile/xla/valid"
+train_dataset = XLATileDataset(
+    processed="data/processed/train", raw=TRAIN_DIR, limit=100
+)
+valid_dataset = XLATileDataset(
+    processed="data/processed/valid", raw=VALID_DIR, limit=100
+)
 
-loader = DataLoader(test_data, batch_size=32)
+
+# |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
+
+
+train_loader = DataLoader(train_dataset, batch_size=32)
+valid_loader = DataLoader(valid_dataset, batch_size=32)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = nn.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
+
+import wandb
 
 model.train()
 
-for batch in tqdm(loader):
-    batch = batch.to(device)
-    optimizer.zero_grad()
-    out = model(batch)
-    loss = F.mse_loss(out.flatten(), batch.y)
-    loss.backward()
-    optimizer.step()
+with wandb.init(project="kaggle-fast-or-slow"):
+    wandb.watch(model)
+    for epoch in range(5):
+        model.train()
+        for i, batch in tqdm(enumerate(train_loader)):
+            batch.to(device)
+            optimizer.zero_grad()
+            out = model(batch)
+            loss = F.mse_loss(out.flatten(), batch.y)
+            loss.backward()
+            optimizer.step()
 
+            if i % 100 == 0:
+                wandb.log({"train_loss": loss.item()})
 
-# |%%--%%| <nfOme9DOd0|1NKjfOoHTI>
-
-
-train_dataset = XLATileDataset(
-    processed="data/processed", raw="data/npz/tile/xla/train"
-)
+        model.eval()
+        with torch.no_grad():
+            for batch in tqdm(valid_loader):
+                batch.to(device)
+                out = model(batch)
+                loss = F.mse_loss(out.flatten(), batch.y)
+                wandb.log({"valid_loss": loss.item()})
