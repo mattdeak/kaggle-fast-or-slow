@@ -78,6 +78,13 @@ class XLATileDataset(Dataset):
 
         if len(processed_files) > 0:
             self._processed_file_names = os.listdir(self.processed_dir)
+
+            # Remove the files to ignore
+            self._processed_file_names = [
+                file
+                for file in self._processed_file_names
+                if file not in self.FILES_TO_IGNORE
+            ]
             return
 
         if self.limit is not None:
