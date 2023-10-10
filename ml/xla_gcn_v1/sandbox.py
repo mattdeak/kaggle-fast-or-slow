@@ -24,7 +24,6 @@ VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
     processed="data/processed/train",
     raw=TRAIN_DIR,
-    limit=1000,
     max_files_per_config=200,
 )
 
@@ -34,8 +33,10 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
 
 
-train_loader = DataLoader(train_dataset, batch_size=32)
-valid_loader = DataLoader(valid_dataset, batch_size=32)
+train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
+valid_loader = DataLoader(valid_dataset, batch_size=32, num_workers=4)
+
+# |%%--%%| <w6oI8NpWeo|fQ28csLHaF>
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -58,7 +59,7 @@ with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
     wandb.watch(model)
     model.train()
     for i, batch in tqdm(enumerate(train_loader)):
-        batch.to(device)
+        batch = batch.to(device)
         optimizer.zero_grad()
         out = model(batch)
         loss = F.mse_loss(out.flatten(), batch.y)
@@ -69,11 +70,12 @@ with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
             wandb.log({"train_loss": loss.item()})
 
         if i % EVAL_INTERVAL == 0:
+            print("Evaluating...")
             model.eval()
             validation_loss = 0
             with torch.no_grad():
-                for batch in tqdm(valid_loader):
-                    batch.to(device)
+                for batch in valid_loader:
+                    batch = batch.to(device)
                     out = model(batch)
                     loss = F.mse_loss(out.flatten(), batch.y)
                     validation_loss += loss.item()
@@ -83,5 +85,6 @@ with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
             model.train()
 
         if i % CHECKPOINT_INTERVAL == 0:
-            torch.save(model.state_dict(), f"data/models/model_step{i}.pt")
-            torch.save(optimizer.state_dict(), f"data/models/optimizer_step{i}.pt")
+            print("Saving checkpoint...")
+            torch.save(model.state_dict(), f"models/model_step{i}.pt")
+            torch.save(optimizer.state_dict(), f"models/optimizer_step{i}.pt")
