@@ -33,20 +33,20 @@ def build_and_train():
 
         train_model(
             model=model,
-            **config,
+            learning_rate=config.learning_rate,
         )
 
 
 def build_gat(
     *,
-    graph_dims: list[int],
-    linear_dims: list[int],
+    graph_layers: list[int],
+    linear_layers: list[int],
 ) -> ModifiedGAT:
     return ModifiedGAT(
         graph_input_dim=INPUT_DIM,
         global_input_dim=GLOBAL_INPUT_DIM,
-        gcn_out_dims=graph_dims,
-        linear_dims=linear_dims,
+        gcn_out_dims=graph_layers,
+        linear_dims=linear_layers,
         output_dim=1,
     )
 
@@ -56,9 +56,7 @@ def train_model(
     model: ModifiedGAT,
     learning_rate: float,
     batch_size: int = 64,
-    name: str = "gat_default",
     epochs: int = 5,
-    **kwargs: dict[str, Any],
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
