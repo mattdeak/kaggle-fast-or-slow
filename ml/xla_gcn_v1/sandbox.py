@@ -35,7 +35,7 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=4)
 valid_loader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4)
@@ -72,7 +72,7 @@ with wandb.init(
     name="gcn_v1_test_mean_max_pool",
     job_type="test",
     config={
-        "model": "gcn_v1",
+        "model": nn.MODEL_ID,
         "dataset": "xla",
         "optimizer": "adam",
         "lr": LR,
@@ -83,6 +83,7 @@ with wandb.init(
     wandb.watch(model)
     model.train()
     for epoch in range(EPOCHS):
+        model.train()
         for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
             batch = batch.to(device)
             optimizer.zero_grad()
@@ -95,29 +96,25 @@ with wandb.init(
                 train_rmse = np.sqrt(loss.item())
                 wandb.log({"train_rmse": train_rmse})
 
-            if i % EVAL_INTERVAL == 0:
-                print("Evaluating...")
-                model.eval()
-                validation_loss = 0
-                with torch.no_grad():
-                    for batch in valid_loader:
-                        batch = batch.to(device)
-                        out = model(batch)
-                        loss = F.mse_loss(out.flatten(), batch.y)
-                        validation_loss += loss.item()
+        print("Evaluating...")
+        model.eval()
+        validation_loss = 0
+        with torch.no_grad():
+            for batch in valid_loader:
+                batch = batch.to(device)
+                out = model(batch)
+                loss = F.mse_loss(out.flatten(), batch.y)
+                validation_loss += loss.item()
 
-                validation_loss /= len(valid_loader)
-                validation_loss = np.sqrt(validation_loss)
-                wandb.log({"valid_rmse": validation_loss})
-                model.train()
+        validation_loss /= len(valid_loader)
+        validation_loss = np.sqrt(validation_loss)
+        wandb.log({"valid_rmse": validation_loss})
 
-            if i % CHECKPOINT_INTERVAL == 0 or i == len(train_loader) - 1:
-                print("Saving checkpoint...")
-                step = epoch * len(train_loader) + i
-                model_path = os.path.join(MODEL_DIR, f"model_step{step}.pt")
-                optim_path = os.path.join(MODEL_DIR, f"optimizer_step{step}.pt")
-                torch.save(model.state_dict(), model_path)
-                torch.save(optimizer.state_dict(), optim_path)
+        print("Saving checkpoint...")
+        model_path = os.path.join(MODEL_DIR, f"model_epoch{epoch}.pt")
+        optim_path = os.path.join(MODEL_DIR, f"optimizer_epoch{epoch}.pt")
+        torch.save(model.state_dict(), model_path)
+        torch.save(optimizer.state_dict(), optim_path)
 
 torch.save(model.state_dict(), os.path.join(MODEL_DIR, "model_final.pt"))
 torch.save(optimizer.state_dict(), os.path.join(MODEL_DIR, "optimizer_final.pt"))

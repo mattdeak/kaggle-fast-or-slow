@@ -6,6 +6,8 @@ from torch_geometric.nn.pool import global_max_pool
 
 
 class ModifiedGCN(torch.nn.Module):
+    MODEL_ID = "gcn_v1"
+
     def __init__(
         self,
         graph_input_dim: int,
@@ -58,6 +60,8 @@ class ModifiedGCN(torch.nn.Module):
 
 
 class ModifiedGAT(torch.nn.Module):
+    MODEL_ID = "gat"
+
     def __init__(
         self,
         graph_input_dim: int,
