@@ -25,16 +25,16 @@ MODEL_ROOT_DIR = "models"
 
 
 def build_and_train():
-    config = wandb.config
-    print(config)
-    model = build_gat(
-        **config,
-    )
+    with wandb.init(project="kaggle-fast-or-slow", job_type="sweep"):
+        config = wandb.config
+        model = build_gat(
+            **config,
+        )
 
-    train_model(
-        model=model,
-        **config,
-    )
+        train_model(
+            model=model,
+            **config,
+        )
 
 
 def build_gat(
@@ -76,50 +76,35 @@ def train_model(
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, fused=True)
-
-    with wandb.init(
-        project="kaggle-fast-or-slow",
-        name=name,
-        job_type="test",
-        config={
-            "model": model.MODEL_ID,
-            "dataset": "xla",
-            "optimizer": "adam",
-            "learning_rate": learning_rate,
-            "batch_size": batch_size,
-            **kwargs,
-        },
-        notes="Simple GAT with LayerNorm and global mean pooling on graph layers",
-    ):
-        wandb.watch(model)
+    wandb.watch(model)
+    model.train()
+    for epoch in range(epochs):
         model.train()
-        for epoch in range(epochs):
-            model.train()
-            for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
+        for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
+            batch = batch.to(device)
+            optimizer.zero_grad()
+            out = model(batch)
+
+            loss = F.mse_loss(out.flatten(), batch.y)
+            loss.backward()
+            optimizer.step()
+
+            if i % LOG_INTERVAL == 0:
+                train_rmse = np.sqrt(loss.item())
+                wandb.log({"train_rmse": train_rmse})
+
+        print("Evaluating...")
+        model.eval()
+        validation_loss = 0
+        with torch.no_grad():
+            for batch in valid_loader:
                 batch = batch.to(device)
-                optimizer.zero_grad()
                 out = model(batch)
-
                 loss = F.mse_loss(out.flatten(), batch.y)
-                loss.backward()
-                optimizer.step()
+                validation_loss += loss.item()
 
-                if i % LOG_INTERVAL == 0:
-                    train_rmse = np.sqrt(loss.item())
-                    wandb.log({"train_rmse": train_rmse})
+        validation_loss /= len(valid_loader)
+        validation_loss = np.sqrt(validation_loss)
+        wandb.log({"valid_rmse": validation_loss})
 
-            print("Evaluating...")
-            model.eval()
-            validation_loss = 0
-            with torch.no_grad():
-                for batch in valid_loader:
-                    batch = batch.to(device)
-                    out = model(batch)
-                    loss = F.mse_loss(out.flatten(), batch.y)
-                    validation_loss += loss.item()
-
-            validation_loss /= len(valid_loader)
-            validation_loss = np.sqrt(validation_loss)
-            wandb.log({"valid_rmse": validation_loss})
-
-            print("Saving checkpoint...")
+        print("Saving checkpoint...")
