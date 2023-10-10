@@ -75,10 +75,7 @@ nn = ModifiedGCN(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 TRAIN_DIR = "data/npz/tile/xla/train"
 VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
-    processed="data/processed/train",
-    raw=TRAIN_DIR,
-    limit=100,
-    max_files_per_config=1000,
+    processed="data/processed/train", raw=TRAIN_DIR, max_files_per_config=1000
 )
 
 valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
