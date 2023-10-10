@@ -16,12 +16,12 @@ def parse_file(file_path: str) -> list[Data]:
     ohe_opcodes = np.zeros((data["node_opcode"].shape[0], 121))
     ohe_opcodes[np.arange(data["node_opcode"].shape[0]), data["node_opcode"]] = 1
     node_features = torch.tensor(
-        np.hstack((data["node_feat"], ohe_opcodes)), dtype=torch.float
+        np.hstack((data["node_feat"], ohe_opcodes)), dtype=torch.float32
     )
     edge_index = torch.tensor(data["edge_index"].T)
     target = torch.tensor(
         np.log(data["config_runtime"] / data["config_runtime_normalizers"]),
-        dtype=torch.float,
+        dtype=torch.float32,
     )
 
     return [
