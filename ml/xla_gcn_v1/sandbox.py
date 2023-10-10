@@ -27,7 +27,7 @@ VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
     processed="data/processed/train",
     raw=TRAIN_DIR,
-    max_files_per_config=1000,
+    max_files_per_config=2000,
 )
 
 valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
@@ -47,7 +47,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
 
-LR = 0.0001
+LR = 0.001
 WEIGHT_DECAY = 5e-4
 
 model = nn.to(device)
@@ -55,14 +55,15 @@ optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECA
 
 
 LOG_INTERVAL = 100
-EVAL_INTERVAL = 20000
-CHECKPOINT_INTERVAL = 20000
 MODEL_DIR = f"models/{nn.MODEL_ID}"
 os.makedirs(MODEL_DIR, exist_ok=True)  # type: ignore
 
-EPOCHS = 3
+EPOCHS = 10
 
 # |%%--%%| <fQ28csLHaF|HwDaQ6K4aZ>
+
+# load latest checkpoint
+
 
 import wandb
 
@@ -85,6 +86,7 @@ with wandb.init(
 ):
     wandb.watch(model)
     model.train()
+    last_eval = 0
     for epoch in range(EPOCHS):
         model.train()
         for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
@@ -112,7 +114,7 @@ with wandb.init(
 
         validation_loss /= len(valid_loader)
         validation_loss = np.sqrt(validation_loss)
-        wandb.log({"valid_rmse": validation_loss})
+        wandb.log({"val_rmse": validation_loss})
 
         print("Saving checkpoint...")
         model_path = os.path.join(MODEL_DIR, f"model_epoch{epoch}.pt")
