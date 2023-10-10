@@ -57,7 +57,7 @@ class XLATileDataset(Dataset):
         self.processed = processed
         self.raw = raw
         self._processed_file_names: list[str] = []
-        self.max_files_per_config = max_files_per_config
+        self.max_configs_per_file = max_files_per_config
         self.limit = limit
         self.shuffle_configs = shuffle_configs
         super().__init__()
@@ -134,5 +134,5 @@ class XLATileDataset(Dataset):
             torch.save(d, os.path.join(self.processed_dir, filename))
             self._processed_file_names.append(filename)
 
-            if self.max_files_per_config and jdx >= self.max_files_per_config:
+            if self.max_configs_per_file and jdx >= self.max_configs_per_file:
                 break

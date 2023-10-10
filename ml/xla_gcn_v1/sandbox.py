@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
@@ -26,7 +27,7 @@ VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
     processed="data/processed/train",
     raw=TRAIN_DIR,
-    max_files_per_config=200,
+    max_files_per_config=1000,
 )
 
 valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
@@ -89,7 +90,8 @@ with wandb.init(
         optimizer.step()
 
         if i % LOG_INTERVAL == 0:
-            wandb.log({"train_loss": loss.item()})
+            train_rmse = np.sqrt(loss.item())
+            wandb.log({"train_rmse": train_rmse})
 
         if i % EVAL_INTERVAL == 0:
             print("Evaluating...")
@@ -100,10 +102,10 @@ with wandb.init(
                     batch = batch.to(device)
                     out = model(batch)
                     loss = F.mse_loss(out.flatten(), batch.y)
-                    validation_loss += loss.item()
+                    validation_loss += np.sqrt(loss.item())
 
             validation_loss /= len(valid_loader)
-            wandb.log({"valid_loss": validation_loss})
+            wandb.log({"valid_rmse": validation_loss})
             model.train()
 
         if i % CHECKPOINT_INTERVAL == 0:
@@ -112,3 +114,6 @@ with wandb.init(
             optim_path = os.path.join(MODEL_DIR, f"optimizer_step{i}.pt")
             torch.save(model.state_dict(), model_path)
             torch.save(optimizer.state_dict(), optim_path)
+
+torch.save(model.state_dict(), os.path.join(MODEL_DIR, "model_final.pt"))
+torch.save(optimizer.state_dict(), os.path.join(MODEL_DIR, "optimizer_final.pt"))

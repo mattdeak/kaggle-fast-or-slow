@@ -52,7 +52,7 @@ def train(
     train_slowdown = xla_slowdown_from_runtime_preds(
         train.file_ids, train.y, train_preds
     )
-    return {"train_perf": train_slowdown, "train_loss": loss}
+    return {"train_tile_perf": train_slowdown, "train_rmse": loss}
 
 
 def validate(model: XGBRegressor, data: pl.LazyFrame) -> dict[str, float]:
@@ -62,7 +62,7 @@ def validate(model: XGBRegressor, data: pl.LazyFrame) -> dict[str, float]:
 
     val_loss = np.sqrt(np.mean((log_y_val - val_preds) ** 2))
     val_slowdown = xla_slowdown_from_runtime_preds(val.file_ids, val.y, val_preds)
-    return {"val_perf": val_slowdown, "val_loss": val_loss}
+    return {"val_tile_perf": val_slowdown, "val_rmse": val_loss}
 
 
 # def generate_submissions(
