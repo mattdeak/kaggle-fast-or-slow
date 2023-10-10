@@ -78,6 +78,8 @@ with wandb.init(
         "lr": LR,
         "weight_decay": WEIGHT_DECAY,
         "batch_size": BATCH_SIZE,
+        "gcnn_dims": GCN_DIMS,
+        "linear_dims": LINEAR_DIMS,
     },
     notes="Simple GAT with LayerNorm and global max pooling on graph layers",
     mode="disabled",
