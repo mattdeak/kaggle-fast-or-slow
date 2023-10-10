@@ -28,7 +28,8 @@ def build_and_train():
     with wandb.init(project="kaggle-fast-or-slow", job_type="sweep"):
         config = wandb.config
         model = build_gat(
-            **config,
+            graph_layers=config.graph_layers,
+            linear_layers=config.linear_layers,
         )
 
         train_model(
