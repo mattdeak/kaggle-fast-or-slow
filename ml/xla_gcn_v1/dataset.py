@@ -1,5 +1,6 @@
 import glob
 import os
+import random
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -43,11 +44,21 @@ class XLATileDataset(Dataset):
         "pre_transform.pt",
     ]
 
-    def __init__(self, *, processed: str, raw: str, limit: int | None = None):
+    def __init__(
+        self,
+        *,
+        processed: str,
+        raw: str,
+        limit: int | None = None,
+        max_files_per_config: int | None = None,
+        shuffle_configs: bool = True,
+    ):
         self.processed = processed
         self.raw = raw
         self._processed_file_names: list[str] = []
+        self.max_files_per_config = max_files_per_config
         self.limit = limit
+        self.shuffle_configs = shuffle_configs
         super().__init__()
 
     @property
@@ -115,7 +126,14 @@ class XLATileDataset(Dataset):
         print("Processing", raw_path)
         all_data = parse_file(raw_path)
 
+        # randomly shuffle
+        if self.shuffle_configs:
+            random.shuffle(all_data)
+
         for jdx, d in enumerate(all_data):
             filename = f"data_{identifier}_config{jdx}.pt"
             torch.save(d, os.path.join(self.processed_dir, filename))
             self._processed_file_names.append(filename)
+
+            if self.max_files_per_config and jdx >= self.max_files_per_config:
+                break
