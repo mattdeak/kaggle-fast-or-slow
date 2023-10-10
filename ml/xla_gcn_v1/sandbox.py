@@ -67,7 +67,7 @@ import wandb
 model.train()
 with wandb.init(
     project="kaggle-fast-or-slow",
-    name="gcn_v1_test_mean_max_pool",
+    id="gcn_v1_test_mean_max_pool",
     job_type="test",
     config={
         "model": "gcn_v1",
