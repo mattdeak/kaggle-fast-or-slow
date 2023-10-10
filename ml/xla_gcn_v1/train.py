@@ -27,9 +27,9 @@ def train_gat(
     learning_rate: float,
     linear_layers: list[int],
     graph_layers: list[int],
-    epochs: int,
-    batch_size: int,
+    batch_size: int = 64,
     name: str = "gat_default",
+    epochs: int = 5,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

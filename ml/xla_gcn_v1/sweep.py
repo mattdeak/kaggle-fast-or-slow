@@ -1,5 +1,3 @@
-import numpy as np
-
 SWEEP_CONFIGURATION = {
     "method": "bayes",
     "name": "sweep",
