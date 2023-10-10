@@ -51,14 +51,14 @@ model.train()
 
 
 LOG_INTERVAL = 100
-EVAL_INTERVAL = 1000
-CHECKPOINT_INTERVAL = 1000
+EVAL_INTERVAL = 20000
+CHECKPOINT_INTERVAL = 20000
 
 
 with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
     wandb.watch(model)
     model.train()
-    for i, batch in tqdm(enumerate(train_loader)):
+    for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
         batch = batch.to(device)
         optimizer.zero_grad()
         out = model(batch)
