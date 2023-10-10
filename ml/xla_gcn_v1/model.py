@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv, global_mean_pool
+from torch_geometric.nn.pool import global_max_pool
 
 
 class ModifiedGCN(torch.nn.Module):
@@ -43,8 +44,10 @@ class ModifiedGCN(torch.nn.Module):
             x = conv(x, edge_index)
             x = F.leaky_relu(x)
 
-        pool = global_mean_pool(x, data.batch)
-        x = torch.cat((pool, global_features), dim=1)
+        mean_pool = global_mean_pool(x, data.batch)
+        max_pool = global_max_pool(x, data.batch)
+
+        x = torch.cat((mean_pool, max_pool, global_features), dim=1)
 
         for fc in self.fcs:
             x = fc(x)

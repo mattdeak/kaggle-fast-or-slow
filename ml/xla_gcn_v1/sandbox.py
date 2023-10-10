@@ -34,15 +34,20 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
 
+BATCH_SIZE = 32
 
-train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
-valid_loader = DataLoader(valid_dataset, batch_size=32, num_workers=4)
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=4)
+valid_loader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4)
 
 # |%%--%%| <w6oI8NpWeo|fQ28csLHaF>
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
+
+
+LR = 0.0001
+WEIGHT_DECAY = 5e-4
 
 model = nn.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
@@ -60,7 +65,19 @@ os.makedirs(MODEL_DIR, exist_ok=True)  # type: ignore
 import wandb
 
 model.train()
-with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
+with wandb.init(
+    project="kaggle-fast-or-slow",
+    name="gcn_v1_test_mean_max_pool",
+    job_type="test",
+    config={
+        "model": "gcn_v1",
+        "dataset": "xla",
+        "optimizer": "adam",
+        "lr": LR,
+        "weight_decay": WEIGHT_DECAY,
+        "batch_size": BATCH_SIZE,
+    },
+):
     wandb.watch(model)
     model.train()
     for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
