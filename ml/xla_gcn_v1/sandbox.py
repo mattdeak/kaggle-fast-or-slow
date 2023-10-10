@@ -8,7 +8,7 @@ from torch_geometric.loader import DataLoader
 from tqdm.auto import tqdm
 
 from ml.xla_gcn_v1.dataset import XLATileDataset
-from ml.xla_gcn_v1.model import ModifiedGCN
+from ml.xla_gcn_v1.model import ModifiedGAT, ModifiedGCN
 
 # |%%--%%| <I0yQRtnqYq|NhXS6Kuh4Q>
 
@@ -18,7 +18,7 @@ GLOBAL_INPUT_DIM = 24
 GCN_DIMS = [64, 32, 16]
 LINEAR_DIMS = [128, 64, 32]
 
-nn = ModifiedGCN(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
+nn = ModifiedGAT(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 
 # |%%--%%| <NhXS6Kuh4Q|1NKjfOoHTI>
 
@@ -68,7 +68,7 @@ import wandb
 
 with wandb.init(
     project="kaggle-fast-or-slow",
-    id="gcn_v1_test_mean_max_pool",
+    id="gat_v1_test_mean_max_pool",
     job_type="test",
     config={
         "model": "gcn_v1",
