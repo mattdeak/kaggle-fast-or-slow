@@ -2,7 +2,7 @@ import typer
 
 import wandb
 from ml.xla_gcn_v1.sweep import SWEEP_CONFIGURATION
-from ml.xla_gcn_v1.train import train_gat
+from ml.xla_gcn_v1.train import build_and_train
 
 app = typer.Typer()
 
@@ -10,7 +10,7 @@ app = typer.Typer()
 @app.command()
 def sweep(max_sweeps: int = 10):
     sweep_id = wandb.sweep(sweep=SWEEP_CONFIGURATION, project="kaggle-fast-or-slow")
-    wandb.agent(sweep_id, train_gat, count=max_sweeps)
+    wandb.agent(sweep_id, build_and_train, count=max_sweeps)
 
 
 @app.command()

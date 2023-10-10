@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import numpy as np
 import torch
@@ -23,14 +24,39 @@ LOG_INTERVAL = 100
 MODEL_ROOT_DIR = "models"
 
 
-def train_gat(
+def build_and_train(config: dict[str, Any]):
+    model = build_gat(
+        **config,
+    )
+
+    train_model(
+        model=model,
+        **config,
+    )
+
+
+def build_gat(
     *,
+    graph_dims: list[int],
+    linear_dims: list[int],
+) -> ModifiedGAT:
+    return ModifiedGAT(
+        graph_input_dim=INPUT_DIM,
+        global_input_dim=GLOBAL_INPUT_DIM,
+        gcn_out_dims=graph_dims,
+        linear_dims=linear_dims,
+        output_dim=1,
+    )
+
+
+def train_model(
+    *,
+    model: ModifiedGAT,
     learning_rate: float,
-    linear_layers: list[int],
-    graph_layers: list[int],
     batch_size: int = 64,
     name: str = "gat_default",
     epochs: int = 5,
+    **kwargs: dict[str, Any],
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -45,7 +71,6 @@ def train_gat(
     train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=4)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=4)
 
-    model = ModifiedGAT(INPUT_DIM, GLOBAL_INPUT_DIM, graph_layers, linear_layers, 1)
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, fused=True)
@@ -58,10 +83,9 @@ def train_gat(
             "model": model.MODEL_ID,
             "dataset": "xla",
             "optimizer": "adam",
-            "lr": learning_rate,
+            "learning_rate": learning_rate,
             "batch_size": batch_size,
-            "graph_dims": graph_layers,
-            "linear_dims": linear_layers,
+            **kwargs,
         },
         notes="Simple GAT with LayerNorm and global mean pooling on graph layers",
     ):
