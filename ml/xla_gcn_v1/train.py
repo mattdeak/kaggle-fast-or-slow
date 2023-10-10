@@ -24,6 +24,7 @@ MODEL_ROOT_DIR = "models"
 
 
 def train_gat(
+    *,
     learning_rate: float,
     linear_layers: list[int],
     graph_layers: list[int],
