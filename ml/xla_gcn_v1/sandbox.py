@@ -51,7 +51,7 @@ LR = 0.0001
 WEIGHT_DECAY = 5e-4
 
 model = nn.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
 LOG_INTERVAL = 100
@@ -68,7 +68,8 @@ import wandb
 
 with wandb.init(
     project="kaggle-fast-or-slow",
-    id="gat_v1_test_mean_max_pool",
+    # id="gat_v1_test_mean_max_pool",
+    name="gcn_v1_test_mean_max_pool",
     job_type="test",
     config={
         "model": "gcn_v1",
