@@ -109,6 +109,7 @@ class XLATileDataset(Dataset):
             self._process_file,
             (raw_path for raw_path, _ in args),
             (identifier for _, identifier in args),
+            max_workers=16,
             total=len(args),
         )
 
