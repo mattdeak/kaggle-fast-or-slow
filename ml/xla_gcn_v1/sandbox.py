@@ -82,7 +82,6 @@ with wandb.init(
         "linear_dims": LINEAR_DIMS,
     },
     notes="Simple GAT with LayerNorm and global max pooling on graph layers",
-    mode="disabled",
 ):
     wandb.watch(model)
     model.train()
