@@ -104,9 +104,9 @@ class ModifiedGAT(torch.nn.Module):
             x = F.relu(x)
             x = norm(x)
 
-        # mean_pool = global_mean_pool(x, data.batch)
-        max_pool = global_max_pool(x, data.batch)
-        x = torch.cat((max_pool, global_features), dim=1)
+        mean_pool = global_mean_pool(x, data.batch)
+        # max_pool = global_max_pool(x, data.batch)
+        x = torch.cat((mean_pool, global_features), dim=1)
 
         for fc in self.fcs:
             x = fc(x)

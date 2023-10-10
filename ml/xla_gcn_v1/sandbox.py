@@ -15,8 +15,8 @@ from ml.xla_gcn_v1.model import ModifiedGAT, ModifiedGCN
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
 
-GCN_DIMS = [32, 24, 16]
-LINEAR_DIMS = [64, 32, 16]
+GCN_DIMS = [64, 64, 64]
+LINEAR_DIMS = [128, 64, 32]
 
 nn = ModifiedGAT(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 
@@ -69,7 +69,7 @@ import wandb
 with wandb.init(
     project="kaggle-fast-or-slow",
     # id="gat_v1_test_mean_max_pool",
-    name=f"{nn.MODEL_ID}_test_max_pool",
+    name=f"{nn.MODEL_ID}_test_mean_pool",
     job_type="test",
     config={
         "model": nn.MODEL_ID,
@@ -81,7 +81,7 @@ with wandb.init(
         "gcnn_dims": GCN_DIMS,
         "linear_dims": LINEAR_DIMS,
     },
-    notes="Simple GAT with LayerNorm and global max pooling on graph layers",
+    notes="Simple GAT with LayerNorm and global mean pooling on graph layers",
 ):
     wandb.watch(model)
     model.train()
