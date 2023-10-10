@@ -75,11 +75,10 @@ nn = ModifiedGCN(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 TRAIN_DIR = "data/npz/tile/xla/train"
 VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
-    processed="data/processed/train", raw=TRAIN_DIR, limit=100
+    processed="data/processed/train", raw=TRAIN_DIR, max_files_per_config=1000
 )
-valid_dataset = XLATileDataset(
-    processed="data/processed/valid", raw=VALID_DIR, limit=100
-)
+
+valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 
 
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
@@ -96,25 +95,34 @@ import wandb
 
 model.train()
 
+
+LOG_INTERVAL = 100
+EVAL_INTERVAL = 1000
+
 with wandb.init(project="kaggle-fast-or-slow"):
     wandb.watch(model)
-    for epoch in range(5):
-        model.train()
-        for i, batch in tqdm(enumerate(train_loader)):
-            batch.to(device)
-            optimizer.zero_grad()
-            out = model(batch)
-            loss = F.mse_loss(out.flatten(), batch.y)
-            loss.backward()
-            optimizer.step()
+    model.train()
+    for i, batch in tqdm(enumerate(train_loader)):
+        batch.to(device)
+        optimizer.zero_grad()
+        out = model(batch)
+        loss = F.mse_loss(out.flatten(), batch.y)
+        loss.backward()
+        optimizer.step()
 
-            if i % 100 == 0:
-                wandb.log({"train_loss": loss.item()})
+        if i % 100 == 0:
+            wandb.log({"train_loss": loss.item()})
 
-        model.eval()
-        with torch.no_grad():
-            for batch in tqdm(valid_loader):
-                batch.to(device)
-                out = model(batch)
-                loss = F.mse_loss(out.flatten(), batch.y)
-                wandb.log({"valid_loss": loss.item()})
+        if i % EVAL_INTERVAL == 0:
+            model.eval()
+            validation_loss = 0
+            with torch.no_grad():
+                for batch in tqdm(valid_loader):
+                    batch.to(device)
+                    out = model(batch)
+                    loss = F.mse_loss(out.flatten(), batch.y)
+                    validation_loss += loss.item()
+
+            validation_loss /= len(valid_loader)
+            wandb.log({"valid_loss": validation_loss})
+            model.train()
