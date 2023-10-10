@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import GATv2Conv, GCNConv, SAGPooling, global_mean_pool
+from torch_geometric.nn import GATv2Conv, GCNConv, LayerNorm, global_mean_pool
 from torch_geometric.nn.pool import global_max_pool
 
 
@@ -23,6 +23,8 @@ class ModifiedGCN(torch.nn.Module):
             [initial_conv]
             + [GCNConv(i, o) for i, o in zip(gcn_out_dims[:-1], gcn_out_dims[1:])]
         )
+
+        self.norms = torch.nn.ModuleList([LayerNorm(i) for i in gcn_out_dims])
 
         first_linear = torch.nn.Linear(
             gcn_out_dims[-1] * 2 + global_input_dim, linear_dims[0]
@@ -78,6 +80,8 @@ class ModifiedGAT(torch.nn.Module):
             + [GATv2Conv(i, o) for i, o in zip(gcn_out_dims[:-1], gcn_out_dims[1:])]
         )
 
+        self.layer_norms = torch.nn.ModuleList([LayerNorm(i) for i in gcn_out_dims])
+
         first_linear = torch.nn.Linear(
             gcn_out_dims[-1] * 2 + global_input_dim, linear_dims[0]
         )
@@ -96,18 +100,18 @@ class ModifiedGAT(torch.nn.Module):
             data["global_features"],
         )
 
-        for conv in self.convs:
+        for norm, conv in zip(self.layer_norms, self.convs):
             x = conv(x, edge_index)
-            x = F.leaky_relu(x)
+            x = F.relu(x)
+            x = norm(x)
 
-        mean_pool = global_mean_pool(x, data.batch)
+        # mean_pool = global_mean_pool(x, data.batch)
         max_pool = global_max_pool(x, data.batch)
-
-        x = torch.cat((mean_pool, max_pool, global_features), dim=1)
+        x = torch.cat((max_pool, global_features), dim=1)
 
         for fc in self.fcs:
             x = fc(x)
-            x = F.leaky_relu(x)
+            x = F.relu(x)
 
         x = self.output_layer(x)
         return x

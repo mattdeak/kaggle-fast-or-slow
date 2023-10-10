@@ -15,8 +15,8 @@ from ml.xla_gcn_v1.model import ModifiedGAT, ModifiedGCN
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
 
-GCN_DIMS = [64, 32, 16]
-LINEAR_DIMS = [128, 64, 32]
+GCN_DIMS = [32, 24, 16]
+LINEAR_DIMS = [64, 32, 16]
 
 nn = ModifiedGAT(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 
@@ -57,7 +57,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECA
 LOG_INTERVAL = 100
 EVAL_INTERVAL = 20000
 CHECKPOINT_INTERVAL = 20000
-MODEL_DIR = "models/gcn_v1_test"
+MODEL_DIR = f"models/{nn.MODEL_ID}"
 os.makedirs(MODEL_DIR, exist_ok=True)  # type: ignore
 
 EPOCHS = 3
@@ -69,7 +69,7 @@ import wandb
 with wandb.init(
     project="kaggle-fast-or-slow",
     # id="gat_v1_test_mean_max_pool",
-    name="gcn_v1_test_mean_max_pool",
+    name=f"{nn.MODEL_ID}_test_max_pool",
     job_type="test",
     config={
         "model": nn.MODEL_ID,
@@ -79,6 +79,8 @@ with wandb.init(
         "weight_decay": WEIGHT_DECAY,
         "batch_size": BATCH_SIZE,
     },
+    notes="Simple GAT with LayerNorm and global max pooling on graph layers",
+    mode="disabled",
 ):
     wandb.watch(model)
     model.train()
@@ -88,6 +90,7 @@ with wandb.init(
             batch = batch.to(device)
             optimizer.zero_grad()
             out = model(batch)
+
             loss = F.mse_loss(out.flatten(), batch.y)
             loss.backward()
             optimizer.step()
