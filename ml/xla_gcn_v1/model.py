@@ -81,9 +81,8 @@ class ModifiedGAT(torch.nn.Module):
         )
 
         self.layer_norms = torch.nn.ModuleList([LayerNorm(i) for i in gcn_out_dims])
-
         first_linear = torch.nn.Linear(
-            gcn_out_dims[-1] * 2 + global_input_dim, linear_dims[0]
+            gcn_out_dims[-1] + global_input_dim, linear_dims[0]
         )
 
         self.fcs = torch.nn.ModuleList(
