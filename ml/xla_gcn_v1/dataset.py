@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import torch
 from torch_geometric.data import Data, Dataset
+from tqdm.contrib.concurrent import thread_map
 
 
 def parse_file(file_path: str) -> list[Data]:
@@ -103,15 +104,13 @@ class XLATileDataset(Dataset):
         else:
             raw_paths = self.raw_paths
 
-        with ThreadPoolExecutor(max_workers=18) as pool:
-            args = [
-                (raw_path, identifier) for identifier, raw_path in enumerate(raw_paths)
-            ]
-            pool.map(
-                self._process_file,
-                (raw_path for raw_path, _ in args),
-                (identifier for _, identifier in args),
-            )
+        args = [(raw_path, identifier) for identifier, raw_path in enumerate(raw_paths)]
+        thread_map(
+            self._process_file,
+            (raw_path for raw_path, _ in args),
+            (identifier for _, identifier in args),
+            total=len(args),
+        )
 
     def len(self):
         return len(self.processed_file_names)
@@ -123,7 +122,6 @@ class XLATileDataset(Dataset):
         return data
 
     def _process_file(self, raw_path: str, identifier: int) -> None:
-        print("Processing", raw_path)
         all_data = parse_file(raw_path)
 
         # randomly shuffle
