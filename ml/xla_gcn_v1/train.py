@@ -24,7 +24,9 @@ LOG_INTERVAL = 100
 MODEL_ROOT_DIR = "models"
 
 
-def build_and_train(config: dict[str, Any]):
+def build_and_train():
+    config = wandb.config
+    print(config)
     model = build_gat(
         **config,
     )
