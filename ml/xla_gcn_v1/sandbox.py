@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
@@ -45,16 +47,19 @@ print("Using device:", device)
 model = nn.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
 
-import wandb
-
-model.train()
-
 
 LOG_INTERVAL = 100
 EVAL_INTERVAL = 20000
 CHECKPOINT_INTERVAL = 20000
+MODEL_DIR = "models/gcn_v1_test"
+os.makedirs(MODEL_DIR, exist_ok=True)  # type: ignore
 
 
+# |%%--%%| <fQ28csLHaF|HwDaQ6K4aZ>
+
+import wandb
+
+model.train()
 with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
     wandb.watch(model)
     model.train()
@@ -86,5 +91,7 @@ with wandb.init(project="kaggle-fast-or-slow", job_type="test"):
 
         if i % CHECKPOINT_INTERVAL == 0:
             print("Saving checkpoint...")
-            torch.save(model.state_dict(), f"models/model_step{i}.pt")
-            torch.save(optimizer.state_dict(), f"models/optimizer_step{i}.pt")
+            model_path = os.path.join(MODEL_DIR, f"model_step{i}.pt")
+            optim_path = os.path.join(MODEL_DIR, f"optimizer_step{i}.pt")
+            torch.save(model.state_dict(), model_path)
+            torch.save(optimizer.state_dict(), optim_path)
