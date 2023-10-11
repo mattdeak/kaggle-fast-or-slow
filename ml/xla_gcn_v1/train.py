@@ -1,6 +1,3 @@
-import os
-from typing import Any
-
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -57,7 +54,7 @@ def train_model(
     model: ModifiedGAT,
     learning_rate: float,
     batch_size: int = 64,
-    epochs: int = 5,
+    epochs: int = 3,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -73,11 +70,9 @@ def train_model(
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=4)
 
     model = model.to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, fused=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     wandb.watch(model)
-    model.train()
-    for epoch in range(epochs):
+    for _ in range(epochs):
         model.train()
         for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
             batch = batch.to(device)

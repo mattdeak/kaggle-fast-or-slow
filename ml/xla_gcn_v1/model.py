@@ -101,7 +101,7 @@ class ModifiedGAT(torch.nn.Module):
 
         for norm, conv in zip(self.layer_norms, self.convs):
             x = conv(x, edge_index)
-            x = F.relu(x)
+            x = F.leaky_relu(x)
             x = norm(x)
 
         mean_pool = global_mean_pool(x, data.batch)
@@ -110,7 +110,7 @@ class ModifiedGAT(torch.nn.Module):
 
         for fc in self.fcs:
             x = fc(x)
-            x = F.relu(x)
+            x = F.leaky_relu(x)
 
         x = self.output_layer(x)
         return x
