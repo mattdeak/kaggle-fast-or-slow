@@ -41,6 +41,8 @@ DROPOUT = 0.2
 LR = 4e-3
 WEIGHT_DECAY = 1e-4
 
+NUM_WORKERS = 8
+
 # |%%--%%| <NhXS6Kuh4Q|1NKjfOoHTI>
 
 TRAIN_DIR = "data/npz/tile/xla/train"
@@ -58,10 +60,14 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 BATCH_SIZE = 256
 
 train_loader = DataLoader(
-    train_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=True, pin_memory=True
+    train_dataset,
+    batch_size=BATCH_SIZE,
+    num_workers=NUM_WORKERS,
+    shuffle=True,
+    pin_memory=True,
 )
 valid_loader = DataLoader(
-    valid_dataset, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
+    valid_dataset, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS, pin_memory=True
 )
 
 
