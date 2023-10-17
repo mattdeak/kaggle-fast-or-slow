@@ -58,9 +58,11 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 BATCH_SIZE = 256
 
 train_loader = DataLoader(
-    train_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=True
+    train_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=True, pin_memory=True
 )
-valid_loader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4)
+valid_loader = DataLoader(
+    valid_dataset, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
+)
 
 
 def cycle(iterable: Iterable[Any]):
