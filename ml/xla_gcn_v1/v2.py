@@ -259,23 +259,28 @@ def run_train_loop():
             model.train()
 
 
-with wandb.init(
-    project="kaggle-fast-or-slow",
-    # id="gat_v1_test_mean_max_pool",
-    name=f"sage_v1_test",
-    job_type="test",
-    config={
-        "model": "sage",
-        "dataset": "xla",
-        "optimizer": "adam",
-        "lr": LR,
-        "batch_size": BATCH_SIZE,
-        "sage_layers": SAGE_LAYERS,
-        "sage_channels": SAGE_CHANNELS,
-        "linear_layers": LINEAR_LAYERS,
-        "linear_channels": LINEAR_CHANNELS,
-    },
-    mode="disabled",
-):
-    wandb.watch(model)
-    run_train_loop()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--disable-wandb", action="store_true")
+    args = parser.parse_args()
+
+    with wandb.init(
+        project="kaggle-fast-or-slow",
+        # id="gat_v1_test_mean_max_pool",
+        name=f"sage_v1_test",
+        job_type="test",
+        config={
+            "model": "sage",
+            "dataset": "xla",
+            "optimizer": "adam",
+            "lr": LR,
+            "batch_size": BATCH_SIZE,
+            "sage_layers": SAGE_LAYERS,
+            "sage_channels": SAGE_CHANNELS,
+            "linear_layers": LINEAR_LAYERS,
+            "linear_channels": LINEAR_CHANNELS,
+        },
+        mode="disabled" if args.disable_wandb else "online",
+    ):
+        wandb.watch(model)
+        run_train_loop()
