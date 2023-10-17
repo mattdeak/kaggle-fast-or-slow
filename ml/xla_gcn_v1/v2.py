@@ -1,4 +1,5 @@
 import argparse
+import os
 from collections.abc import Iterable
 from typing import Any, Generic, TypeVar, cast
 
@@ -27,8 +28,8 @@ print("Using device:", device)
 # Logging/Metrics
 LOG_INTERVAL = 500
 MAX_ITERS = 100000
-EVAL_ITERS = 200
-EVAL_INTERVAL = 500
+EVAL_ITERS = 400
+EVAL_INTERVAL = 2000
 
 # Model hyperparameters
 SAGE_LAYERS = 6
@@ -38,6 +39,7 @@ LINEAR_CHANNELS = 128
 DROPOUT = 0.2
 
 LR = 4e-3
+WEIGHT_DECAY = 1e-4
 
 # |%%--%%| <NhXS6Kuh4Q|1NKjfOoHTI>
 
@@ -192,7 +194,7 @@ model = SAGEMLP(
     linear_channels=LINEAR_CHANNELS,
     dropout=DROPOUT,
 ).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 # |%%--%%| <olMpzXENxJ|yrLVjmoI70>
 
@@ -213,7 +215,7 @@ class Accumulator(Generic[T]):
         self._values = []
 
 
-def run_train_loop():
+def train_and_eval(save_dir: str | None = None):
     train_cycler = cycle(train_loader)
     acc = Accumulator()
     model.train()
@@ -243,8 +245,8 @@ def run_train_loop():
             validation_loss = 0
             num_eval = 0
             with torch.no_grad():
-                for i, batch in enumerate(valid_loader):
-                    if i > EVAL_ITERS:
+                for j, batch in enumerate(valid_loader):
+                    if j > EVAL_ITERS:
                         break
 
                     num_eval += 1
@@ -256,6 +258,11 @@ def run_train_loop():
             validation_loss /= num_eval
             validation_loss = np.sqrt(validation_loss)
             wandb.log({"validation_rmse": validation_loss})
+            wandb.log({"full_validation_rmse": validation_loss})
+
+            if save_dir is not None:
+                save_path = f"{save_dir}/{i}.pt"
+                torch.save(model.state_dict(), save_path)
             print(f"Validation RMSE: {validation_loss}")
             model.train()
 
@@ -268,13 +275,14 @@ if __name__ == "__main__":
     with wandb.init(
         project="kaggle-fast-or-slow",
         # id="gat_v1_test_mean_max_pool",
-        name=f"sage_v1_test",
+        name="sage_v1_test",
         job_type="test",
         config={
             "model": "sage",
             "dataset": "xla",
             "optimizer": "adam",
             "lr": LR,
+            "weight_decay": WEIGHT_DECAY,
             "batch_size": BATCH_SIZE,
             "sage_layers": SAGE_LAYERS,
             "sage_channels": SAGE_CHANNELS,
@@ -282,6 +290,10 @@ if __name__ == "__main__":
             "linear_channels": LINEAR_CHANNELS,
         },
         mode="disabled" if args.disable_wandb else "online",
-    ):
+    ) as run:
+        id = run.id
+        print(f"Logging to {id}")
+        save_path = f"models/{id}"
+        os.makedirs(save_path, exist_ok=True)
         wandb.watch(model)
-        run_train_loop()
+        train_and_eval(save_dir=save_path)
