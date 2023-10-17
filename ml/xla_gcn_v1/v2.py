@@ -32,10 +32,10 @@ EVAL_ITERS = 400
 EVAL_INTERVAL = 2000
 
 # Model hyperparameters
-SAGE_LAYERS = 6
-SAGE_CHANNELS = 128
-LINEAR_LAYERS = 2
-LINEAR_CHANNELS = 128
+SAGE_LAYERS = 8
+SAGE_CHANNELS = 256
+LINEAR_LAYERS = 3
+LINEAR_CHANNELS = 256
 DROPOUT = 0.2
 
 LR = 4e-3
@@ -55,7 +55,7 @@ valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
 
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 
 train_loader = DataLoader(
     train_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=True
