@@ -258,7 +258,6 @@ def train_and_eval(save_dir: str | None = None):
             validation_loss /= num_eval
             validation_loss = np.sqrt(validation_loss)
             wandb.log({"validation_rmse": validation_loss})
-            wandb.log({"full_validation_rmse": validation_loss})
 
             if save_dir is not None:
                 save_path = f"{save_dir}/{i}.pt"
