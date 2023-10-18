@@ -39,7 +39,7 @@ LR = 1e-2
 WEIGHT_DECAY = 1e-4
 
 # Training Details
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 NUM_WORKERS = 8
 DATA_DIR = "data/layout/xla"
 CATEGORIES = ["default", "random"]
@@ -54,9 +54,12 @@ val_directories = [os.path.join(DATA_DIR, category, "valid") for category in CAT
 
 dataset = LayoutDataset(
     directories=directories,
-    mode="lazy",
+    mode="cached",
 )
 dataset.load()
+
+dataset2 = LayoutDataset(directories=directories, mode="lazy")
+dataset2.load()
 
 val_dataset = LayoutDataset(
     directories=val_directories,
@@ -79,6 +82,15 @@ val_loader = DataLoader(
     pin_memory=True,
     num_workers=NUM_WORKERS,
 )
+
+
+def cycle(iterable):
+    while True:
+        for x in iterable:
+            yield x
+
+
+loader = cycle(loader)
 
 # |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
 
@@ -139,6 +151,7 @@ with wandb.init(
         "data_dir": DATA_DIR,
         "categories": CATEGORIES,
         "job_type": "layout",
+        "subtype": "dev",
     },
 ):
     wandb.watch(model)
@@ -151,7 +164,7 @@ with wandb.init(
     best_eval_loss = float("inf")
 
     model.train()
-    for iter_count, batch in tqdm(enumerate(loader), total=min(MAX_ITERS, len(loader))):
+    for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
         if iter_count > MAX_ITERS:
             break
 
