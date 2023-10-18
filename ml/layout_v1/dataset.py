@@ -182,7 +182,7 @@ class LayoutDataset(Dataset):
         node_config_ids = d["node_config_ids"]
         config_runtime = d["config_runtime"]
 
-        ohe_opcodes = np.zeros((node_opcodes, NUM_OPCODES))
+        ohe_opcodes = np.zeros((node_opcodes.shape[0], NUM_OPCODES))
         ohe_opcodes[np.arange(node_opcodes.shape[0]), node_opcodes] = 1
         node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
