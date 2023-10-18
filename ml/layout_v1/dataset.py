@@ -63,6 +63,7 @@ class LayoutDataset(Dataset):
         max_files_per_config: int | None = None,
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
+        force_reload: bool = False,
     ):
         """Directories should be a list of directories to load from.
 
@@ -75,6 +76,7 @@ class LayoutDataset(Dataset):
         self.max_configs_per_file = max_files_per_config
         self.limit = limit
         self.mode = mode
+        self.force_reload = force_reload
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -89,7 +91,6 @@ class LayoutDataset(Dataset):
         # Flattens the files into a list of configs. A single idx corresponds to
         # a file-config pair.
         self.idx_to_config: dict[int, tuple[str, int]] = {}
-        self.idx_to_processed_dir: dict[int, str] = {}
         self._loaded = False
         self._length = 0
 
@@ -97,6 +98,18 @@ class LayoutDataset(Dataset):
 
     def len(self):
         return len(self.idx_to_config)
+
+    def _file_is_processed(self, raw_dir: str, filepath: str) -> bool:
+        # Check
+        processed_dir = self.get_subdir(raw_dir, filepath)
+        return os.path.exists(processed_dir) and len(os.listdir(processed_dir)) > 0
+
+    def get_subdir(self, raw_dir: str, filepath: str) -> str:
+        dir_hash = hashlib.md5(raw_dir.encode("utf-8")).hexdigest()
+        processed_subdir = os.path.join(
+            self._processed_dir, dir_hash, get_file_id(filepath)
+        )
+        return processed_subdir
 
     def load(self):
         # We don't do anything except load the files into our lookup
@@ -117,10 +130,10 @@ class LayoutDataset(Dataset):
             filepath = os.path.join(raw_dir, f)
 
             if self.mode == "memmapped":
-                dir_hash = hashlib.md5(raw_dir.encode("utf-8")).hexdigest()
-                processed_subdir = os.path.join(
-                    self._processed_dir, dir_hash, get_file_id(filepath)
-                )
+                processed_subdir = self.get_subdir(raw_dir, filepath)
+                if self._file_is_processed(raw_dir, filepath) and not self.force_reload:
+                    continue
+
                 os.makedirs(processed_subdir, exist_ok=True)
             else:
                 processed_subdir = None
