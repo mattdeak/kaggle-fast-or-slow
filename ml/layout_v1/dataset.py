@@ -131,9 +131,6 @@ class LayoutDataset(Dataset):
 
             if self.mode == "memmapped":
                 processed_subdir = self.get_subdir(raw_dir, filepath)
-                if self._file_is_processed(raw_dir, filepath) and not self.force_reload:
-                    continue
-
                 os.makedirs(processed_subdir, exist_ok=True)
             else:
                 processed_subdir = None
@@ -144,7 +141,8 @@ class LayoutDataset(Dataset):
                 num_configs = min(self.max_configs_per_file, num_configs)
 
             if self.mode == "memmapped" and processed_subdir:
-                self.process_to_npy(filepath, processed_subdir)
+                if self.force_reload or not self._file_is_processed(raw_dir, filepath):
+                    self.process_to_npy(filepath, processed_subdir)
 
             for i in range(num_configs):
                 if self.mode == "memmapped" and processed_subdir:
