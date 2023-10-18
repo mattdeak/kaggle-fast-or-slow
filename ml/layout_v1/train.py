@@ -169,6 +169,7 @@ with wandb.init(
     best_eval_loss = float("inf")
 
     checkpoint_dir = f"models/{wandb.run.id}"
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     model.train()
     for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
@@ -185,7 +186,7 @@ with wandb.init(
         avg_loss += loss.item()
 
         # Zero Gradients, Perform a Backward Pass, Update Weights
-        optim.zero_grad()
+        optim.zero_grad(set_to_none=True)
         loss.backward()
         optim.step()
 
@@ -196,7 +197,7 @@ with wandb.init(
             avg_loss = 0
 
         # Evaluation Loop and Checkpointing
-        if iter_count % EVAL_INTERVAL == 0:
+        if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
             model.eval()
             random_avg_eval_loss = evaluate(
                 model, criterion, random_val_loader, EVAL_ITERS, device
