@@ -3,6 +3,7 @@ import os
 
 import torch
 import torch.nn as nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from tqdm.auto import tqdm
@@ -146,7 +147,13 @@ def evaluate(
     return avg_loss
 
 
-def train_batch(model: nn.Module, batch, optim, criterion, scaler) -> float:
+def train_batch(
+    model: nn.Module,
+    batch,
+    optim: torch.optim.Optimizer,
+    criterion: nn.Module,
+    scaler: GradScaler,
+) -> float:
     optim.zero_grad()
     batch = batch.to(device)
 
@@ -156,7 +163,7 @@ def train_batch(model: nn.Module, batch, optim, criterion, scaler) -> float:
         # Compute Loss
         loss = criterion(output.flatten(), batch.y)
 
-    train_loss += loss.item()
+    train_loss = loss.item()
 
     scaler.scale(loss).backward()
     scaler.step(optim)
