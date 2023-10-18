@@ -16,6 +16,7 @@ from ml.layout_v1.model import SAGEMLP
 
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.set_float32_matmul_precision("high")
 print("Using device:", device)
 
 # Logging/Metrics
@@ -266,6 +267,8 @@ def run(id: str | None = None):
 
             start_iter = checkpoint["iteration"]
             print("Resuming from iteration:", start_iter)
+        else:
+            print("No Checkpoint Found in:", checkpoint_dir)
 
             # TODO: this is technically wrong, but it's fine for now
 
