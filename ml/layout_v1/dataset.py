@@ -16,7 +16,7 @@ Transform = Callable[[Any], Any]
 
 
 def get_file_id(file_path: str) -> str:
-    return os.path.basename(file_path).split(".")[0]
+    return os.path.basename(file_path).removesuffix(".npz")
 
 
 @dataclass
@@ -137,6 +137,7 @@ class LayoutDataset(Dataset):
 
             d = np.load(filepath)
             num_configs = d["config_runtime"].shape[0]
+
             if self.max_configs_per_file is not None:
                 num_configs = min(self.max_configs_per_file, num_configs)
 
