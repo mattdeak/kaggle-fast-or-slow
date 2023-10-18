@@ -46,6 +46,7 @@ GRAPH_DIM = 279
 USE_AMP = True
 PROFILE = True
 WANDB_LOG = False
+SAVE_CHECKPOINTS = False
 
 # ---- Data ---- #
 directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
@@ -172,125 +173,117 @@ def train_batch(
     return train_loss
 
 
-with wandb.init(
-    project="kaggle-fast-or-slow",
-    config={
-        "model": "SAGEMLP",
-        "sage_layers": SAGE_LAYERS,
-        "sage_channels": SAGE_CHANNELS,
-        "linear_layers": LINEAR_LAYERS,
-        "linear_channels": LINEAR_CHANNELS,
-        "dropout": DROPOUT,
-        "lr": LR,
-        "weight_decay": WEIGHT_DECAY,
-        "batch_size": BATCH_SIZE,
-        "num_workers": NUM_WORKERS,
-        "data_dir": DATA_DIR,
-        "categories": CATEGORIES,
-        "amp": USE_AMP,
-        "job_type": "layout",
-        "subtype": "dev",
-    },
-    mode="online" if WANDB_LOG else "disabled",
-):
-    wandb.watch(model)
+def run():
+    with wandb.init(
+        project="kaggle-fast-or-slow",
+        config={
+            "model": "SAGEMLP",
+            "sage_layers": SAGE_LAYERS,
+            "sage_channels": SAGE_CHANNELS,
+            "linear_layers": LINEAR_LAYERS,
+            "linear_channels": LINEAR_CHANNELS,
+            "dropout": DROPOUT,
+            "lr": LR,
+            "weight_decay": WEIGHT_DECAY,
+            "batch_size": BATCH_SIZE,
+            "num_workers": NUM_WORKERS,
+            "data_dir": DATA_DIR,
+            "categories": CATEGORIES,
+            "amp": USE_AMP,
+            "job_type": "layout",
+            "subtype": "dev",
+        },
+        mode="online" if WANDB_LOG else "disabled",
+    ):
+        wandb.watch(model)
 
-    scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
-    avg_loss = 0
+        scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
+        avg_loss = 0
 
-    criterion = nn.MSELoss()
-    heap: list[tuple[int, str]] = []
-    N = 5  # Number of recent checkpoints to keep
-    best_eval_loss = float("inf")
+        criterion = nn.MSELoss()
+        heap: list[tuple[int, str]] = []
+        N = 5  # Number of recent checkpoints to keep
+        best_eval_loss = float("inf")
 
-    checkpoint_dir = f"models/{wandb.run.id}"
-    os.makedirs(checkpoint_dir, exist_ok=True)
+        checkpoint_dir = f"models/{wandb.run.id}"
+        os.makedirs(checkpoint_dir, exist_ok=True)
 
-    model.train()
-    for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
-        if iter_count > MAX_ITERS:
-            break
+        model.train()
+        for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
+            if iter_count > MAX_ITERS:
+                break
 
-        # Zero Gradients, Perform a Backward Pass, Update Weights
-        if PROFILE:
-            with profile(
-                activities=[
-                    ProfilerActivity.CPU,
-                    ProfilerActivity.CUDA,
-                ],
-                record_shapes=True,
-            ) as prof:
-                with record_function("train_batch"):
-                    avg_loss += train_batch(model, batch, optim, criterion, scaler)
-        else:
-            avg_loss += train_batch(model, batch, optim, criterion, scaler)
+            # Zero Gradients, Perform a Backward Pass, Update Weights
+            with record_function("train_batch"):
+                avg_loss += train_batch(model, batch, optim, criterion, scaler)
 
-        if iter_count % LOG_INTERVAL == 0:
-            avg_loss /= LOG_INTERVAL
-            print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
-            wandb.log({"train_loss": avg_loss})
-            avg_loss = 0
+            if iter_count % LOG_INTERVAL == 0:
+                avg_loss /= LOG_INTERVAL
+                print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
+                wandb.log({"train_loss": avg_loss})
+                avg_loss = 0
 
-        # Evaluation Loop and Checkpointing
-        if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
-            model.eval()
-            if PROFILE:
-                with profile(
-                    activities=[
-                        ProfilerActivity.CPU,
-                        ProfilerActivity.CUDA,
-                    ],
-                    record_shapes=True,
-                ) as prof:
-                    with record_function("evaluate"):
-                        random_avg_eval_loss = evaluate(
-                            model, criterion, random_val_loader, EVAL_ITERS, device
-                        )
+            # Evaluation Loop and Checkpointing
+            if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
+                model.eval()
+                with record_function("evaluate"):
+                    random_avg_eval_loss = evaluate(
+                        model, criterion, random_val_loader, EVAL_ITERS, device
+                    )
 
-                        default_avg_eval_loss = evaluate(
-                            model, criterion, default_val_loader, EVAL_ITERS, device
-                        )
-            else:
-                random_avg_eval_loss = evaluate(
-                    model, criterion, random_val_loader, EVAL_ITERS, device
+                    default_avg_eval_loss = evaluate(
+                        model, criterion, default_val_loader, EVAL_ITERS, device
+                    )
+                avg_eval_loss = (random_avg_eval_loss + default_avg_eval_loss) / 2
+
+                wandb.log(
+                    {
+                        "random_val_loss": random_avg_eval_loss,
+                        "default_val_loss": default_avg_eval_loss,
+                        "val_loss": avg_eval_loss,
+                    }
                 )
 
-                default_avg_eval_loss = evaluate(
-                    model, criterion, default_val_loader, EVAL_ITERS, device
-                )
+                model.train()
 
-            avg_eval_loss = (random_avg_eval_loss + default_avg_eval_loss) / 2
+                if not SAVE_CHECKPOINTS:
+                    continue
 
-            wandb.log(
-                {
-                    "random_val_loss": random_avg_eval_loss,
-                    "default_val_loss": default_avg_eval_loss,
-                    "val_loss": avg_eval_loss,
+                checkpoint = {
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optim.state_dict(),
+                    "iteration": iter_count,
+                    "eval_loss": avg_eval_loss,
                 }
-            )
-
-            model.train()
-            checkpoint = {
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optim.state_dict(),
-                "iteration": iter_count,
-                "eval_loss": avg_eval_loss,
-            }
-            torch.save(
-                checkpoint, os.path.join(checkpoint_dir, f"checkpoint_{iter_count}.pth")
-            )
-
-            # Save best-performing checkpoint
-            if avg_eval_loss < best_eval_loss:
-                best_eval_loss = avg_eval_loss
                 torch.save(
-                    checkpoint, os.path.join(checkpoint_dir, "best_checkpoint.pth")
+                    checkpoint,
+                    os.path.join(checkpoint_dir, f"checkpoint_{iter_count}.pth"),
                 )
 
-            # Manage heap for N most recent checkpoints
-            if len(heap) < N:
-                heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
-            else:
-                _, oldest_checkpoint = heapq.heappop(heap)
-                os.remove(oldest_checkpoint)
-                heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
+                # Save best-performing checkpoint
+                if avg_eval_loss < best_eval_loss:
+                    best_eval_loss = avg_eval_loss
+                    torch.save(
+                        checkpoint, os.path.join(checkpoint_dir, "best_checkpoint.pth")
+                    )
+
+                # Manage heap for N most recent checkpoints
+                if len(heap) < N:
+                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
+                else:
+                    _, oldest_checkpoint = heapq.heappop(heap)
+                    os.remove(oldest_checkpoint)
+                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
+
+
+if PROFILE:
+    with profile(
+        [ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        record_shapes=True,
+        profile_memory=True,
+    ) as prof:
+        run()
+
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+else:
+    run()
