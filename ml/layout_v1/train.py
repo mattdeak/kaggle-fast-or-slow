@@ -64,8 +64,10 @@ val_dataset = LayoutDataset(
 val_dataset.load()
 
 
-loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
+loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
+val_loader = DataLoader(
+    val_dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True
+)
 
 # |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
 
@@ -96,7 +98,9 @@ def evaluate(
     num_iters = 0
 
     with torch.no_grad():
-        for i, eval_batch in enumerate(loader):
+        for i, eval_batch in tqdm(
+            enumerate(loader), total=min(num_batches, len(loader))
+        ):
             if i >= num_batches:
                 break
             eval_batch = eval_batch.to(device)
