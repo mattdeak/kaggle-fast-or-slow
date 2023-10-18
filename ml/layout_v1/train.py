@@ -60,6 +60,7 @@ default_val_dataset = LayoutDataset(
 random_val_dataset = LayoutDataset(
     directories=[os.path.join(DATA_DIR, "random", "valid")],
     mode="memmapped",
+    processed_dir="data/processed_layout",
 )
 default_val_dataset.load()
 random_val_dataset.load()
