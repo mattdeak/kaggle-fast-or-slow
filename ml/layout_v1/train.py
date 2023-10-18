@@ -117,6 +117,7 @@ model = SAGEMLP(
 )
 
 model = model.to(device)
+model = torch.compile(model)
 optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
