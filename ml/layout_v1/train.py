@@ -19,18 +19,18 @@ print("Using device:", device)
 # Logging/Metrics
 LOG_INTERVAL = 500
 MAX_ITERS = 100000
-EVAL_ITERS = 400
+EVAL_ITERS = 200
 EVAL_INTERVAL = 2000
 
 # Model hyperparameters
-SAGE_LAYERS = 8
+SAGE_LAYERS = 6
 SAGE_CHANNELS = 256
 LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 
 # Optimizer
-LR = 4e-3
+LR = 3e-4
 WEIGHT_DECAY = 1e-4
 
 # Training Details
@@ -43,10 +43,10 @@ CATEGORIES = ["default", "random"]
 GRAPH_DIM = 279
 
 # Training Mods
-USE_AMP = True
-PROFILE = True
-WANDB_LOG = False
-SAVE_CHECKPOINTS = False
+USE_AMP = False  # seems broken?
+PROFILE = False
+WANDB_LOG = True
+SAVE_CHECKPOINTS = True
 
 # ---- Data ---- #
 directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
@@ -156,7 +156,6 @@ def train_batch(
     scaler: GradScaler,
 ) -> float:
     optim.zero_grad()
-    batch = batch.to(device)
 
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
@@ -210,6 +209,7 @@ def run():
 
         model.train()
         for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
+            batch = batch.to(device)
             if iter_count > MAX_ITERS:
                 break
 
