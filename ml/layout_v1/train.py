@@ -4,7 +4,6 @@ import os
 import torch
 import torch.nn as nn
 from torch.profiler import ProfilerActivity, profile, record_function
-from torch.utils.bottleneck import BottleneckFinder
 from torch_geometric.loader import DataLoader
 from tqdm.auto import tqdm
 
@@ -44,7 +43,8 @@ GRAPH_DIM = 279
 
 # Training Mods
 USE_AMP = True
-PROFILE = False
+PROFILE = True
+WANDB_LOG = False
 
 # ---- Data ---- #
 directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
@@ -146,6 +146,25 @@ def evaluate(
     return avg_loss
 
 
+def train_batch(model: nn.Module, batch, optim, criterion, scaler) -> float:
+    optim.zero_grad()
+    batch = batch.to(device)
+
+    # Forward Pass
+    with torch.autocast(device_type=device, enabled=USE_AMP):
+        output = model(batch)
+        # Compute Loss
+        loss = criterion(output.flatten(), batch.y)
+
+    train_loss += loss.item()
+
+    scaler.scale(loss).backward()
+    scaler.step(optim)
+    scaler.update()
+
+    return train_loss
+
+
 with wandb.init(
     project="kaggle-fast-or-slow",
     config={
@@ -165,6 +184,7 @@ with wandb.init(
         "job_type": "layout",
         "subtype": "dev",
     },
+    mode="online" if WANDB_LOG else "disabled",
 ):
     wandb.watch(model)
 
@@ -184,23 +204,19 @@ with wandb.init(
         if iter_count > MAX_ITERS:
             break
 
-        optim.zero_grad()
-
-        batch = batch.to(device)
-
-        # Forward Pass
-        with torch.autocast(device_type=device, enabled=USE_AMP):
-            output = model(batch)
-            # Compute Loss
-            loss = criterion(output.flatten(), batch.y)
-
-        avg_loss += loss.item()
-
-        scaler.scale(loss).backward()
-        scaler.step(optim)
-        scaler.update()
-
         # Zero Gradients, Perform a Backward Pass, Update Weights
+        if PROFILE:
+            with profile(
+                activities=[
+                    ProfilerActivity.CPU,
+                    ProfilerActivity.CUDA,
+                ],
+                record_shapes=True,
+            ) as prof:
+                with record_function("train_batch"):
+                    avg_loss += train_batch(model, batch, optim, criterion, scaler)
+        else:
+            avg_loss += train_batch(model, batch, optim, criterion, scaler)
 
         if iter_count % LOG_INTERVAL == 0:
             avg_loss /= LOG_INTERVAL
@@ -211,13 +227,30 @@ with wandb.init(
         # Evaluation Loop and Checkpointing
         if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
             model.eval()
-            random_avg_eval_loss = evaluate(
-                model, criterion, random_val_loader, EVAL_ITERS, device
-            )
+            if PROFILE:
+                with profile(
+                    activities=[
+                        ProfilerActivity.CPU,
+                        ProfilerActivity.CUDA,
+                    ],
+                    record_shapes=True,
+                ) as prof:
+                    with record_function("evaluate"):
+                        random_avg_eval_loss = evaluate(
+                            model, criterion, random_val_loader, EVAL_ITERS, device
+                        )
 
-            default_avg_eval_loss = evaluate(
-                model, criterion, default_val_loader, EVAL_ITERS, device
-            )
+                        default_avg_eval_loss = evaluate(
+                            model, criterion, default_val_loader, EVAL_ITERS, device
+                        )
+            else:
+                random_avg_eval_loss = evaluate(
+                    model, criterion, random_val_loader, EVAL_ITERS, device
+                )
+
+                default_avg_eval_loss = evaluate(
+                    model, criterion, default_val_loader, EVAL_ITERS, device
+                )
 
             avg_eval_loss = (random_avg_eval_loss + default_avg_eval_loss) / 2
 
