@@ -188,23 +188,23 @@ class LayoutDataset(Dataset):
 
         np.save(
             os.path.join(target_file_path, self.NODE_FEATURES_FILE),
-            node_features,
+            node_features.astype(np.float32),
         )
         np.save(
             os.path.join(target_file_path, self.EDGE_INDEX_FILE),
-            edge_index,
+            edge_index.astype(np.int64),
         )
         np.save(
             os.path.join(target_file_path, self.NODE_IDS_FILE),
-            node_config_ids,
+            node_config_ids.astype(np.int64),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_FEATURES_FILE),
-            node_config_feat,
+            node_config_feat.astype(np.float32),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
-            config_runtime,
+            config_runtime.astype(np.float32),
         )
 
     def extract_from_npz(self, idx: int) -> GraphTensorData:
@@ -223,11 +223,11 @@ class LayoutDataset(Dataset):
         node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
         return GraphTensorData(
-            node_features=torch.from_numpy(node_features),
+            node_features=torch.from_numpy(node_features).float(),
             edge_index=torch.from_numpy(edge_index),
             node_config_ids=torch.from_numpy(node_config_ids),
-            config_features=torch.from_numpy(node_config_feat),
-            config_runtime=torch.tensor(config_runtime),
+            config_features=torch.from_numpy(node_config_feat).float(),
+            config_runtime=torch.tensor(config_runtime).float(),
         )
 
     def extract_from_npy(self, idx: int) -> GraphTensorData:
