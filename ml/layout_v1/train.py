@@ -33,7 +33,7 @@ WEIGHT_DECAY = 1e-4
 
 # Training Details
 BATCH_SIZE = 16
-NUM_WORKERS = 8
+NUM_WORKERS = 4
 DATA_DIR = "data/layout/xla"
 CATEGORIES = ["default", "random"]
 
@@ -131,6 +131,7 @@ def evaluate(
         if i >= num_batches:
             break
         eval_batch = eval_batch.to(device)
+
         with torch.autocast(device_type=device, enabled=USE_AMP):
             output = model(eval_batch)
             loss = criterion(output.flatten(), eval_batch.y)
@@ -189,8 +190,10 @@ with wandb.init(
             loss = criterion(output.flatten(), batch.y)
 
         avg_loss += loss.item()
+
         scaler.scale(loss).backward()
         scaler.step(optim)
+        scaler.update()
 
         # Zero Gradients, Perform a Backward Pass, Update Weights
         optim.zero_grad(set_to_none=True)
