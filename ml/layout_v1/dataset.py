@@ -8,6 +8,8 @@ import numpy.typing as npt
 import torch
 from torch_geometric.data import Data, Dataset
 
+NUM_OPCODES = 121
+
 T = TypeVar("T")
 
 Transform = Callable[[Any], Any]
@@ -174,10 +176,15 @@ class LayoutDataset(Dataset):
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
         d = np.load(source_file_path)
         node_features = d["node_feat"]
+        node_opcodes = d["node_opcode"]
         edge_index = d["edge_index"]
         node_config_feat = d["node_config_feat"]
         node_config_ids = d["node_config_ids"]
         config_runtime = d["config_runtime"]
+
+        ohe_opcodes = np.zeros((node_opcodes, NUM_OPCODES))
+        ohe_opcodes[np.arange(node_opcodes.shape[0]), node_opcodes] = 1
+        node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
         np.save(
             os.path.join(target_file_path, self.NODE_FEATURES_FILE),
@@ -204,10 +211,16 @@ class LayoutDataset(Dataset):
         file_path, config_idx = self.idx_to_config[idx]
         d = np.load(file_path)
         node_features = d["node_feat"]
+        opcodes = d["node_opcode"]
         edge_index = d["edge_index"]
         node_config_feat = d["node_config_feat"][config_idx, :, :]
         node_config_ids = d["node_config_ids"]
         config_runtime = float(d["config_runtime"][config_idx])
+
+        # One hot encode the opcodes
+        ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
+        ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
+        node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
         return GraphTensorData(
             node_features=torch.from_numpy(node_features),
