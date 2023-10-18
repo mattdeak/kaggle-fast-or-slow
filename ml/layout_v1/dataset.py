@@ -197,6 +197,10 @@ class LayoutDataset(Dataset):
         ohe_opcodes[np.arange(node_opcodes.shape[0]), node_opcodes] = 1
         node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
+        assert (
+            config_runtime.shape[0] == node_config_feat.shape[0]
+        ), f"Config shape mismatch on source file: {source_file_path}"
+
         np.save(
             os.path.join(target_file_path, self.NODE_FEATURES_FILE),
             node_features.astype(np.float32),
