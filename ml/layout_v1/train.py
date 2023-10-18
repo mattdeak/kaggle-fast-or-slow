@@ -278,7 +278,7 @@ def run():
 
 if PROFILE:
     with profile(
-        [ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
         record_shapes=True,
         profile_memory=True,
     ) as prof:
