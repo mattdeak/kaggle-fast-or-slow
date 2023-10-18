@@ -45,7 +45,9 @@ directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGOR
 val_directories = [os.path.join(DATA_DIR, category, "valid") for category in CATEGORIES]
 
 
-dataset = LayoutDataset(directories=directories, mode="memmapped")
+dataset = LayoutDataset(
+    directories=directories, mode="memmapped", processed_dir="data/processed_layout"
+)
 dataset.load()
 
 # We break these up because the distributions are different,
@@ -53,6 +55,7 @@ dataset.load()
 default_val_dataset = LayoutDataset(
     directories=[os.path.join(DATA_DIR, "default", "valid")],
     mode="memmapped",
+    processed_dir="data/processed_layout",
 )
 random_val_dataset = LayoutDataset(
     directories=[os.path.join(DATA_DIR, "random", "valid")],

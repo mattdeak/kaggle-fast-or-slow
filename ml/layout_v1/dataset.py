@@ -1,3 +1,4 @@
+import hashlib
 import os
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, TypeVar
@@ -108,14 +109,15 @@ class LayoutDataset(Dataset):
             self._load_dir(raw_dir)
 
     def _load_dir(self, raw_dir: str):
-        """This function is shit"""
+        """This function is bad"""
         files = os.listdir(raw_dir)
         for f in files:
             filepath = os.path.join(raw_dir, f)
 
             if self.mode == "memmapped":
+                dir_hash = hashlib.md5(raw_dir.encode("utf-8")).hexdigest()
                 processed_subdir = os.path.join(
-                    self._processed_dir, get_file_id(raw_dir), get_file_id(filepath)
+                    self._processed_dir, dir_hash, get_file_id(filepath)
                 )
                 os.makedirs(processed_subdir, exist_ok=True)
             else:
