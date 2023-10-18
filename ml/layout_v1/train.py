@@ -1,5 +1,6 @@
 import heapq
 import os
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -173,11 +174,48 @@ def train_batch(
     return train_loss
 
 
-def run():
+class Checkpointer:
+    def __init__(self, checkpoint_dir: str, max_latest: int = 5):
+        self.checkpoint_dir = checkpoint_dir
+        self.heap: list[tuple[int, str]] = []
+
+    def get_latest(self) -> str | None:
+        checkpoints = os.listdir(self.checkpoint_dir)
+        if not checkpoints:
+            return None
+        # Extract latest
+        sorted_checkpoints = sorted(
+            checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
+        )
+
+        most_recent_checkpoint = sorted_checkpoints[-1]
+        return most_recent_checkpoint
+
+    def load_dir(self) -> None:
+        checkpoints = os.listdir(self.checkpoint_dir)
+        if not checkpoints:
+            return
+        # Extract latest
+        sorted_checkpoints = sorted(
+            checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
+        )
+
+        most_recent_checkpoint = sorted_checkpoints[-1]
+
+        checkpoint = torch.load(
+            os.path.join(self.checkpoint_dir, most_recent_checkpoint)
+        )
+
+        return checkpoint
+
+
+def run(id: str | None = None):
     with wandb.init(
         project="kaggle-fast-or-slow",
+        id=id,
         config={
             "model": "SAGEMLP",
+            "resume": "allow",
             "sage_layers": SAGE_LAYERS,
             "sage_channels": SAGE_CHANNELS,
             "linear_layers": LINEAR_LAYERS,
@@ -203,13 +241,34 @@ def run():
         criterion = nn.MSELoss()
         heap: list[tuple[int, str]] = []
         N = 5  # Number of recent checkpoints to keep
-        best_eval_loss = float("inf")
+        start_iter = 0
 
         checkpoint_dir = f"models/{wandb.run.id}"
         os.makedirs(checkpoint_dir, exist_ok=True)
 
+        # Load Checkpoint
+        checkpoints = os.listdir(checkpoint_dir)
+        # Extract latest
+        if checkpoints:
+            sorted_checkpoints = sorted(
+                checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
+            )
+
+            most_recent_checkpoint = sorted_checkpoints[-1]
+
+            checkpoint = torch.load(
+                os.path.join(checkpoint_dir, most_recent_checkpoint)
+            )
+            model.load_state_dict(checkpoint["model_state_dict"])
+            optim.load_state_dict(checkpoint["optimizer_state_dict"])
+            start_iter = checkpoint["iteration"]
+
+            # TODO: this is technically wrong, but it's fine for now
+
         model.train()
-        for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
+        for iter_count, batch in tqdm(
+            enumerate(loader, start=start_iter), total=MAX_ITERS
+        ):
             batch = batch.to(device)
             if iter_count > MAX_ITERS:
                 break
@@ -256,35 +315,32 @@ def run():
                     "iteration": iter_count,
                     "eval_loss": avg_eval_loss,
                 }
+
                 torch.save(
                     checkpoint,
                     os.path.join(checkpoint_dir, f"checkpoint_{iter_count}.pth"),
                 )
-
-                # Save best-performing checkpoint
-                if avg_eval_loss < best_eval_loss:
-                    best_eval_loss = avg_eval_loss
-                    torch.save(
-                        checkpoint, os.path.join(checkpoint_dir, "best_checkpoint.pth")
-                    )
 
                 # Manage heap for N most recent checkpoints
                 if len(heap) < N:
                     heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
                 else:
                     _, oldest_checkpoint = heapq.heappop(heap)
-                    os.remove(oldest_checkpoint)
+                    os.remove(os.path.join(checkpoint_dir, oldest_checkpoint))
                     heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
 
 
-if PROFILE:
-    with profile(
-        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-        record_shapes=True,
-        profile_memory=True,
-    ) as prof:
-        run()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--id", type=str, default=None)
+    if PROFILE:
+        with profile(
+            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+            record_shapes=True,
+            profile_memory=True,
+        ) as prof:
+            run()
 
-    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-else:
-    run()
+        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+    else:
+        run()
