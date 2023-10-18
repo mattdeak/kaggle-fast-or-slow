@@ -264,14 +264,31 @@ class LayoutDataset(Dataset):
             )
         )
 
-        config_features = torch.from_numpy(
-            np.array(
-                np.load(
-                    os.path.join(file_path, self.CONFIG_FEATURES_FILE),
-                    mmap_mode="r",
-                )[config_idx, :, :]
+        # debug
+        try:
+            config_features = torch.from_numpy(
+                np.array(
+                    np.load(
+                        os.path.join(file_path, self.CONFIG_FEATURES_FILE),
+                        mmap_mode="r",
+                    )[config_idx, :, :]
+                )
             )
-        )
+        except Exception:
+            print(f"Error on file: {file_path}")
+            print("Config IDX:", config_idx)
+            print(
+                "Config Shape:",
+                np.load(
+                    os.path.join(file_path, self.CONFIG_FEATURES_FILE), mmap_mode="r"
+                ).shape,
+            )
+            print(
+                "runtime shape:",
+                np.load(
+                    os.path.join(file_path, self.CONFIG_RUNTIME_FILE), mmap_mode="r"
+                ).shape,
+            )
         config_runtime = torch.tensor(
             float(
                 np.load(
