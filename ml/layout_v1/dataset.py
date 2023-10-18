@@ -1,11 +1,10 @@
 import os
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Literal, TypeVar
 
 import numpy as np
 import torch
 from torch_geometric.data import Data, Dataset
 
-# |%%--%%| <Sq7Mu6Y3xa|VyLKkIlqyY>
 T = TypeVar("T")
 
 Transform = Callable[[Any], Any]
@@ -27,16 +26,32 @@ class LayoutDataset(Dataset):
         directories: list[str],
         limit: int | None = None,
         max_files_per_config: int | None = None,
+        mode: Literal["lazy", "processed", "cached"] = "lazy",
+        processed_dir: str | None = None,
     ):
+        """Directories should be a list of directories to load from.
+
+        If limit is not None, then only the first limit files will be loaded.
+        If cache_graphs, then the all graph features except configs will be
+        cached in memory. This is better if you can fit it in memory, as the
+        reads from disk are slow."""
         self.directories = directories
         self._processed_file_names: list[str] = []
         self.max_configs_per_file = max_files_per_config
         self.limit = limit
+        self.mode = mode
+
+        if mode == "processed":
+            if processed_dir is None:
+                raise ValueError("Must specify processed_dir if mode is processed.")
+            self._processed_dir = processed_dir
+            self._processed_file_names = os.listdir(processed_dir)
 
         self.lookup_table = {}
         # Flattens the files into a list of configs. A single idx corresponds to
         # a file-config pair.
         self.idx_to_config: dict[int, tuple[str, int]] = {}
+        self.graph_cache: dict[int, Data] = {}
         self._loaded = False
         self._length = 0
 
@@ -62,11 +77,25 @@ class LayoutDataset(Dataset):
 
             for i in range(num_configs):
                 self.idx_to_config[self._length] = (filepath, i)
+                if self.mode == "cached":
+                    self.graph_cache[self._length] = self.process_from_npz(self._length)
+                elif self.mode == "processed":
+                    data = self.process_from_npz(self._length)
+                    torch.save(data, self._processed_dir + f"_{i}.pt")
+
                 self._length += 1
 
         self._loaded = True
 
     def get(self, idx: int) -> Data:
+        if self.mode == "cached":
+            raise NotImplementedError
+        elif self.mode == "processed":
+            return torch.load(self._processed_dir + f"_{idx}.pt")
+        else:
+            return self.process_from_npz(idx)
+
+    def process_from_npz(self, idx: int) -> Data:
         file_path, config_idx = self.idx_to_config[idx]
         d = np.load(file_path)
         edge_index = d["edge_index"]
@@ -94,6 +123,3 @@ class LayoutDataset(Dataset):
             edge_index=torch.from_numpy(edge_index.T),  # type: ignore
             y=torch.log(torch.tensor(config_runtime[config_idx])),  # type: ignore
         )
-
-
-# |%%--%%| <VyLKkIlqyY|evHKMJbMGX>

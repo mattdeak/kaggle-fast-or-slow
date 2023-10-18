@@ -1,3 +1,4 @@
+import heapq
 import os
 
 import torch
@@ -51,11 +52,13 @@ val_directories = [os.path.join(DATA_DIR, category, "valid") for category in CAT
 
 dataset = LayoutDataset(
     directories=directories,
+    mode="lazy",
 )
 dataset.load()
 
 val_dataset = LayoutDataset(
     directories=val_directories,
+    mode="lazy",
 )
 val_dataset.load()
 
@@ -65,11 +68,18 @@ val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 # |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
 
-model = SAGEMLP(graph_input_dim=GRAPH_DIM, sage_layers=1, linear_layers=1, dropout=0.0)
+model = SAGEMLP(
+    graph_input_dim=GRAPH_DIM,
+    sage_layers=SAGE_LAYERS,
+    sage_channels=SAGE_CHANNELS,
+    linear_channels=LINEAR_CHANNELS,
+    linear_layers=LINEAR_LAYERS,
+    dropout=DROPOUT,
+)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
-optim = torch.optim.AdamW(model.parameters(), lr=0.01)
+optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
 # Initialize Weights and Biases
@@ -82,7 +92,7 @@ def evaluate(
 ):
     model.eval()
     total_loss = 0
-    num_samples = 0
+    num_iters = 0
 
     with torch.no_grad():
         for i, eval_batch in enumerate(loader):
@@ -90,11 +100,11 @@ def evaluate(
                 break
             eval_batch = eval_batch.to(device)
             output = model(eval_batch)
-            loss = criterion(output, eval_batch.y)
-            total_loss += loss.item() * eval_batch.num_graphs
-            num_samples += eval_batch.num_graphs
+            loss = criterion(output.flatten(), eval_batch.y)
+            total_loss += loss.item()
+            num_iters += 1
 
-    avg_loss = total_loss / num_samples
+    avg_loss = total_loss / num_iters
     return avg_loss
 
 
@@ -118,69 +128,60 @@ with wandb.init(
 ):
     wandb.watch(model)
 
+    avg_loss = 0
+
     criterion = nn.MSELoss()
-    heap = []
+    heap: list[tuple[int, str]] = []
     N = 5  # Number of recent checkpoints to keep
     best_eval_loss = float("inf")
 
-    for iter_count in range(MAX_ITERS):
-        model.train()
-        for batch in loader:
-            batch = batch.to(device)
+    model.train()
+    for iter_count, batch in enumerate(loader):
+        if iter_count > MAX_ITERS:
+            break
 
-            # Forward Pass
-            output = model(batch)
+        batch = batch.to(device)
 
-            # Compute Loss
-            loss = criterion(output, batch.y)
+        # Forward Pass
+        output = model(batch)
 
-            # Zero Gradients, Perform a Backward Pass, Update Weights
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
+        # Compute Loss
+        loss = criterion(output.flatten(), batch.y)
+        avg_loss += loss.item()
 
-            if iter_count % LOG_INTERVAL == 0:
-                print(f"Iteration {iter_count} | Loss: {loss.item()}")
-                wandb.log({"train_loss": loss.item()})
+        # Zero Gradients, Perform a Backward Pass, Update Weights
+        optim.zero_grad()
+        loss.backward()
+        optim.step()
 
-            # Checkpointing
-            if iter_count % EVAL_INTERVAL == 0:
-                checkpoint = {
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optim.state_dict(),
-                    "iteration": iter_count,
-                }
-                torch.save(checkpoint, f"checkpoint_{iter_count}.pth")
-                wandb.save(f"checkpoint_{iter_count}.pth")
+        if iter_count % LOG_INTERVAL == 0:
+            avg_loss /= LOG_INTERVAL
+            print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
+            wandb.log({"train_loss": avg_loss})
+            avg_loss = 0
 
-            if iter_count >= MAX_ITERS:
-                break
+        # Evaluation Loop and Checkpointing
+        if iter_count % EVAL_INTERVAL == 0:
+            avg_eval_loss = evaluate(model, criterion, loader, EVAL_ITERS, device)
+            checkpoint = {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optim.state_dict(),
+                "iteration": iter_count,
+                "eval_loss": avg_eval_loss,
+            }
+            torch.save(checkpoint, f"checkpoint_{iter_count}.pth")
 
-            # Evaluation Loop
-            if iter_count % EVAL_INTERVAL == 0:
-                avg_eval_loss = evaluate(model, criterion, loader, EVAL_ITERS, device)
-                checkpoint = {
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optim.state_dict(),
-                    "iteration": iter_count,
-                    "eval_loss": avg_eval_loss,
-                }
-                torch.save(checkpoint, f"checkpoint_{iter_count}.pth")
+            # Save best-performing checkpoint
+            if avg_eval_loss < best_eval_loss:
+                best_eval_loss = avg_eval_loss
+                torch.save(checkpoint, "best_checkpoint.pth")
 
-                # Save best-performing checkpoint
-                if avg_eval_loss < best_eval_loss:
-                    best_eval_loss = avg_eval_loss
-                    torch.save(checkpoint, "best_checkpoint.pth")
+            # Manage heap for N most recent checkpoints
+            if len(heap) < N:
+                heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
+            else:
+                _, oldest_checkpoint = heapq.heappop(heap)
+                os.remove(oldest_checkpoint)
+                heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
 
-                # Manage heap for N most recent checkpoints
-                if len(heap) < N:
-                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
-                else:
-                    _, oldest_checkpoint = heapq.heappop(heap)
-                    os.remove(oldest_checkpoint)
-                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
-
-                wandb.save(f"checkpoint_{iter_count}.pth")
-
-            if iter_count >= MAX_ITERS:
-                break
+            wandb.save(f"checkpoint_{iter_count}.pth")
