@@ -4,6 +4,7 @@ import os
 import torch
 import torch.nn as nn
 from torch_geometric.loader import DataLoader
+from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
@@ -136,7 +137,7 @@ with wandb.init(
     best_eval_loss = float("inf")
 
     model.train()
-    for iter_count, batch in enumerate(loader):
+    for iter_count, batch in tqdm(enumerate(loader), total=min(MAX_ITERS, len(loader))):
         if iter_count > MAX_ITERS:
             break
 

@@ -20,7 +20,9 @@ def parse_file(file_path: str) -> list[Data]:
     )
     edge_index = torch.tensor(data["edge_index"].T)
     target = torch.tensor(
-        np.log(data["config_runtime"] / data["config_runtime_normalizers"]),
+        np.log(
+            (data["config_runtime"] / (data["config_runtime_normalizers"] + 0.001) + 1)
+        ),
         dtype=torch.float32,
     )
 
