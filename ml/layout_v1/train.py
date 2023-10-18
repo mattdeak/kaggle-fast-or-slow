@@ -3,6 +3,8 @@ import os
 
 import torch
 import torch.nn as nn
+from torch.profiler import ProfilerActivity, profile, record_function
+from torch.utils.bottleneck import BottleneckFinder
 from torch_geometric.loader import DataLoader
 from tqdm.auto import tqdm
 
@@ -42,6 +44,7 @@ GRAPH_DIM = 279
 
 # Training Mods
 USE_AMP = True
+PROFILE = False
 
 # ---- Data ---- #
 directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
@@ -181,6 +184,8 @@ with wandb.init(
         if iter_count > MAX_ITERS:
             break
 
+        optim.zero_grad()
+
         batch = batch.to(device)
 
         # Forward Pass
@@ -196,7 +201,6 @@ with wandb.init(
         scaler.update()
 
         # Zero Gradients, Perform a Backward Pass, Update Weights
-        optim.zero_grad(set_to_none=True)
 
         if iter_count % LOG_INTERVAL == 0:
             avg_loss /= LOG_INTERVAL
