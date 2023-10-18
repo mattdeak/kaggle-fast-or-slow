@@ -21,20 +21,21 @@ EVAL_ITERS = 400
 EVAL_INTERVAL = 2000
 
 # Model hyperparameters
-# SAGE_LAYERS = 8
-# SAGE_CHANNELS = 256
-# LINEAR_LAYERS = 3
-# LINEAR_CHANNELS = 256
-# DROPOUT = 0.2
-
-SAGE_LAYERS = 2
-SAGE_CHANNELS = 24
-LINEAR_LAYERS = 1
-LINEAR_CHANNELS = 24
+SAGE_LAYERS = 8
+SAGE_CHANNELS = 256
+LINEAR_LAYERS = 3
+LINEAR_CHANNELS = 256
 DROPOUT = 0.2
 
+# SAGE_LAYERS = 2
+# SAGE_CHANNELS = 24
+# LINEAR_LAYERS = 1
+# LINEAR_CHANNELS = 24
+# DROPOUT = 0.2
+
 # Optimizer
-LR = 4e-3
+# LR = 4e-3
+LR = 1e-2
 WEIGHT_DECAY = 1e-4
 
 # Training Details
@@ -103,7 +104,6 @@ def evaluate(
     num_batches: int,
     device: torch.device,
 ):
-    model.eval()
     total_loss = 0
     num_iters = 0
 
@@ -177,7 +177,9 @@ with wandb.init(
 
         # Evaluation Loop and Checkpointing
         if iter_count % EVAL_INTERVAL == 0:
+            model.eval()
             avg_eval_loss = evaluate(model, criterion, loader, EVAL_ITERS, device)
+            model.train()
             checkpoint = {
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optim.state_dict(),
