@@ -52,20 +52,21 @@ directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGOR
 val_directories = [os.path.join(DATA_DIR, category, "valid") for category in CATEGORIES]
 
 
-dataset = LayoutDataset(
-    directories=directories,
-    mode="cached",
-)
+dataset = LayoutDataset(directories=directories, mode="memmapped")
 dataset.load()
 
-dataset2 = LayoutDataset(directories=directories, mode="lazy")
-dataset2.load()
-
-val_dataset = LayoutDataset(
-    directories=val_directories,
-    mode="lazy",
+# We break these up because the distributions are different,
+# so we may want to analyze the metrics separately
+default_val_dataset = LayoutDataset(
+    directories=[os.path.join(DATA_DIR, "default", "valid")],
+    mode="memmapped",
 )
-val_dataset.load()
+random_val_dataset = LayoutDataset(
+    directories=[os.path.join(DATA_DIR, "random", "valid")],
+    mode="memmapped",
+)
+default_val_dataset.load()
+random_val_dataset.load()
 
 
 loader = DataLoader(
@@ -75,8 +76,15 @@ loader = DataLoader(
     pin_memory=True,
     num_workers=NUM_WORKERS,
 )
-val_loader = DataLoader(
-    val_dataset,
+default_val_loader = DataLoader(
+    default_val_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    pin_memory=True,
+    num_workers=NUM_WORKERS,
+)
+random_val_loader = DataLoader(
+    random_val_dataset,
     batch_size=BATCH_SIZE,
     shuffle=True,
     pin_memory=True,
@@ -163,6 +171,8 @@ with wandb.init(
     N = 5  # Number of recent checkpoints to keep
     best_eval_loss = float("inf")
 
+    checkpoint_dir = f"models/{wandb.run.id}"
+
     model.train()
     for iter_count, batch in tqdm(enumerate(loader), total=MAX_ITERS):
         if iter_count > MAX_ITERS:
@@ -191,7 +201,24 @@ with wandb.init(
         # Evaluation Loop and Checkpointing
         if iter_count % EVAL_INTERVAL == 0:
             model.eval()
-            avg_eval_loss = evaluate(model, criterion, loader, EVAL_ITERS, device)
+            random_avg_eval_loss = evaluate(
+                model, criterion, random_val_loader, EVAL_ITERS, device
+            )
+
+            default_avg_eval_loss = evaluate(
+                model, criterion, default_val_loader, EVAL_ITERS, device
+            )
+
+            avg_eval_loss = (random_avg_eval_loss + default_avg_eval_loss) / 2
+
+            wandb.log(
+                {
+                    "random_val_loss": random_avg_eval_loss,
+                    "default_val_loss": default_avg_eval_loss,
+                    "val_loss": avg_eval_loss,
+                }
+            )
+
             model.train()
             checkpoint = {
                 "model_state_dict": model.state_dict(),
@@ -199,12 +226,16 @@ with wandb.init(
                 "iteration": iter_count,
                 "eval_loss": avg_eval_loss,
             }
-            torch.save(checkpoint, f"checkpoint_{iter_count}.pth")
+            torch.save(
+                checkpoint, os.path.join(checkpoint_dir, f"checkpoint_{iter_count}.pth")
+            )
 
             # Save best-performing checkpoint
             if avg_eval_loss < best_eval_loss:
                 best_eval_loss = avg_eval_loss
-                torch.save(checkpoint, "best_checkpoint.pth")
+                torch.save(
+                    checkpoint, os.path.join(checkpoint_dir, "best_checkpoint.pth")
+                )
 
             # Manage heap for N most recent checkpoints
             if len(heap) < N:
@@ -213,5 +244,3 @@ with wandb.init(
                 _, oldest_checkpoint = heapq.heappop(heap)
                 os.remove(oldest_checkpoint)
                 heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
-
-            wandb.save(f"checkpoint_{iter_count}.pth")
