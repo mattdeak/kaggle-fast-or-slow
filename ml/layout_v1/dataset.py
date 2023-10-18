@@ -167,7 +167,7 @@ class LayoutDataset(Dataset):
 
         return Data(
             x=all_features,  # type: ignore
-            edge_index=edge_index,
+            edge_index=edge_index.T.contiguous(),
             y=torch.log(config_runtime),
         )
 
