@@ -341,14 +341,15 @@ def run(id: str | None = None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--id", type=str, default=None)
+    args = parser.parse_args()
     if PROFILE:
         with profile(
             activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
             record_shapes=True,
             profile_memory=True,
         ) as prof:
-            run()
+            run(id=args.id)
 
         print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
     else:
-        run()
+        run(id=args.id)
