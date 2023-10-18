@@ -11,7 +11,7 @@ from ml.layout_v1.dataset import LayoutDataset
 from ml.layout_v1.model import SAGEMLP
 
 # ---- Config ---- #
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using device:", device)
 
 # Logging/Metrics
@@ -39,6 +39,9 @@ CATEGORIES = ["default", "random"]
 
 # Deterministic
 GRAPH_DIM = 279
+
+# Training Mods
+USE_AMP = True
 
 # ---- Data ---- #
 directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
@@ -108,33 +111,32 @@ model = SAGEMLP(
     dropout=DROPOUT,
 )
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
 # Initialize Weights and Biases
+@torch.no_grad()
 def evaluate(
     model: nn.Module,
     criterion: nn.Module,
     loader: DataLoader,
     num_batches: int,
-    device: torch.device,
+    device: str,
 ):
     total_loss = 0
     num_iters = 0
 
-    with torch.no_grad():
-        for i, eval_batch in tqdm(
-            enumerate(loader), total=min(num_batches, len(loader))
-        ):
-            if i >= num_batches:
-                break
-            eval_batch = eval_batch.to(device)
+    for i, eval_batch in tqdm(enumerate(loader), total=min(num_batches, len(loader))):
+        if i >= num_batches:
+            break
+        eval_batch = eval_batch.to(device)
+        with torch.autocast(device_type=device, enabled=USE_AMP):
             output = model(eval_batch)
             loss = criterion(output.flatten(), eval_batch.y)
-            total_loss += loss.item()
-            num_iters += 1
+
+        total_loss += loss.item()
+        num_iters += 1
 
     avg_loss = total_loss / num_iters
     return avg_loss
@@ -155,12 +157,14 @@ with wandb.init(
         "num_workers": NUM_WORKERS,
         "data_dir": DATA_DIR,
         "categories": CATEGORIES,
+        "amp": USE_AMP,
         "job_type": "layout",
         "subtype": "dev",
     },
 ):
     wandb.watch(model)
 
+    scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
     avg_loss = 0
 
     criterion = nn.MSELoss()
@@ -179,16 +183,17 @@ with wandb.init(
         batch = batch.to(device)
 
         # Forward Pass
-        output = model(batch)
+        with torch.autocast(device_type=device, enabled=USE_AMP):
+            output = model(batch)
+            # Compute Loss
+            loss = criterion(output.flatten(), batch.y)
 
-        # Compute Loss
-        loss = criterion(output.flatten(), batch.y)
         avg_loss += loss.item()
+        scaler.scale(loss).backward()
+        scaler.step(optim)
 
         # Zero Gradients, Perform a Backward Pass, Update Weights
         optim.zero_grad(set_to_none=True)
-        loss.backward()
-        optim.step()
 
         if iter_count % LOG_INTERVAL == 0:
             avg_loss /= LOG_INTERVAL
