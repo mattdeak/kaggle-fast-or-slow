@@ -321,7 +321,6 @@ def run(id: str | None = None):
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optim.state_dict(),
                     "iteration": iter_count,
-                    "eval_loss": avg_eval_loss,
                 }
 
                 torch.save(
