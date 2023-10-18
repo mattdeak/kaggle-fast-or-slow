@@ -64,9 +64,19 @@ val_dataset = LayoutDataset(
 val_dataset.load()
 
 
-loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
+loader = DataLoader(
+    dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    pin_memory=True,
+    num_workers=NUM_WORKERS,
+)
 val_loader = DataLoader(
-    val_dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True
+    val_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    pin_memory=True,
+    num_workers=NUM_WORKERS,
 )
 
 # |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
