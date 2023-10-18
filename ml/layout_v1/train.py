@@ -256,19 +256,23 @@ def run(id: str | None = None):
             )
 
             most_recent_checkpoint = sorted_checkpoints[-1]
+            print("Loading checkpoint:", most_recent_checkpoint)
 
             checkpoint = torch.load(
                 os.path.join(checkpoint_dir, most_recent_checkpoint)
             )
             model.load_state_dict(checkpoint["model_state_dict"])
             optim.load_state_dict(checkpoint["optimizer_state_dict"])
+
             start_iter = checkpoint["iteration"]
+            print("Resuming from iteration:", start_iter)
 
             # TODO: this is technically wrong, but it's fine for now
 
         model.train()
         for iter_count, batch in tqdm(
-            enumerate(loader, start=start_iter), total=MAX_ITERS
+            enumerate(loader, start=start_iter),
+            total=MAX_ITERS - start_iter,
         ):
             batch = batch.to(device)
             if iter_count > MAX_ITERS:
