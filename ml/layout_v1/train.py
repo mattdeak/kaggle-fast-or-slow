@@ -56,7 +56,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "memmapped"  # memmapped or in-memory
+DATASET_MODE = "lazy"  # memmapped or in-memory
 
 # ---- Data ---- #
 directories = [
@@ -119,7 +119,8 @@ def make_dataloader(
 ) -> DataLoader:
     return DataLoader(
         dataset,
-        batch_size=None,  # this type errors but it's fine, it's cause torch geometric dataloader is dumb
+        batch_size=1,  # this type errors but it's fine, it's cause torch geometric dataloader is dumb
+        shuffle=False,
         batch_sampler=train_sampler,
         pin_memory=True,
         num_workers=NUM_WORKERS,

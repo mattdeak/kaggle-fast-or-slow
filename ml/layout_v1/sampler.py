@@ -1,4 +1,5 @@
 import random
+from typing import Iterator
 
 
 class ConfigCrossoverBatchSampler:
@@ -34,6 +35,9 @@ class ConfigCrossoverBatchSampler:
         random.shuffle(self.batch_list)
         return self.batch_list
 
-    def __call__(self):
+    def __iter__(self) -> Iterator[list[int]]:
         for batch in self.batch_list:
             yield batch
+
+    def __len__(self):
+        return len(self.batch_list)
