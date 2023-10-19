@@ -20,7 +20,6 @@ class SAGEBlock(nn.Module):
     ):
         super().__init__()
         self.conv = SAGEConv(input_dim, output_dim)
-        # self.convsage = SAGEConv(input_dim, output_dim)
         self.norm = nn.LayerNorm(output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
