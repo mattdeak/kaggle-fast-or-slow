@@ -61,6 +61,8 @@ PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
+ATTEMPT_OVERFIT = False  # good for validating learning behaviour
+OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
 directories = [
@@ -80,6 +82,9 @@ dataset = LayoutDataset(
     directories=directories, mode=DATASET_MODE, processed_dir="data/processed_layout"
 )
 dataset.load()
+
+if ATTEMPT_OVERFIT:
+    dataset = dataset[:OVERFIT_DATASET_SIZE]
 
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
