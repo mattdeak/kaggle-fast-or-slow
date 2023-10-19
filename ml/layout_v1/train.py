@@ -22,8 +22,8 @@ print("Using device:", device)
 # Logging/Metrics
 LOG_INTERVAL = 500
 MAX_ITERS = 200000
-EVAL_ITERS = 400
-EVAL_INTERVAL = 2000
+EVAL_ITERS = 256  # per loader
+EVAL_INTERVAL = 5000
 
 # Model hyperparameters
 SAGE_LAYERS = 8
@@ -73,18 +73,43 @@ dataset.load()
 
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
-default_val_dataset = LayoutDataset(
+default_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode="memmapped",
     processed_dir="data/processed_layout",
 )
-random_val_dataset = LayoutDataset(
+random_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode="memmapped",
     processed_dir="data/processed_layout",
 )
-default_val_dataset.load()
-random_val_dataset.load()
+
+default_val_nlp_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
+    mode="memmapped",
+    processed_dir="data/processed_layout",
+)
+random_val_nlp_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
+    mode="memmapped",
+    processed_dir="data/processed_layout",
+)
+
+
+default_val_xla_dataset.load()
+random_val_xla_dataset.load()
+default_val_nlp_dataset.load()
+random_val_nlp_dataset.load()
+
+
+def make_dataloader(dataset: LayoutDataset) -> DataLoader:
+    return DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        pin_memory=True,
+        num_workers=NUM_WORKERS,
+    )
 
 
 loader = DataLoader(
@@ -94,20 +119,13 @@ loader = DataLoader(
     pin_memory=True,
     num_workers=NUM_WORKERS,
 )
-default_val_loader = DataLoader(
-    default_val_dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=True,
-    pin_memory=True,
-    num_workers=NUM_WORKERS,
-)
-random_val_loader = DataLoader(
-    random_val_dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=True,
-    pin_memory=True,
-    num_workers=NUM_WORKERS,
-)
+
+eval_loaders = {
+    "default_xla": make_dataloader(default_val_xla_dataset),
+    "random_xla": make_dataloader(random_val_xla_dataset),
+    "default_nlp": make_dataloader(default_val_nlp_dataset),
+    "random_nlp": make_dataloader(random_val_nlp_dataset),
+}
 
 
 def cycle(iterable):
@@ -260,7 +278,7 @@ def run(id: str | None = None):
             with record_function("train_batch"):
                 avg_loss += train_batch(model, batch, optim, criterion, scaler)
 
-            if iter_count % LOG_INTERVAL == 0:
+            if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
                 avg_loss /= LOG_INTERVAL
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
@@ -270,20 +288,63 @@ def run(id: str | None = None):
             if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
                 model.eval()
                 with record_function("evaluate"):
-                    random_avg_eval_loss = evaluate(
-                        model, criterion, random_val_loader, EVAL_ITERS, device
+                    random_xla_eval_loss = evaluate(
+                        model, criterion, eval_loaders["random_xla"], EVAL_ITERS, device
                     )
 
-                    default_avg_eval_loss = evaluate(
-                        model, criterion, default_val_loader, EVAL_ITERS, device
+                    default_xla_eval_loss = evaluate(
+                        model,
+                        criterion,
+                        eval_loaders["default_val_loader"],
+                        EVAL_ITERS,
+                        device,
                     )
-                avg_eval_loss = (random_avg_eval_loss + default_avg_eval_loss) / 2
+
+                    random_nlp_eval_loss = evaluate(
+                        model,
+                        criterion,
+                        eval_loaders["random_nlp"],
+                        EVAL_ITERS,
+                        device,
+                    )
+
+                    default_nlp_eval_loss = evaluate(
+                        model,
+                        criterion,
+                        eval_loaders["default_nlp"],
+                        EVAL_ITERS,
+                        device,
+                    )
 
                 wandb.log(
                     {
-                        "random_val_loss": random_avg_eval_loss,
-                        "default_val_loss": default_avg_eval_loss,
-                        "val_loss": avg_eval_loss,
+                        "xla_random_val_loss": random_xla_eval_loss,
+                        "xla_default_val_loss": default_xla_eval_loss,
+                        "nlp_random_val_loss": random_nlp_eval_loss,
+                        "nlp_default_val_loss": default_nlp_eval_loss,
+                        "nlp_avg_val_loss": (
+                            random_nlp_eval_loss + default_nlp_eval_loss
+                        )
+                        / 2,
+                        "xla_avg_val_loss": (
+                            random_xla_eval_loss + default_xla_eval_loss
+                        )
+                        / 2,
+                        "random_avg_val_loss": (
+                            random_nlp_eval_loss + random_xla_eval_loss
+                        )
+                        / 2,
+                        "default_avg_val_loss": (
+                            default_nlp_eval_loss + default_xla_eval_loss
+                        )
+                        / 2,
+                        "avg_val_loss": (
+                            random_nlp_eval_loss
+                            + random_xla_eval_loss
+                            + default_nlp_eval_loss
+                            + default_xla_eval_loss
+                        )
+                        / 4,
                     }
                 )
 
