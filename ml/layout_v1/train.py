@@ -22,7 +22,7 @@ print("Using device:", device)
 # Logging/Metrics
 LOG_INTERVAL = 500
 MAX_ITERS = 200000
-EVAL_ITERS = 256  # per loader
+EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
@@ -30,7 +30,7 @@ SAGE_LAYERS = 8
 SAGE_CHANNELS = 256
 LINEAR_LAYERS = 4
 LINEAR_CHANNELS = 256
-DROPOUT = 0.0
+DROPOUT = 0.1
 
 # Optimizer
 LR = 3e-4
@@ -41,8 +41,10 @@ BATCH_SIZE = 16
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
-DATA_DIRS = [XLA_DATA_DIR, NLP_DATA_DIR]
-CATEGORIES = ["default", "random"]
+DATA_DIRS = [
+    XLA_DATA_DIR
+]  # only xla this run. I think it may be nonsense to train on both
+CATEGORIES = ["default", "random"]  # I think this is fine though?
 
 # Deterministic
 GRAPH_DIM = 279
@@ -84,22 +86,9 @@ random_val_xla_dataset = LayoutDataset(
     processed_dir="data/processed_layout",
 )
 
-default_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
-    mode="memmapped",
-    processed_dir="data/processed_layout",
-)
-random_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
-    mode="memmapped",
-    processed_dir="data/processed_layout",
-)
-
 
 default_val_xla_dataset.load()
 random_val_xla_dataset.load()
-default_val_nlp_dataset.load()
-random_val_nlp_dataset.load()
 
 
 def make_dataloader(dataset: LayoutDataset) -> DataLoader:
@@ -123,8 +112,6 @@ loader = DataLoader(
 eval_loaders = {
     "default_xla": make_dataloader(default_val_xla_dataset),
     "random_xla": make_dataloader(random_val_xla_dataset),
-    "default_nlp": make_dataloader(default_val_nlp_dataset),
-    "random_nlp": make_dataloader(random_val_nlp_dataset),
 }
 
 
@@ -301,51 +288,12 @@ def run(id: str | None = None):
                         device,
                     )
 
-                    random_nlp_eval_loss = evaluate(
-                        model,
-                        criterion,
-                        eval_loaders["random_nlp"],
-                        EVAL_ITERS,
-                        device,
-                    )
-
-                    default_nlp_eval_loss = evaluate(
-                        model,
-                        criterion,
-                        eval_loaders["default_nlp"],
-                        EVAL_ITERS,
-                        device,
-                    )
-
                 wandb.log(
                     {
                         "xla_random_val_loss": random_xla_eval_loss,
                         "xla_default_val_loss": default_xla_eval_loss,
-                        "nlp_random_val_loss": random_nlp_eval_loss,
-                        "nlp_default_val_loss": default_nlp_eval_loss,
-                        "nlp_avg_val_loss": (
-                            random_nlp_eval_loss + default_nlp_eval_loss
-                        )
+                        "avg_val_loss": (random_xla_eval_loss + default_xla_eval_loss)
                         / 2,
-                        "xla_avg_val_loss": (
-                            random_xla_eval_loss + default_xla_eval_loss
-                        )
-                        / 2,
-                        "random_avg_val_loss": (
-                            random_nlp_eval_loss + random_xla_eval_loss
-                        )
-                        / 2,
-                        "default_avg_val_loss": (
-                            default_nlp_eval_loss + default_xla_eval_loss
-                        )
-                        / 2,
-                        "avg_val_loss": (
-                            random_nlp_eval_loss
-                            + random_xla_eval_loss
-                            + default_nlp_eval_loss
-                            + default_xla_eval_loss
-                        )
-                        / 4,
                     }
                 )
 
