@@ -167,6 +167,7 @@ def evaluate(
     for i, eval_batch in tqdm(enumerate(loader), total=min(num_batches, len(loader))):
         if i >= num_batches:
             break
+
         eval_batch = eval_batch.to(device)
 
         with torch.autocast(device_type=device, enabled=USE_AMP):
@@ -295,7 +296,7 @@ def run(id: str | None = None):
                     default_xla_eval_loss = evaluate(
                         model,
                         criterion,
-                        eval_loaders["default_val_loader"],
+                        eval_loaders["default_xla"],
                         EVAL_ITERS,
                         device,
                     )
