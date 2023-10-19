@@ -21,14 +21,14 @@ print("Using device:", device)
 
 # Logging/Metrics
 LOG_INTERVAL = 500
-MAX_ITERS = 100000
-EVAL_ITERS = 200
+MAX_ITERS = 200000
+EVAL_ITERS = 400
 EVAL_INTERVAL = 2000
 
 # Model hyperparameters
-SAGE_LAYERS = 6
+SAGE_LAYERS = 8
 SAGE_CHANNELS = 256
-LINEAR_LAYERS = 3
+LINEAR_LAYERS = 4
 LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 
@@ -39,7 +39,9 @@ WEIGHT_DECAY = 1e-4
 # Training Details
 BATCH_SIZE = 16
 NUM_WORKERS = 4
-DATA_DIR = "data/layout/xla"
+XLA_DATA_DIR = "data/layout/xla"
+NLP_DATA_DIR = "data/layout/nlp"
+DATA_DIRS = [XLA_DATA_DIR, NLP_DATA_DIR]
 CATEGORIES = ["default", "random"]
 
 # Deterministic
@@ -52,8 +54,16 @@ WANDB_LOG = True
 SAVE_CHECKPOINTS = True
 
 # ---- Data ---- #
-directories = [os.path.join(DATA_DIR, category, "train") for category in CATEGORIES]
-val_directories = [os.path.join(DATA_DIR, category, "valid") for category in CATEGORIES]
+directories = [
+    os.path.join(data_dir, category, "train")
+    for data_dir in DATA_DIRS
+    for category in CATEGORIES
+]
+val_directories = [
+    os.path.join(data_dir, category, "valid")
+    for data_dir in DATA_DIRS
+    for category in CATEGORIES
+]
 
 
 dataset = LayoutDataset(
@@ -64,12 +74,12 @@ dataset.load()
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
 default_val_dataset = LayoutDataset(
-    directories=[os.path.join(DATA_DIR, "default", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode="memmapped",
     processed_dir="data/processed_layout",
 )
 random_val_dataset = LayoutDataset(
-    directories=[os.path.join(DATA_DIR, "random", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode="memmapped",
     processed_dir="data/processed_layout",
 )
@@ -176,41 +186,6 @@ def train_batch(
     return train_loss
 
 
-class Checkpointer:
-    def __init__(self, checkpoint_dir: str, max_latest: int = 5):
-        self.checkpoint_dir = checkpoint_dir
-        self.heap: list[tuple[int, str]] = []
-
-    def get_latest(self) -> str | None:
-        checkpoints = os.listdir(self.checkpoint_dir)
-        if not checkpoints:
-            return None
-        # Extract latest
-        sorted_checkpoints = sorted(
-            checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
-        )
-
-        most_recent_checkpoint = sorted_checkpoints[-1]
-        return most_recent_checkpoint
-
-    def load_dir(self) -> None:
-        checkpoints = os.listdir(self.checkpoint_dir)
-        if not checkpoints:
-            return
-        # Extract latest
-        sorted_checkpoints = sorted(
-            checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
-        )
-
-        most_recent_checkpoint = sorted_checkpoints[-1]
-
-        checkpoint = torch.load(
-            os.path.join(self.checkpoint_dir, most_recent_checkpoint)
-        )
-
-        return checkpoint
-
-
 def run(id: str | None = None):
     with wandb.init(
         project="kaggle-fast-or-slow",
@@ -227,11 +202,11 @@ def run(id: str | None = None):
             "weight_decay": WEIGHT_DECAY,
             "batch_size": BATCH_SIZE,
             "num_workers": NUM_WORKERS,
-            "data_dir": DATA_DIR,
+            "data_dir": DATA_DIRS,
             "categories": CATEGORIES,
             "amp": USE_AMP,
             "job_type": "layout",
-            "subtype": "dev",
+            "subtype": "train",
         },
         mode="online" if WANDB_LOG else "disabled",
     ):
@@ -253,7 +228,7 @@ def run(id: str | None = None):
         # Extract latest
         if checkpoints:
             sorted_checkpoints = sorted(
-                checkpoints, key=lambda x: int(x.split("_")[1].split(".")[0])
+                checkpoints, key=lambda x: int(x.split("_")[-1].split(".")[0])
             )
 
             most_recent_checkpoint = sorted_checkpoints[-1]
