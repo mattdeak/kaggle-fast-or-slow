@@ -39,7 +39,7 @@ LR = 3e-4
 WEIGHT_DECAY = 1e-4
 
 # Training Details
-BATCH_SIZE = 8
+BATCH_SIZE = 4  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
