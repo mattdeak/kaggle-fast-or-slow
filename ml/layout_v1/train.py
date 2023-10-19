@@ -166,8 +166,8 @@ def evaluate(
             y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
 
             loss = F.margin_ranking_loss(
-                output[pairs[:, 0]],
-                output[pairs[:, 1]],
+                output[pairs[:, 0]].flatten(),
+                output[pairs[:, 1]].flatten(),
                 y_true,
             )
 
@@ -195,8 +195,8 @@ def train_batch(
         y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
 
         loss = F.margin_ranking_loss(
-            output[pairs[:, 0]],
-            output[pairs[:, 1]],
+            output[pairs[:, 0]].flatten(),
+            output[pairs[:, 1]].flatten(),
             y_true,
         )
 
