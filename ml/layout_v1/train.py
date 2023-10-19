@@ -103,8 +103,24 @@ random_val_xla_dataset = LayoutDataset(
 default_val_xla_dataset.load()
 random_val_xla_dataset.load()
 
+if ATTEMPT_OVERFIT:
+    # we need to slice the idx groups too
+    train_idx_groups = sorted(dataset.idx_groups, key=lambda x: sum(x))
+    # this is nested. We want to slice by a running total
+    idx_groups = []
+    remaining = OVERFIT_DATASET_SIZE
+    for group in train_idx_groups:
+        if len(group) > remaining:
+            idx_groups.append(group[:remaining])
+            break
+        else:
+            idx_groups.append(group)
+            remaining -= len(group)
+else:
+    train_idx_groups = dataset.idx_groups
+
 train_sampler = ConfigCrossoverBatchSampler(
-    groups=dataset.idx_groups,
+    groups=train_idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
