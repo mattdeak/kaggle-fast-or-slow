@@ -119,6 +119,7 @@ def make_dataloader(
 ) -> DataLoader:
     return DataLoader(
         dataset,
+        batch_size=None,  # this type errors but it's fine, it's cause torch geometric dataloader is dumb
         batch_sampler=train_sampler,
         shuffle=True,
         pin_memory=True,
