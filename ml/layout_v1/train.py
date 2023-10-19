@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
 from ml.layout_v1.model import SAGEMLP
+from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -38,7 +39,7 @@ LR = 3e-4
 WEIGHT_DECAY = 1e-4
 
 # Training Details
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
@@ -63,6 +64,7 @@ directories = [
     for data_dir in DATA_DIRS
     for category in CATEGORIES
 ]
+
 val_directories = [
     os.path.join(data_dir, category, "valid")
     for data_dir in DATA_DIRS
@@ -92,28 +94,43 @@ random_val_xla_dataset = LayoutDataset(
 default_val_xla_dataset.load()
 random_val_xla_dataset.load()
 
+train_sampler = ConfigCrossoverBatchSampler(
+    groups=dataset.idx_groups,
+    batch_size=BATCH_SIZE,
+    shuffle_groups=True,
+    shuffle_within_groups=True,
+)
+default_val_sampler = ConfigCrossoverBatchSampler(
+    groups=default_val_xla_dataset.idx_groups,
+    batch_size=BATCH_SIZE,
+    shuffle_groups=True,
+    shuffle_within_groups=True,
+)
+random_val_sampler = ConfigCrossoverBatchSampler(
+    groups=random_val_xla_dataset.idx_groups,
+    batch_size=BATCH_SIZE,
+    shuffle_groups=True,
+    shuffle_within_groups=True,
+)
 
-def make_dataloader(dataset: LayoutDataset) -> DataLoader:
+
+def make_dataloader(
+    dataset: LayoutDataset, sampler: ConfigCrossoverBatchSampler
+) -> DataLoader:
     return DataLoader(
         dataset,
-        batch_size=BATCH_SIZE,
+        batch_sampler=train_sampler,
         shuffle=True,
         pin_memory=True,
         num_workers=NUM_WORKERS,
     )
 
 
-loader = DataLoader(
-    dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=True,
-    pin_memory=True,
-    num_workers=NUM_WORKERS,
-)
+loader = make_dataloader(dataset, train_sampler)
 
 eval_loaders = {
-    "default_xla": make_dataloader(default_val_xla_dataset),
-    "random_xla": make_dataloader(random_val_xla_dataset),
+    "default_xla": make_dataloader(default_val_xla_dataset, default_val_sampler),
+    "random_xla": make_dataloader(random_val_xla_dataset, random_val_sampler),
 }
 
 

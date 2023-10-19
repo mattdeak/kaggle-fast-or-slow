@@ -92,8 +92,10 @@ class LayoutDataset(Dataset):
         # Flattens the files into a list of configs. A single idx corresponds to
         # a file-config pair.
         self.idx_to_config: dict[int, tuple[str, int]] = {}
+        self.idx_groups: list[list[int]] = []
         self._loaded = False
         self._length = 0
+        self._groups = 0
 
         super().__init__()
 
@@ -145,6 +147,14 @@ class LayoutDataset(Dataset):
             if self.mode == "memmapped" and processed_subdir:
                 if self.force_reload or not self._file_is_processed(raw_dir, filepath):
                     self.process_to_npy(filepath, processed_subdir)
+
+            if num_configs == 0:
+                continue
+
+            self._groups += 1
+            self.idx_groups.append(
+                list(range(self._length, self._length + num_configs))
+            )
 
             for i in range(num_configs):
                 if self.mode == "memmapped" and processed_subdir:
