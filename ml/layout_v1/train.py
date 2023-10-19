@@ -263,6 +263,7 @@ def run(id: str | None = None):
             "data_dir": DATA_DIRS,
             "categories": CATEGORIES,
             "amp": USE_AMP,
+            "attempt_overfit": ATTEMPT_OVERFIT,
             "job_type": "layout",
             "subtype": "train",
         },
