@@ -27,16 +27,11 @@ EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
-# SAGE_LAYERS = 8
-# SAGE_CHANNELS = 256
-# LINEAR_LAYERS = 4
-# LINEAR_CHANNELS = 256
-# DROPOUT = 0.1
-SAGE_LAYERS = 1
-SAGE_CHANNELS = 64
-LINEAR_LAYERS = 1
-LINEAR_CHANNELS = 64
-DROPOUT = 0.0
+SAGE_LAYERS = 8
+SAGE_CHANNELS = 256
+LINEAR_LAYERS = 4
+LINEAR_CHANNELS = 256
+DROPOUT = 0.1
 
 # Optimizer
 LR = 3e-4
@@ -58,9 +53,9 @@ GRAPH_DIM = 279
 # Training Mods
 USE_AMP = False  # seems broken?
 PROFILE = False
-WANDB_LOG = False
+WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "lazy"  # memmapped or in-memory
+DATASET_MODE = "memmapped"  # memmapped or in-memory
 
 # ---- Data ---- #
 directories = [
