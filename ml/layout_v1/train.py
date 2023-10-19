@@ -60,8 +60,8 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = False  # good for validating learning behaviour
+DATASET_MODE = "lazy"  # memmapped or in-memory
+ATTEMPT_OVERFIT = True  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
@@ -105,22 +105,23 @@ random_val_xla_dataset.load()
 
 if ATTEMPT_OVERFIT:
     # we need to slice the idx groups too
-    train_idx_groups = sorted(dataset.idx_groups, key=lambda x: sum(x))
+    train_idx_groups = sorted(dataset.idx_groups, key=lambda x: max(x))
     # this is nested. We want to slice by a running total
     idx_groups = []
     remaining = OVERFIT_DATASET_SIZE
     for group in train_idx_groups:
-        if len(group) > remaining:
-            idx_groups.append(group[:remaining])
+        sgroup = sorted(group)
+        if len(sgroup) > remaining:
+            idx_groups.append(sgroup[:remaining])
             break
         else:
-            idx_groups.append(group)
+            idx_groups.append(sgroup)
             remaining -= len(group)
 else:
-    train_idx_groups = dataset.idx_groups
+    idx_groups = dataset.idx_groups
 
 train_sampler = ConfigCrossoverBatchSampler(
-    groups=train_idx_groups,
+    groups=idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
