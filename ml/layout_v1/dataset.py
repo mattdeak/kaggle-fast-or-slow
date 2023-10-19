@@ -65,6 +65,7 @@ class LayoutDataset(Dataset):
         processed_dir: str | None = None,
         device: str = "cpu",
         force_reload: bool = False,
+        y_transform: Transform | None = None,
     ):
         """Directories should be a list of directories to load from.
 
@@ -78,6 +79,7 @@ class LayoutDataset(Dataset):
         self.limit = limit
         self.mode = mode
         self.force_reload = force_reload
+        self.y_transform = y_transform
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -190,10 +192,12 @@ class LayoutDataset(Dataset):
         processed_config_features[node_config_ids] = config_features
         all_features = torch.cat([node_features, processed_config_features], axis=1)
 
+        y = self.y_transform(config_runtime) if self.y_transform else config_runtime
+
         return Data(
             x=all_features,  # type: ignore
             edge_index=edge_index.T.contiguous(),
-            y=torch.log(config_runtime),
+            y=y,
         )
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:

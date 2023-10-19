@@ -1,8 +1,10 @@
 import argparse
 import heapq
 import os
+from dataclasses import dataclass
 from typing import Any
 
+import scipy.stats as ss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -37,6 +39,8 @@ DROPOUT = 0.1
 # Optimizer
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
+MARGIN = 0.1  # penalize by 0.1
+
 
 # Training Details
 BATCH_SIZE = 4  # pretty low cause memory is hard
@@ -159,6 +163,13 @@ model = torch.compile(model)
 optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
+@dataclass
+class EvalMetrics:
+    avg_loss: float
+    avg_kendall_tau: float
+    std_kendall_tau: float
+
+
 @torch.no_grad()
 def evaluate(
     model: nn.Module,
@@ -178,7 +189,6 @@ def evaluate(
         with torch.autocast(device_type=device, enabled=USE_AMP):
             output = model(eval_batch)
             y = eval_batch.y
-
             # generate pairs for margin ranking loss
             pairs = torch.combinations(torch.arange(output.shape[0]), 2).to(device)
             y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
@@ -187,6 +197,7 @@ def evaluate(
                 output[pairs[:, 0]].flatten(),
                 output[pairs[:, 1]].flatten(),
                 y_true,
+                margin=MARGIN,
             )
 
         total_loss += loss.item()
@@ -216,6 +227,7 @@ def train_batch(
             output[pairs[:, 0]].flatten(),
             output[pairs[:, 1]].flatten(),
             y_true,
+            margin=MARGIN,
         )
 
     train_loss = loss.item()
