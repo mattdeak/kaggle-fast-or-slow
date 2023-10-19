@@ -56,7 +56,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "lazy"  # memmapped or in-memory
+DATASET_MODE = "memmapped"  # memmapped or in-memory
 
 # ---- Data ---- #
 directories = [
