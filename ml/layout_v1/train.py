@@ -5,6 +5,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
@@ -26,11 +27,16 @@ EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
-SAGE_LAYERS = 8
-SAGE_CHANNELS = 256
-LINEAR_LAYERS = 4
-LINEAR_CHANNELS = 256
-DROPOUT = 0.1
+# SAGE_LAYERS = 8
+# SAGE_CHANNELS = 256
+# LINEAR_LAYERS = 4
+# LINEAR_CHANNELS = 256
+# DROPOUT = 0.1
+SAGE_LAYERS = 1
+SAGE_CHANNELS = 64
+LINEAR_LAYERS = 1
+LINEAR_CHANNELS = 64
+DROPOUT = 0.0
 
 # Optimizer
 LR = 3e-4
@@ -52,8 +58,9 @@ GRAPH_DIM = 279
 # Training Mods
 USE_AMP = False  # seems broken?
 PROFILE = False
-WANDB_LOG = True
+WANDB_LOG = False
 SAVE_CHECKPOINTS = True
+DATASET_MODE = "lazy"  # memmapped or in-memory
 
 # ---- Data ---- #
 directories = [
@@ -69,7 +76,7 @@ val_directories = [
 
 
 dataset = LayoutDataset(
-    directories=directories, mode="memmapped", processed_dir="data/processed_layout"
+    directories=directories, mode=DATASET_MODE, processed_dir="data/processed_layout"
 )
 dataset.load()
 
@@ -77,12 +84,12 @@ dataset.load()
 # so we may want to analyze the metrics separately
 default_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
-    mode="memmapped",
+    mode=DATASET_MODE,
     processed_dir="data/processed_layout",
 )
 random_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
-    mode="memmapped",
+    mode=DATASET_MODE,
     processed_dir="data/processed_layout",
 )
 
@@ -139,11 +146,9 @@ model = torch.compile(model)
 optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
-# Initialize Weights and Biases
 @torch.no_grad()
 def evaluate(
     model: nn.Module,
-    criterion: nn.Module,
     loader: DataLoader,
     num_batches: int,
     device: str,
@@ -159,7 +164,17 @@ def evaluate(
 
         with torch.autocast(device_type=device, enabled=USE_AMP):
             output = model(eval_batch)
-            loss = criterion(output.flatten(), eval_batch.y)
+            y = eval_batch.y
+
+            # generate pairs for margin ranking loss
+            pairs = torch.combinations(torch.arange(output.shape[0]), 2).to(device)
+            y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
+
+            loss = F.margin_ranking_loss(
+                output[pairs[:, 0]],
+                output[pairs[:, 1]],
+                y_true,
+            )
 
         total_loss += loss.item()
         num_iters += 1
@@ -172,7 +187,6 @@ def train_batch(
     model: nn.Module,
     batch,
     optim: torch.optim.Optimizer,
-    criterion: nn.Module,
     scaler: GradScaler,
 ) -> float:
     optim.zero_grad()
@@ -180,8 +194,16 @@ def train_batch(
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
         output = model(batch)
+        y = batch.y
         # Compute Loss
-        loss = criterion(output.flatten(), batch.y)
+        pairs = torch.combinations(torch.arange(output.shape[0]), 2)
+        y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
+
+        loss = F.margin_ranking_loss(
+            output[pairs[:, 0]],
+            output[pairs[:, 1]],
+            y_true,
+        )
 
     train_loss = loss.item()
 
@@ -221,7 +243,6 @@ def run(id: str | None = None):
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
         avg_loss = 0
 
-        criterion = nn.MSELoss()
         heap: list[tuple[int, str]] = []
         N = 5  # Number of recent checkpoints to keep
         start_iter = 0
@@ -264,7 +285,7 @@ def run(id: str | None = None):
 
             # Zero Gradients, Perform a Backward Pass, Update Weights
             with record_function("train_batch"):
-                avg_loss += train_batch(model, batch, optim, criterion, scaler)
+                avg_loss += train_batch(model, batch, optim, scaler)
 
             if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
                 avg_loss /= LOG_INTERVAL
@@ -277,12 +298,11 @@ def run(id: str | None = None):
                 model.eval()
                 with record_function("evaluate"):
                     random_xla_eval_loss = evaluate(
-                        model, criterion, eval_loaders["random_xla"], EVAL_ITERS, device
+                        model, eval_loaders["random_xla"], EVAL_ITERS, device
                     )
 
                     default_xla_eval_loss = evaluate(
                         model,
-                        criterion,
                         eval_loaders["default_xla"],
                         EVAL_ITERS,
                         device,
