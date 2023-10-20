@@ -34,14 +34,15 @@ EVAL_INTERVAL = 5000
 
 # Model hyperparameters
 SAGE_LAYERS = 2
-SAGE_CHANNELS = 256
-LINEAR_LAYERS = 4
-LINEAR_CHANNELS = 256
+SAGE_CHANNELS = 64
+LINEAR_LAYERS = 2
+LINEAR_CHANNELS = 64
 DROPOUT = 0.0
 
 # Optimizer
-LR = 3e-4
-WEIGHT_DECAY = 1e-4
+# LR = 3e-4
+# WEIGHT_DECAY = 1e-4
+LR = 1e-3
 MARGIN = 3.5  # penalize by 0.1
 PENALTY_REGULARIZATION = 1e-3
 PENALTY_THRESHOLD = 0.1
@@ -259,12 +260,10 @@ def evaluate(
                 threshold=PENALTY_THRESHOLD,
             )
 
-            predicted_rank = torch.argsort(output)
-            true_rank = torch.argsort(y)
+            predicted_rank = torch.argsort(output.flatten()).cpu().numpy()
+            true_rank = torch.argsort(y).cpu().numpy()
 
-            kendall_tau = ss.kendalltau(
-                predicted_rank.cpu(), true_rank.cpu()
-            ).correlation
+            kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
             kendall_taus.append(kendall_tau)
 
         total_loss += loss.item()
@@ -403,12 +402,17 @@ def run(id: str | None = None):
                     ranked = np.argsort(cpu_output)
                     true_ranked = np.argsort(ranked)
 
+                data = [
+                    (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
+                    for i in range(len(cpu_output))
+                ]
+
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
                     {
                         "train_example": wandb.Table(
                             columns=["output", "y", "predicted_rank", "true_rank"],
-                            data=[cpu_output, cpu_y, ranked, true_ranked],
+                            data=data,
                         ),
                         "train_kendall_tau": kendall_tau,
                     }
