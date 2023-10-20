@@ -2,7 +2,6 @@ import argparse
 import heapq
 import os
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import scipy.stats as ss
@@ -40,7 +39,7 @@ DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 0.0
+WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 3e-4
 MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
