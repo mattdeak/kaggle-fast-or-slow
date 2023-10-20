@@ -26,7 +26,7 @@ print("Using device:", device)
 
 # Logging/Metrics
 LOG_INTERVAL = 500
-MAX_ITERS = 200000
+MAX_ITERS = 800000
 EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
