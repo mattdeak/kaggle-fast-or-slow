@@ -306,9 +306,9 @@ def train_batch(
             threshold=PENALTY_THRESHOLD,
         )
 
-    train_loss = total_loss.item()
+    train_loss = loss.item()
 
-    scaler.scale(total_loss).backward()
+    scaler.scale(loss).backward()
     scaler.step(optim)
     scaler.update()
 
