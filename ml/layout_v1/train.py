@@ -195,6 +195,7 @@ def modified_margin_loss(
     x1: torch.Tensor,
     x2: torch.Tensor,
     y: torch.Tensor,
+    margin: float = 1.5,
     alpha: float = 0.001,
     threshold: float = 0.1,
 ) -> torch.Tensor:
@@ -203,7 +204,7 @@ def modified_margin_loss(
 
     y_true = torch.where(y > 0, 1, -1)
 
-    loss = F.margin_ranking_loss(x1, x2, y_true, margin=MARGIN)
+    loss = F.margin_ranking_loss(x1, x2, y_true, margin=margin)
     penalty_term = torch.sum(torch.max(0, threshold - torch.abs(x1 - x2)))
     loss += alpha * penalty_term
 
