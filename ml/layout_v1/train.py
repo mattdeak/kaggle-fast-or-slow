@@ -13,7 +13,6 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
-from torch_geometric.utils.scatter import torch_geometric
 from tqdm.auto import tqdm
 
 import wandb
@@ -237,7 +236,7 @@ def loss_fn(
     y2 = y[combination[:, 1]]
 
     margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
-    mse_loss = F.mse_loss(x.flatten(), torch.log(y + 1))
+    mse_loss = F.mse_loss(x.flatten(), y)
 
     return delta * margin_loss + (1 - delta) * mse_loss
 
