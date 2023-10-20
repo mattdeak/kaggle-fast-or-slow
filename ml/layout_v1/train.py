@@ -399,8 +399,8 @@ def run(id: str | None = None):
                 # also record the most recent outputs for examination
                 cpu_output = output.cpu()
                 cpu_y = y.cpu()
-                ranked = torch.argsort(output).cpu()
-                true_ranked = torch.argsort(y).cpu()
+                ranked = torch.argsort(cpu_output)
+                true_ranked = torch.argsort(ranked)
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
