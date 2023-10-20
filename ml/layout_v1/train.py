@@ -262,7 +262,9 @@ def evaluate(
             predicted_rank = torch.argsort(output)
             true_rank = torch.argsort(y)
 
-            kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
+            kendall_tau = ss.kendalltau(
+                predicted_rank.cpu(), true_rank.cpu()
+            ).correlation
             kendall_taus.append(kendall_tau)
 
         total_loss += loss.item()
@@ -395,8 +397,8 @@ def run(id: str | None = None):
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
                 # also record the most recent outputs for examination
-                ranked = torch.argsort(output)
-                true_ranked = torch.argsort(y)
+                ranked = torch.argsort(output).cpu()
+                true_ranked = torch.argsort(y).cpu()
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
@@ -411,7 +413,8 @@ def run(id: str | None = None):
                                     true_ranked[i].item(),
                                 ]
                             ],
-                        )
+                        ),
+                        "train_kendall_tau": kendall_tau,
                     }
                 )
 
