@@ -42,7 +42,7 @@ DROPOUT = 0.0
 # Optimizer
 # LR = 3e-4
 WEIGHT_DECAY = 0.0
-LR = 1e-3
+LR = 3e-4
 MARGIN = 3.5  # penalize by 0.1
 PENALTY_REGULARIZATION = 1e-3
 PENALTY_THRESHOLD = 0.1
@@ -200,6 +200,9 @@ def modified_margin_loss(
     alpha: float = 0.001,
     threshold: float = 0.1,
 ) -> torch.Tensor:
+    """We use margin ranking loss but add a penalty term to encourage
+    diversity in the output."""
+
     x1 = x1.flatten()
     x2 = x2.flatten()
 
