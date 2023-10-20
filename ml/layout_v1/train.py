@@ -206,14 +206,14 @@ def modified_margin_loss(
     x2 = x2.flatten()
 
     y_true = torch.where(y1 > y2, 1, -1)
-    loss = F.margin_ranking_loss(x1, x2, y_true, margin=margin)
+    loss = F.margin_ranking_loss(x1, x2, y_true, margin=margin, reduction="none")
 
     # penalizes the model for having similar outputs
     penalty_mask = (y1 != y2).float()
     diff = x1 - x2
-    penalty_term = torch.sum(torch.exp(-alpha * torch.pow(diff, 2)))
+    penalty_term = torch.exp(-alpha * torch.pow(diff, 2))
 
-    loss += alpha * penalty_term * penalty_mask
+    loss += torch.mean(penalty_term * penalty_mask)
 
     return loss
 
