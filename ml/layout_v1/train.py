@@ -42,10 +42,11 @@ DROPOUT = 0.0
 # Optimizer
 # LR = 3e-4
 WEIGHT_DECAY = 0.0
-LR = 1e-3
+LR = 3e-4
 MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
 PENALTY_REGULARIZATION_H = 3.0
+DELTA = 0.7  # 70% margin loss, 30% mse loss
 
 
 # Training Details
@@ -67,7 +68,7 @@ PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = False
 DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = True  # good for validating learning behaviour
+ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
@@ -219,6 +220,28 @@ def modified_margin_loss(
     return final_loss
 
 
+@torch.jit.script
+def loss_fn(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    margin: float,
+    alpha: float,
+    gamma: float,
+    delta: float,
+) -> torch.Tensor:
+    combination = torch.combinations(torch.arange(x.shape[0]), 2)
+
+    x1 = x[combination[:, 0]]
+    x2 = x[combination[:, 1]]
+    y1 = y[combination[:, 0]]
+    y2 = y[combination[:, 1]]
+
+    margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
+    mse_loss = F.mse_loss(x, torch.log(y + 1))
+
+    return delta * margin_loss + (1 - delta) * mse_loss
+
+
 @dataclass
 class EvalMetrics:
     avg_loss: float
@@ -248,28 +271,17 @@ def evaluate(
             output = model(eval_batch)
             y = eval_batch.y
             # generate pairs for margin ranking loss
-            pairs = torch.combinations(torch.arange(output.shape[0]), 2).to(device)
-
-            y1 = y[pairs[:, 0]]
-            y2 = y[pairs[:, 1]]
-
-            # loss = F.margin_ranking_loss(
-            #     output[pairs[:, 0]].flatten(),
-            #     output[pairs[:, 1]].flatten(),
-            #     y_true,
-            #     margin=MARGIN,
-            # )
-            loss = modified_margin_loss(
-                output[pairs[:, 0]].flatten(),
-                output[pairs[:, 1]].flatten(),
-                y1,
-                y2,
+            loss = loss_fn(
+                output,
+                y,
                 margin=MARGIN,
                 alpha=PENALTY_REGULARIZATION_W,
+                gamma=PENALTY_REGULARIZATION_H,
+                delta=DELTA,
             )
 
             predicted_rank = torch.argsort(output.flatten()).cpu().numpy()
-            true_rank = torch.argsort(y).cpu().numpy()
+            true_rank = torch.argsort(y.flatten()).cpu().numpy()
 
             kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
             kendall_taus.append(kendall_tau)
@@ -292,27 +304,15 @@ def train_batch(
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
         output = model(batch)
-        y = batch.y
-        # Compute Loss
-        x1 = output[output.shape[0] // 2 :]
-        x2 = output[: output.shape[0] // 2]
-
-        y1 = y[output.shape[0] // 2 :]
-        y2 = y[: output.shape[0] // 2]
-
-        # loss = F.margin_ranking_loss(
-        #     x1.flatten(),
-        #     x2.flatten(),
-        #     y_true,
-        #     margin=MARGIN,
-        # )
-        loss = modified_margin_loss(
-            x1.flatten(),
-            x2.flatten(),
-            y1,
-            y2,
+        y = eval_batch.y
+        # generate pairs for margin ranking loss
+        loss = loss_fn(
+            output,
+            y,
             margin=MARGIN,
             alpha=PENALTY_REGULARIZATION_W,
+            gamma=PENALTY_REGULARIZATION_H,
+            delta=DELTA,
         )
 
     train_loss = loss.item()
