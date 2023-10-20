@@ -434,7 +434,7 @@ def run(id: str | None = None):
                         model, eval_loaders["random_xla"], EVAL_ITERS, device
                     )
 
-                    default_xla_eval_loss, random_kt, random_kt_std = evaluate(
+                    default_xla_eval_loss, default_kt, default_kt_std = evaluate(
                         model,
                         eval_loaders["default_xla"],
                         EVAL_ITERS,
@@ -445,12 +445,10 @@ def run(id: str | None = None):
                     {
                         "xla_random_val_loss": random_xla_eval_loss,
                         "xla_default_val_loss": default_xla_eval_loss,
-                        "xla_random_kendall_tau": random_kt,
+                        "xla_random_kendall_tau": default_kt,
                         "xla_default_kendall_tau": random_kt,
-                        "avg_kendall_tau": (
-                            random_xla_eval_loss + default_xla_eval_loss
-                        ),
-                        "avg_kendall_tau_std": (random_kt_std + random_kt_std) / 2,
+                        "avg_kendall_tau": (random_kt + default_kt) / 2,
+                        "avg_kendall_tau_std": (random_kt_std + default_kt_std) / 2,
                         "avg_val_loss": (random_xla_eval_loss + default_xla_eval_loss)
                         / 2,
                     }
