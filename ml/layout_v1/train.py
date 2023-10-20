@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import scipy.stats as ss
 import torch
 import torch.nn as nn
@@ -42,7 +43,8 @@ DROPOUT = 0.0
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
 MARGIN = 3.5  # penalize by 0.1
-VAR_REGULARIZATION = 1e-3
+PENALTY_REGULARIZATION = 1e-3
+PENALTY_THRESHOLD = 0.1
 
 
 # Training Details
@@ -188,6 +190,26 @@ model = torch.compile(model)
 optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
+@torch.jit.script
+def modified_margin_loss(
+    x1: torch.Tensor,
+    x2: torch.Tensor,
+    y: torch.Tensor,
+    alpha: float = 0.001,
+    threshold: float = 0.1,
+) -> torch.Tensor:
+    x1 = x1.flatten()
+    x2 = x2.flatten()
+
+    y_true = torch.where(y > 0, 1, -1)
+
+    loss = F.margin_ranking_loss(x1, x2, y_true, margin=MARGIN)
+    penalty_term = torch.sum(torch.max(0, threshold - torch.abs(x1 - x2)))
+    loss += alpha * penalty_term
+
+    return loss
+
+
 @dataclass
 class EvalMetrics:
     avg_loss: float
@@ -201,9 +223,11 @@ def evaluate(
     loader: DataLoader,
     num_batches: int,
     device: str,
-):
+) -> tuple[float, float, float]:
     total_loss = 0
     num_iters = 0
+
+    kendall_taus: list[float] = []
 
     for i, eval_batch in tqdm(enumerate(loader), total=min(num_batches, len(loader))):
         if i >= num_batches:
@@ -218,18 +242,32 @@ def evaluate(
             pairs = torch.combinations(torch.arange(output.shape[0]), 2).to(device)
             y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
 
-            loss = F.margin_ranking_loss(
+            # loss = F.margin_ranking_loss(
+            #     output[pairs[:, 0]].flatten(),
+            #     output[pairs[:, 1]].flatten(),
+            #     y_true,
+            #     margin=MARGIN,
+            # )
+            loss = modified_margin_loss(
                 output[pairs[:, 0]].flatten(),
                 output[pairs[:, 1]].flatten(),
                 y_true,
                 margin=MARGIN,
+                alpha=PENALTY_REGULARIZATION,
+                threshold=PENALTY_THRESHOLD,
             )
+
+            predicted_rank = torch.argsort(output)
+            true_rank = torch.argsort(y)
+
+            kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
+            kendall_taus.append(kendall_tau)
 
         total_loss += loss.item()
         num_iters += 1
 
     avg_loss = total_loss / num_iters
-    return avg_loss
+    return avg_loss, np.mean(kendall_taus), np.std(kendall_taus)
 
 
 def train_batch(
@@ -251,17 +289,20 @@ def train_batch(
             y[output.shape[0] // 2 :] > y[: output.shape[0] // 2], 1, -1
         )
 
-        loss = F.margin_ranking_loss(
+        # loss = F.margin_ranking_loss(
+        #     x1.flatten(),
+        #     x2.flatten(),
+        #     y_true,
+        #     margin=MARGIN,
+        # )
+        loss = modified_margin_loss(
             x1.flatten(),
             x2.flatten(),
             y_true,
             margin=MARGIN,
+            alpha=PENALTY_REGULARIZATION,
+            threshold=PENALTY_THRESHOLD,
         )
-
-        output_variances = torch.var(output, dim=0)
-        regularization_term = 1.0 / torch.mean(output_variances + 1e-6)
-
-        total_loss = loss + VAR_REGULARIZATION * regularization_term
 
     train_loss = total_loss.item()
 
@@ -352,11 +393,22 @@ def run(id: str | None = None):
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
                 # also record the most recent outputs for examination
+                ranked = torch.argsort(output)
+                true_ranked = torch.argsort(y)
+
+                kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
                     {
-                        "output": wandb.Table(
-                            columns=["output", "y"],
-                            data=[[o.item(), y.item()] for o, y in zip(output, y)],
+                        "train_example": wandb.Table(
+                            columns=["output", "y", "predicted_rank", "true_rank"],
+                            data=[
+                                [
+                                    output[i].item(),
+                                    y[i].item(),
+                                    ranked[i].item(),
+                                    true_ranked[i].item(),
+                                ]
+                            ],
                         )
                     }
                 )
@@ -367,11 +419,11 @@ def run(id: str | None = None):
             if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
                 model.eval()
                 with record_function("evaluate"):
-                    random_xla_eval_loss = evaluate(
+                    random_xla_eval_loss, random_kt, random_kt_std = evaluate(
                         model, eval_loaders["random_xla"], EVAL_ITERS, device
                     )
 
-                    default_xla_eval_loss = evaluate(
+                    default_xla_eval_loss, random_kt, random_kt_std = evaluate(
                         model,
                         eval_loaders["default_xla"],
                         EVAL_ITERS,
@@ -382,6 +434,12 @@ def run(id: str | None = None):
                     {
                         "xla_random_val_loss": random_xla_eval_loss,
                         "xla_default_val_loss": default_xla_eval_loss,
+                        "xla_random_kendall_tau": random_kt,
+                        "xla_default_kendall_tau": random_kt,
+                        "avg_kendall_tau": (
+                            random_xla_eval_loss + default_xla_eval_loss
+                        ),
+                        "avg_kendall_tau_std": (random_kt_std + random_kt_std) / 2,
                         "avg_val_loss": (random_xla_eval_loss + default_xla_eval_loss)
                         / 2,
                     }
