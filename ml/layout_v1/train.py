@@ -12,6 +12,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
+from torch_geometric.utils.scatter import torch_geometric
 from tqdm.auto import tqdm
 
 import wandb
@@ -230,9 +231,8 @@ def evaluate(
     return avg_loss
 
 
-@torch.jit.script
 def train_batch(
-    model: nn.Module,
+    model: torch.nn.Module,
     batch: Batch,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
