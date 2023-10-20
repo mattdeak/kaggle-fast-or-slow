@@ -96,6 +96,8 @@ class SAGEMLP(nn.Module):
                 LinearBlock(linear_channels, linear_channels, dropout=dropout)
                 for _ in range(linear_layers)
             ],
+            # This is a rough guess. idk
+            nn.Softmax(),
             nn.Linear(linear_channels, 1),
         )
 
