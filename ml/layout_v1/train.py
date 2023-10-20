@@ -44,8 +44,7 @@ DROPOUT = 0.0
 WEIGHT_DECAY = 0.0
 LR = 1e-3
 MARGIN = 3.5  # penalize by 0.1
-PENALTY_REGULARIZATION = 1e-3
-PENALTY_THRESHOLD = 0.1
+PENALTY_REGULARIZATION = 50.0
 
 
 # Training Details
@@ -195,10 +194,10 @@ optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 def modified_margin_loss(
     x1: torch.Tensor,
     x2: torch.Tensor,
-    y: torch.Tensor,
+    y1: torch.Tensor,
+    y2: torch.Tensor,
     margin: float = 1.5,
-    alpha: float = 0.001,
-    threshold: float = 0.1,
+    alpha: float = 50.0,
 ) -> torch.Tensor:
     """We use margin ranking loss but add a penalty term to encourage
     diversity in the output."""
@@ -206,12 +205,15 @@ def modified_margin_loss(
     x1 = x1.flatten()
     x2 = x2.flatten()
 
-    y_true = torch.where(y > 0, 1, -1)
-
+    y_true = torch.where(y1 > y2, 1, -1)
     loss = F.margin_ranking_loss(x1, x2, y_true, margin=margin)
 
-    penalty_term = torch.sum(torch.max(torch.tensor(0), threshold - torch.abs(x1 - x2)))
-    loss += alpha * penalty_term
+    # penalizes the model for having similar outputs
+    penalty_mask = (y1 != y2).float()
+    diff = x1 - x2
+    penalty_term = torch.sum(torch.exp(-alpha * torch.pow(diff, 2)))
+
+    loss += alpha * penalty_term * penalty_mask
 
     return loss
 
@@ -246,7 +248,9 @@ def evaluate(
             y = eval_batch.y
             # generate pairs for margin ranking loss
             pairs = torch.combinations(torch.arange(output.shape[0]), 2).to(device)
-            y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
+
+            y1 = y[pairs[:, 0]]
+            y2 = y[pairs[:, 1]]
 
             # loss = F.margin_ranking_loss(
             #     output[pairs[:, 0]].flatten(),
@@ -257,10 +261,10 @@ def evaluate(
             loss = modified_margin_loss(
                 output[pairs[:, 0]].flatten(),
                 output[pairs[:, 1]].flatten(),
-                y_true,
+                y1,
+                y2,
                 margin=MARGIN,
                 alpha=PENALTY_REGULARIZATION,
-                threshold=PENALTY_THRESHOLD,
             )
 
             predicted_rank = torch.argsort(output.flatten()).cpu().numpy()
@@ -291,9 +295,9 @@ def train_batch(
         # Compute Loss
         x1 = output[output.shape[0] // 2 :]
         x2 = output[: output.shape[0] // 2]
-        y_true = torch.where(
-            y[output.shape[0] // 2 :] > y[: output.shape[0] // 2], 1, -1
-        )
+
+        y1 = y[output.shape[0] // 2 :]
+        y2 = y[: output.shape[0] // 2]
 
         # loss = F.margin_ranking_loss(
         #     x1.flatten(),
@@ -304,10 +308,10 @@ def train_batch(
         loss = modified_margin_loss(
             x1.flatten(),
             x2.flatten(),
-            y_true,
+            y1,
+            y2,
             margin=MARGIN,
             alpha=PENALTY_REGULARIZATION,
-            threshold=PENALTY_THRESHOLD,
         )
 
     train_loss = loss.item()
