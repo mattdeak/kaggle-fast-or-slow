@@ -410,7 +410,8 @@ def run(id: str | None = None):
                                     output[i].item(),
                                     y[i].item(),
                                     ranked[i].item(),
-                                    true_ranked[i].item(),
+                                    true_ranked[i].item()
+                                    for i in range(len(output))
                                 ]
                             ],
                         ),
