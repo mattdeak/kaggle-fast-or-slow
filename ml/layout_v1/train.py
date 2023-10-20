@@ -43,8 +43,9 @@ DROPOUT = 0.0
 # LR = 3e-4
 WEIGHT_DECAY = 0.0
 LR = 1e-3
-MARGIN = 3.5  # penalize by 0.1
-PENALTY_REGULARIZATION = 50.0
+MARGIN = 0.5  # penalize by 0.1
+PENALTY_REGULARIZATION_W = 50.0
+PENALTY_REGULARIZATION_H = 3.0
 
 
 # Training Details
@@ -198,6 +199,7 @@ def modified_margin_loss(
     y2: torch.Tensor,
     margin: float = 1.5,
     alpha: float = 50.0,
+    gamma: float = 3.0,
 ) -> torch.Tensor:
     """We use margin ranking loss but add a penalty term to encourage
     diversity in the output."""
@@ -211,7 +213,7 @@ def modified_margin_loss(
     # penalizes the model for having similar outputs
     penalty_mask = (y1 != y2).float()
     diff = x1 - x2
-    penalty_term = torch.exp(-alpha * torch.pow(diff, 2))
+    penalty_term = torch.exp(-alpha * torch.pow(diff, 2)) * gamma
     final_loss = torch.mean(loss + penalty_term * penalty_mask)
 
     return final_loss
@@ -263,7 +265,7 @@ def evaluate(
                 y1,
                 y2,
                 margin=MARGIN,
-                alpha=PENALTY_REGULARIZATION,
+                alpha=PENALTY_REGULARIZATION_W,
             )
 
             predicted_rank = torch.argsort(output.flatten()).cpu().numpy()
@@ -310,7 +312,7 @@ def train_batch(
             y1,
             y2,
             margin=MARGIN,
-            alpha=PENALTY_REGULARIZATION,
+            alpha=PENALTY_REGULARIZATION_W,
         )
 
     train_loss = loss.item()
