@@ -304,7 +304,7 @@ def train_batch(
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
         output = model(batch)
-        y = eval_batch.y
+        y = batch.y
         # generate pairs for margin ranking loss
         loss = loss_fn(
             output,
