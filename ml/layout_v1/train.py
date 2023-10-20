@@ -397,6 +397,8 @@ def run(id: str | None = None):
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
                 # also record the most recent outputs for examination
+                cpu_output = output.cpu()
+                cpu_y = y.cpu()
                 ranked = torch.argsort(output).cpu()
                 true_ranked = torch.argsort(y).cpu()
 
@@ -406,13 +408,10 @@ def run(id: str | None = None):
                         "train_example": wandb.Table(
                             columns=["output", "y", "predicted_rank", "true_rank"],
                             data=[
-                                [
-                                    output[i].item(),
-                                    y[i].item(),
-                                    ranked[i].item(),
-                                    true_ranked[i].item()
-                                    for i in range(len(output))
-                                ]
+                                cpu_output.flatten().numpy(),
+                                cpu_y.flatten().numpy(),
+                                ranked.flatten().numpy(),
+                                true_ranked.flatten().numpy(),
                             ],
                         ),
                         "train_kendall_tau": kendall_tau,
