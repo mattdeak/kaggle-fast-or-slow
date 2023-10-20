@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
+from torch_geometric.loader.dataloader import Batch
 from tqdm.auto import tqdm
 
 import wandb
@@ -39,7 +40,7 @@ DROPOUT = 0.1
 # Optimizer
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
-MARGIN = 0.1  # penalize by 0.1
+MARGIN = 0.5  # penalize by 0.1
 
 
 # Training Details
@@ -229,12 +230,13 @@ def evaluate(
     return avg_loss
 
 
+@torch.jit.script
 def train_batch(
     model: nn.Module,
-    batch,
+    batch: Batch,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
-) -> float:
+) -> tuple[float, torch.Tensor, torch.Tensor]:
     optim.zero_grad()
 
     # Forward Pass
@@ -242,12 +244,15 @@ def train_batch(
         output = model(batch)
         y = batch.y
         # Compute Loss
-        pairs = torch.combinations(torch.arange(output.shape[0]), 2)
-        y_true = torch.where(y[pairs[:, 0]] > y[pairs[:, 1]], 1, -1).to(device)
+        x1 = output[output.shape[0] // 2 :]
+        x2 = output[: output.shape[0] // 2]
+        y_true = torch.where(
+            y[output.shape[0] // 2 :] > y[: output.shape[0] // 2], 1, -1
+        )
 
         loss = F.margin_ranking_loss(
-            output[pairs[:, 0]].flatten(),
-            output[pairs[:, 1]].flatten(),
+            x1.flatten(),
+            x2.flatten(),
             y_true,
             margin=MARGIN,
         )
@@ -258,7 +263,7 @@ def train_batch(
     scaler.step(optim)
     scaler.update()
 
-    return train_loss
+    return train_loss, output, y
 
 
 def run(id: str | None = None):
@@ -333,12 +338,23 @@ def run(id: str | None = None):
 
             # Zero Gradients, Perform a Backward Pass, Update Weights
             with record_function("train_batch"):
-                avg_loss += train_batch(model, batch, optim, scaler)
+                batch_loss, output, y = train_batch(model, batch, optim, scaler)
+                avg_loss += batch_loss
 
             if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
                 avg_loss /= LOG_INTERVAL
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
+                # also record the most recent outputs for examination
+                wandb.log(
+                    {
+                        "output": wandb.Table(
+                            columns=["output", "y"],
+                            data=[[o.item(), y.item()] for o, y in zip(output, y)],
+                        )
+                    }
+                )
+
                 avg_loss = 0
 
             # Evaluation Loop and Checkpointing
