@@ -212,8 +212,7 @@ def modified_margin_loss(
     penalty_mask = (y1 != y2).float()
     diff = x1 - x2
     penalty_term = torch.exp(-alpha * torch.pow(diff, 2))
-
-    final_loss = torch.mean(penalty_term * penalty_mask)
+    final_loss = torch.mean(loss + penalty_term * penalty_mask)
 
     return final_loss
 
