@@ -42,6 +42,7 @@ DROPOUT = 0.0
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
 MARGIN = 3.5  # penalize by 0.1
+VAR_REGULARIZATION = 1e-3
 
 
 # Training Details
@@ -260,7 +261,7 @@ def train_batch(
         output_variances = torch.var(output, dim=0)
         regularization_term = 1.0 / torch.mean(output_variances + 1e-6)
 
-        total_loss = loss + regularization_term
+        total_loss = loss + VAR_REGULARIZATION * regularization_term
 
     train_loss = total_loss.item()
 
