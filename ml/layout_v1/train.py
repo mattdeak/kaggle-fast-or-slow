@@ -236,7 +236,7 @@ def loss_fn(
     y2 = y[combination[:, 1]]
 
     margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
-    mse_loss = F.mse_loss(x.flatten(), y)
+    mse_loss = F.l1_loss(x.flatten(), y)
 
     return delta * margin_loss + (1 - delta) * mse_loss
 
