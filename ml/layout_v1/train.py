@@ -32,16 +32,16 @@ EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
-SAGE_LAYERS = 8
+SAGE_LAYERS = 2
 SAGE_CHANNELS = 256
 LINEAR_LAYERS = 4
 LINEAR_CHANNELS = 256
-DROPOUT = 0.1
+DROPOUT = 0.0
 
 # Optimizer
 LR = 3e-4
 WEIGHT_DECAY = 1e-4
-MARGIN = 0.5  # penalize by 0.1
+MARGIN = 3.5  # penalize by 0.1
 
 
 # Training Details
@@ -257,9 +257,14 @@ def train_batch(
             margin=MARGIN,
         )
 
-    train_loss = loss.item()
+        output_variances = torch.var(output, dim=0)
+        regularization_term = 1.0 / torch.mean(output_variances + 1e-6)
 
-    scaler.scale(loss).backward()
+        total_loss = loss + regularization_term
+
+    train_loss = total_loss.item()
+
+    scaler.scale(total_loss).backward()
     scaler.step(optim)
     scaler.update()
 

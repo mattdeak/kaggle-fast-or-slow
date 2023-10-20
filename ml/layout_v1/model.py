@@ -99,7 +99,6 @@ class SAGEMLP(nn.Module):
             nn.Linear(linear_channels, 1),
             # What if we.. softmaxed across the batch? that would force diversity,
             # but how does it make any sense?
-            nn.Softmax(dim=0),
         )
 
     def forward(self, data: Data) -> torch.Tensor:
