@@ -397,22 +397,18 @@ def run(id: str | None = None):
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
                 wandb.log({"train_loss": avg_loss})
                 # also record the most recent outputs for examination
-                cpu_output = output.cpu()
-                cpu_y = y.cpu()
-                ranked = torch.argsort(cpu_output)
-                true_ranked = torch.argsort(ranked)
+                with torch.no_grad():
+                    cpu_output = output.cpu().flatten().numpy()
+                    cpu_y = y.cpu().flatten().numpy()
+                    ranked = np.argsort(cpu_output)
+                    true_ranked = np.argsort(ranked)
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
                     {
                         "train_example": wandb.Table(
                             columns=["output", "y", "predicted_rank", "true_rank"],
-                            data=[
-                                cpu_output.flatten().numpy(),
-                                cpu_y.flatten().numpy(),
-                                ranked.flatten().numpy(),
-                                true_ranked.flatten().numpy(),
-                            ],
+                            data=[cpu_output, cpu_y, ranked, true_ranked],
                         ),
                         "train_kendall_tau": kendall_tau,
                     }
