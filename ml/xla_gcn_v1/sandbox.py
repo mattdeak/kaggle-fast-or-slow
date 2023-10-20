@@ -1,4 +1,6 @@
 import os
+from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 import torch
@@ -15,30 +17,43 @@ from ml.xla_gcn_v1.model import ModifiedGAT, ModifiedGCN
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
 
-GCN_DIMS = [64, 64, 64]
-LINEAR_DIMS = [128, 64, 32]
+GCN_DIMS = [16, 16, 16, 16]
+GLOBAL_MLP_SIZE = 32
+GLOBAL_MLP_LAYERS = 3
+LINEAR_SIZE = 32
+LINEAR_LAYERS = 3
 
-nn = ModifiedGAT(INPUT_DIM, GLOBAL_INPUT_DIM, GCN_DIMS, LINEAR_DIMS, 1)
 
 # |%%--%%| <NhXS6Kuh4Q|1NKjfOoHTI>
 
 TRAIN_DIR = "data/npz/tile/xla/train"
 VALID_DIR = "data/npz/tile/xla/valid"
 train_dataset = XLATileDataset(
-    processed="data/processed/train",
-    raw=TRAIN_DIR,
-    max_files_per_config=2000,
+    processed="data/processed/train", raw=TRAIN_DIR, max_files_per_config=100, limit=100
 )
 
-valid_dataset = XLATileDataset(processed="data/processed/valid", raw=VALID_DIR)
+valid_dataset = XLATileDataset(
+    processed="data/processed/valid", raw=VALID_DIR, limit=100
+)
 
 
 # |%%--%%| <1NKjfOoHTI|w6oI8NpWeo>
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, num_workers=4)
+train_loader = DataLoader(
+    train_dataset, batch_size=BATCH_SIZE, num_workers=4, shuffle=True
+)
 valid_loader = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=4)
+
+
+def cycle(iterable: Iterable[Any]):
+    while True:
+        for x in iterable:
+            yield x
+
+
+train_cycler = cycle(train_loader)
 
 # |%%--%%| <w6oI8NpWeo|fQ28csLHaF>
 
@@ -48,17 +63,29 @@ print("Using device:", device)
 
 
 LR = 0.001
-WEIGHT_DECAY = 5e-4
+WEIGHT_DECAY = 0
 
+nn = ModifiedGAT(
+    INPUT_DIM,
+    GLOBAL_INPUT_DIM,
+    GCN_DIMS,
+    GLOBAL_MLP_SIZE,
+    GLOBAL_MLP_LAYERS,
+    LINEAR_SIZE,
+    LINEAR_LAYERS,
+    1,
+)
 model = nn.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
-LOG_INTERVAL = 100
 MODEL_DIR = f"models/{nn.MODEL_ID}"
+LOG_INTERVAL = 100
+MAX_ITERS = 5000
+EVAL_ITERS = 200
+EVAL_INTERVAL = 500
 os.makedirs(MODEL_DIR, exist_ok=True)  # type: ignore
 
-EPOCHS = 10
 
 # |%%--%%| <fQ28csLHaF|HwDaQ6K4aZ>
 
@@ -83,44 +110,55 @@ with wandb.init(
         "linear_dims": LINEAR_DIMS,
     },
     notes="Simple GAT with LayerNorm and global mean pooling on graph layers",
+    mode="disabled",
 ):
     wandb.watch(model)
     model.train()
-    last_eval = 0
-    for epoch in range(EPOCHS):
-        model.train()
-        for i, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
-            batch = batch.to(device)
-            optimizer.zero_grad()
-            out = model(batch)
+    for i in tqdm(range(MAX_ITERS)):
+        batch = next(train_cycler)
+        if i > MAX_ITERS:
+            break
 
-            loss = F.mse_loss(out.flatten(), batch.y)
-            loss.backward()
-            optimizer.step()
+        batch = batch.to(device)
+        optimizer.zero_grad()
+        out = model(batch)
 
-            if i % LOG_INTERVAL == 0:
-                train_rmse = np.sqrt(loss.item())
-                wandb.log({"train_rmse": train_rmse})
+        loss = F.mse_loss(out.flatten(), batch.y)
+        loss.backward()
+        optimizer.step()
 
-        print("Evaluating...")
-        model.eval()
-        validation_loss = 0
-        with torch.no_grad():
-            for batch in valid_loader:
-                batch = batch.to(device)
-                out = model(batch)
-                loss = F.mse_loss(out.flatten(), batch.y)
-                validation_loss += loss.item()
+        if i % LOG_INTERVAL == 0:
+            train_rmse = np.sqrt(loss.item())
+            # wandb.log({"train_rmse": train_rmse})
+            print(f"Train RMSE: {train_rmse}")
 
-        validation_loss /= len(valid_loader)
-        validation_loss = np.sqrt(validation_loss)
-        wandb.log({"val_rmse": validation_loss})
+        if i % EVAL_INTERVAL == 0:
+            print("Evaluating...")
+            model.eval()
+            validation_loss = 0
+            num_eval = 0
+            with torch.no_grad():
+                for i, batch in enumerate(valid_loader):
+                    if i > EVAL_ITERS:
+                        break
 
-        print("Saving checkpoint...")
-        model_path = os.path.join(MODEL_DIR, f"model_epoch{epoch}.pt")
-        optim_path = os.path.join(MODEL_DIR, f"optimizer_epoch{epoch}.pt")
-        torch.save(model.state_dict(), model_path)
-        torch.save(optimizer.state_dict(), optim_path)
+                    num_eval += 1
+                    batch = batch.to(device)
+                    out = model(batch)
+                    loss = F.mse_loss(out.flatten(), batch.y)
+                    validation_loss += loss.item()
 
-torch.save(model.state_dict(), os.path.join(MODEL_DIR, "model_final.pt"))
-torch.save(optimizer.state_dict(), os.path.join(MODEL_DIR, "optimizer_final.pt"))
+            validation_loss /= num_eval
+            validation_loss = np.sqrt(validation_loss)
+            print(f"Validation RMSE: {validation_loss}")
+            model.train()
+        # wandb.log({"val_rmse": validation_loss})
+
+    # print("Saving checkpoint...")
+    # model_path = os.path.join(MODEL_DIR, f"model_epoch{epoch}.pt")
+    # optim_path = os.path.join(MODEL_DIR, f"optimizer_epoch{epoch}.pt")
+    # torch.save(model.state_dict(), model_path)
+    # torch.save(optimizer.state_dict(), optim_path)
+
+# torch.save(model.state_dict(), os.path.join(MODEL_DIR, "model_final.pt"))
+# torch.save(optimizer.state_dict(), os.path.join(MODEL_DIR, "optimizer_final.pt"))

@@ -32,10 +32,10 @@ EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
-SAGE_LAYERS = 2
-SAGE_CHANNELS = 64
-LINEAR_LAYERS = 2
-LINEAR_CHANNELS = 64
+SAGE_LAYERS = 8
+SAGE_CHANNELS = 256
+LINEAR_LAYERS = 4
+LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 
 # Optimizer
@@ -44,7 +44,7 @@ WEIGHT_DECAY = 0.0
 LR = 3e-4
 MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
-PENALTY_REGULARIZATION_H = 3.0
+PENALTY_REGULARIZATION_H = 5.0
 DELTA = 0.7  # 70% margin loss, 30% mse loss
 
 
@@ -65,9 +65,9 @@ GRAPH_DIM = 279
 USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
-SAVE_CHECKPOINTS = False
+SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = True  # good for validating learning behaviour
+ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
@@ -236,9 +236,9 @@ def loss_fn(
     y2 = y[combination[:, 1]]
 
     margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
-    mse_loss = F.l1_loss(x.flatten(), y**0.5)
+    huber = F.huber_loss(x.flatten(), y**0.5)
 
-    return delta * margin_loss + (1 - delta) * mse_loss
+    return delta * margin_loss + (1 - delta) * huber
 
 
 @dataclass
