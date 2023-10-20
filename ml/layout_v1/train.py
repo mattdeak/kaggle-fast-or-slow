@@ -406,7 +406,7 @@ def run(id: str | None = None):
                     cpu_output = output.cpu().flatten().numpy()
                     cpu_y = y.cpu().flatten().numpy()
                     ranked = np.argsort(cpu_output)
-                    true_ranked = np.argsort(ranked)
+                    true_ranked = np.argsort(cpu_y)
 
                 data = [
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
