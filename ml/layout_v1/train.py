@@ -41,7 +41,7 @@ DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
-# WEIGHT_DECAY = 1e-4
+WEIGHT_DECAY = 0.0
 LR = 1e-3
 MARGIN = 3.5  # penalize by 0.1
 PENALTY_REGULARIZATION = 1e-3
