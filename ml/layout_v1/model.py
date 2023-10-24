@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv, global_add_pool
+from torch_geometric.nn import SAGEConv, SAGPooling
+from torch_geometric.nn.pool import global_max_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
@@ -17,6 +18,7 @@ class SAGEBlock(nn.Module):
         output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
+        pooling_ratio: float | None = None,
     ):
         super().__init__()
         self.conv = SAGEConv(input_dim, output_dim)
@@ -24,16 +26,27 @@ class SAGEBlock(nn.Module):
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        self.pooling_layer = (
+            SAGPooling(output_dim, ratio=pooling_ratio) if pooling_ratio else None
+        )
+
+    def forward(self, d: Data) -> Data:
+        x, edge_index, batch = d.x, d.edge_index, d.batch
         f = self.conv(x, edge_index)
-        f = cast(torch.Tensor, F.gelu(f))
+        f = F.gelu(f)
         f = self.norm(f)
         f = self.dropout(f)
+
+        if self.pooling_layer:
+            x, edge_index, _, batch, _, _ = self.pooling_layer(
+                f, edge_index, batch=batch
+            )
 
         if self.with_residual:
             f += x
 
-        return f
+        new_data = Data(x=f, edge_index=edge_index, batch=batch)
+        return d.update(new_data)
 
 
 class LinearBlock(nn.Module):
@@ -70,17 +83,27 @@ class SAGEMLP(nn.Module):
         linear_channels: int = 32,
         linear_layers: int = 3,
         dropout: float = 0.2,
+        sag_pooling_ratio: float | None = None,
     ):
         super().__init__()
 
         self.gcns = nn.ModuleList(
             [
                 SAGEBlock(
-                    graph_input_dim, sage_channels, with_residual=False, dropout=dropout
+                    graph_input_dim,
+                    sage_channels,
+                    with_residual=False,
+                    dropout=dropout,
+                    pooling_ratio=sag_pooling_ratio,
                 ),
             ]
             + [
-                SAGEBlock(sage_channels, sage_channels, dropout=dropout)
+                SAGEBlock(
+                    sage_channels,
+                    sage_channels,
+                    dropout=dropout,
+                    pooling_ratio=sag_pooling_ratio,
+                )
                 for _ in range(sage_layers)
             ]
         )
@@ -109,5 +132,5 @@ class SAGEMLP(nn.Module):
         for gcn_block in self.gcns:
             x = gcn_block(x, edge_index)
 
-        sum_pool = global_add_pool(x, batch)
-        return self.mlp(sum_pool)
+        max_pool = global_max_pool(x, batch)
+        return self.mlp(max_pool)

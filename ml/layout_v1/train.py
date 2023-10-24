@@ -45,6 +45,7 @@ MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
 PENALTY_REGULARIZATION_H = 5.0
 DELTA = 0.7  # 70% margin loss, 30% mse loss
+POOLING_RATIO = 0.5
 
 
 # Training Details
@@ -175,19 +176,6 @@ def cycle(iterable):
 loader = cycle(loader)
 
 # |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
-
-model = SAGEMLP(
-    graph_input_dim=GRAPH_DIM,
-    sage_layers=SAGE_LAYERS,
-    sage_channels=SAGE_CHANNELS,
-    linear_channels=LINEAR_CHANNELS,
-    linear_layers=LINEAR_LAYERS,
-    dropout=DROPOUT,
-)
-
-model = model.to(device)
-model = torch.compile(model)
-optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 
 @torch.jit.script
@@ -333,6 +321,7 @@ def run(id: str | None = None):
             "sage_channels": SAGE_CHANNELS,
             "linear_layers": LINEAR_LAYERS,
             "linear_channels": LINEAR_CHANNELS,
+            "pooling_ratio": POOLING_RATIO,
             "dropout": DROPOUT,
             "lr": LR,
             "weight_decay": WEIGHT_DECAY,
@@ -342,11 +331,28 @@ def run(id: str | None = None):
             "categories": CATEGORIES,
             "amp": USE_AMP,
             "attempt_overfit": ATTEMPT_OVERFIT,
+            "margin": MARGIN,
+            "penalty_regularization_w": PENALTY_REGULARIZATION_W,
+            "penalty_regularization_h": PENALTY_REGULARIZATION_H,
+            "delta": DELTA,
             "job_type": "layout",
             "subtype": "train",
         },
         mode="online" if WANDB_LOG else "disabled",
     ):
+        model = SAGEMLP(
+            graph_input_dim=GRAPH_DIM,
+            sage_layers=SAGE_LAYERS,
+            sage_channels=SAGE_CHANNELS,
+            linear_channels=LINEAR_CHANNELS,
+            linear_layers=LINEAR_LAYERS,
+            dropout=DROPOUT,
+            pooling_ratio=POOLING_RATIO,
+        )
+
+        model = model.to(device)
+        model = torch.compile(model)
+        optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         wandb.watch(model)
 
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
