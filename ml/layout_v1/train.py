@@ -21,6 +21,7 @@ from ml.layout_v1.dataset import LayoutDataset
 from ml.layout_v1.losses import composite_margin_loss_with_huber
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
+from ml.layout_v1.utils import get_rank
 
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -69,7 +70,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "lazy"  # memmapped or in-memory
+DATASET_MODE = "memmapped"  # memmapped or in-memory
 ATTEMPT_OVERFIT = True  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
@@ -219,8 +220,8 @@ def evaluate(
                 delta=DELTA,
             )
 
-            predicted_rank = torch.argsort(output.flatten()).cpu().numpy()
-            true_rank = torch.argsort(y.flatten()).cpu().numpy()
+            predicted_rank = get_rank(output.flatten()).cpu().numpy()
+            true_rank = get_rank(y.flatten()).cpu().numpy()
 
             kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
             kendall_taus.append(kendall_tau)
@@ -367,8 +368,8 @@ def run(id: str | None = None):
                 with torch.no_grad():
                     cpu_output = output.cpu().flatten().numpy()
                     cpu_y = y.cpu().flatten().numpy()
-                    ranked = np.argsort(cpu_output)
-                    true_ranked = np.argsort(cpu_y)
+                    ranked = get_rank(cpu_output)
+                    true_ranked = get_rank(cpu_y)
 
                     print(cpu_output)
                     print(cpu_y)
