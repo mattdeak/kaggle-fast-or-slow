@@ -31,10 +31,10 @@ EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
 # Model hyperparameters
-SAGE_LAYERS = 8
-SAGE_CHANNELS = 256
+SAGE_LAYERS = 4
+SAGE_CHANNELS = 64
 LINEAR_LAYERS = 4
-LINEAR_CHANNELS = 256
+LINEAR_CHANNELS = 64
 DROPOUT = 0.0
 
 # Optimizer
@@ -67,7 +67,7 @@ PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = False  # good for validating learning behaviour
+ATTEMPT_OVERFIT = True  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
