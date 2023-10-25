@@ -370,6 +370,11 @@ def run(id: str | None = None):
                     ranked = np.argsort(cpu_output)
                     true_ranked = np.argsort(cpu_y)
 
+                    print(cpu_output)
+                    print(cpu_y)
+                    print(ranked)
+                    print(true_ranked)
+
                 data = [
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
                     for i in range(len(cpu_output))
