@@ -8,6 +8,7 @@ import scipy.stats as ss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch_geometric
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
@@ -46,7 +47,7 @@ MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
 PENALTY_REGULARIZATION_H = 5.0
 DELTA = 0.7  # 70% margin loss, 30% mse loss
-POOLING_RATIO = None
+POOLING_RATIO = 0.5  # trying with torch geometric compilation
 
 
 # Training Details
@@ -302,7 +303,7 @@ def run(id: str | None = None):
         )
 
         model = model.to(device)
-        model = torch.compile(model)
+        model = torch_geometric.compile(model)
         optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         wandb.watch(model)
 
