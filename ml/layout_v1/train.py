@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
-from ml.layout_v1.losses import loss_fn
+from ml.layout_v1.losses import composite_margin_loss_with_huber
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
@@ -208,7 +208,7 @@ def evaluate(
             output = model(eval_batch)
             y = eval_batch.y
             # generate pairs for margin ranking loss
-            loss = loss_fn(
+            loss = composite_margin_loss_with_huber(
                 output,
                 y,
                 margin=MARGIN,
@@ -243,7 +243,7 @@ def train_batch(
         output = model(batch)
         y = batch.y
         # generate pairs for margin ranking loss
-        loss = loss_fn(
+        loss = composite_margin_loss_with_huber(
             output,
             y,
             margin=MARGIN,
