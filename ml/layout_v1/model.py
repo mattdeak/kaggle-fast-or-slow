@@ -29,6 +29,7 @@ class SAGEBlock(nn.Module):
         self.pooling_layer = (
             SAGPooling(output_dim, ratio=pooling_ratio) if pooling_ratio else None
         )
+        self.pooling_layer.
 
     def forward(self, d: Data) -> Data:
         x, edge_index, batch = d.x, d.edge_index, d.batch
@@ -125,8 +126,9 @@ class SAGEMLP(nn.Module):
         )
 
     def forward(self, data: Data) -> torch.Tensor:
+        d = data
         for gcn_block in self.gcns:
-            data = gcn_block(data)
+            d = gcn_block(d)
 
-        max_pool = global_max_pool(data.x, data.batch)
+        max_pool = global_max_pool(d.x, d.batch)
         return self.mlp(max_pool)
