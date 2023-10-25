@@ -371,20 +371,10 @@ def run(id: str | None = None):
                     ranked = get_rank(cpu_output)
                     true_ranked = get_rank(cpu_y)
 
-                    print(cpu_output)
-                    print(cpu_y)
-                    print(ranked)
-                    print(true_ranked)
-
-                    print("Debug: Y", cpu_y[true_ranked])
-                    print("Debug: Out", cpu_output[ranked])
-
                 data = [
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
                     for i in range(len(cpu_output))
                 ]
-                print("Example Data:")
-                pprint.pprint(data)
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
