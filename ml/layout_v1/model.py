@@ -35,7 +35,6 @@ class SAGEBlock(nn.Module):
 
     def forward(self, d: Data) -> Data:
         x, edge_index, batch = d.x, d.edge_index, d.batch
-        print(x.shape, edge_index.shape, batch.shape)
         f = self.conv(x, edge_index)
         f = F.gelu(f)
         f = self.norm(f)
