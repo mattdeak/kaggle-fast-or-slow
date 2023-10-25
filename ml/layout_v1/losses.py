@@ -40,22 +40,22 @@ def composite_margin_loss_with_huber(
     delta: float,
     max_combinations: int = 4,
 ) -> torch.Tensor:
-    # with torch.no_grad():
-    #     combination = torch.combinations(torch.arange(x.shape[0]), 2)
+    with torch.no_grad():
+        combination = torch.combinations(torch.arange(x.shape[0]), 2)
+
+        # randomly sample combinations
+        if combination.shape[0] > max_combinations:
+            combination = combination[
+                torch.randperm(combination.shape[0])[:max_combinations]
+            ]
+
+    x1 = x[combination[:, 0]]
+    x2 = x[combination[:, 1]]
+    y1 = y[combination[:, 0]]
+    y2 = y[combination[:, 1]]
     #
-    #     # randomly sample combinations
-    #     if combination.shape[0] > max_combinations:
-    #         combination = combination[
-    #             torch.randperm(combination.shape[0])[:max_combinations]
-    #         ]
-    #
-    # x1 = x[combination[:, 0]]
-    # x2 = x[combination[:, 1]]
-    # y1 = y[combination[:, 0]]
-    # y2 = y[combination[:, 1]]
-    #
-    # margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
-    huber = F.huber_loss(x.flatten(), y**0.5)
+    margin_loss = modified_margin_loss(x1, x2, y1, y2, margin, alpha, gamma)
+    # huber = F.huber_loss(x.flatten(), y**0.5)
 
     # return delta * margin_loss + (1 - delta) * huber
     return huber
