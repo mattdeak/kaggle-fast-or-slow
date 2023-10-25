@@ -35,7 +35,10 @@ class SAGEBlock(nn.Module):
 
     def forward(self, d: Data) -> Data:
         x, edge_index, batch = d.x, d.edge_index, d.batch
+
+        print(x.shape, edge_index.shape, batch.shape)
         f = self.conv(x, edge_index)
+        print(f.shape)
         f = F.gelu(f)
         f = self.norm(f)
         f = self.dropout(f)
@@ -44,6 +47,7 @@ class SAGEBlock(nn.Module):
             f, edge_index, _, batch, _, _ = self.pooling_layer(
                 f, edge_index, batch=batch
             )
+            print(f.shape, edge_index.shape, batch.shape)
 
         if self.with_residual:
             f += x
