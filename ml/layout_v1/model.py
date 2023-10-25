@@ -102,6 +102,7 @@ class SAGEMLP(nn.Module):
             with_residual=False,
             output_dim=sage_channels,
         )
+        self.gcns.append(block)
 
         for _ in range(sage_layers):
             graph_input_dim = block.output_dim
