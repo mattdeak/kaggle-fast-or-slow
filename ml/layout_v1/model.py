@@ -41,7 +41,7 @@ class SAGEBlock(nn.Module):
         f = self.dropout(f)
 
         if self.pooling_layer:
-            x, edge_index, _, batch, _, _ = self.pooling_layer(
+            f, edge_index, _, batch, _, _ = self.pooling_layer(
                 f, edge_index, batch=batch
             )
 
