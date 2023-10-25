@@ -58,4 +58,4 @@ def composite_margin_loss_with_huber(
     # huber = F.huber_loss(x.flatten(), y**0.5)
 
     # return delta * margin_loss + (1 - delta) * huber
-    return huber
+    return margin_loss
