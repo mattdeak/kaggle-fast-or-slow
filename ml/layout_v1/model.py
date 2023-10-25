@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
@@ -15,18 +16,11 @@ class SAGEBlock(nn.Module):
     def __init__(
         self,
         input_dim: int,
+        output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
-        output_dim: int | None = None,
         pooling_ratio: float | None = None,
     ):
-        if output_dim is None and pooling_ratio is None:
-            raise ValueError("Either output_dim or pooling_ratio must be provided.")
-        elif output_dim is None and pooling_ratio is not None:
-            output_dim = int(input_dim * pooling_ratio)
-        elif output_dim is None:
-            raise RuntimeError("This should never happen.")
-
         super().__init__()
         self.conv = SAGEConv(input_dim, output_dim)
         self.norm = nn.LayerNorm(output_dim)
@@ -34,7 +28,7 @@ class SAGEBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         self.pooling_layer = (
-            SAGPooling(output_dim, ratio=pooling_ratio) if pooling_ratio else None
+            SAGPooling(input_dim, ratio=pooling_ratio) if pooling_ratio else None
         )
 
         self.output_dim = output_dim
@@ -74,7 +68,7 @@ class LinearBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         f = self.linear(x)
-        f = cast(torch.Tensor, F.gelu(f))
+        f = F.gelu(f)
         f = self.norm(f)
         f = self.dropout(f)
 
@@ -107,27 +101,18 @@ class SAGEMLP(nn.Module):
 
         for _ in range(sage_layers):
             graph_input_dim = block.output_dim
-
-            if pooling_ratio:
-                block = SAGEBlock(
-                    graph_input_dim,
-                    dropout=dropout,
-                    with_residual=True,
-                    pooling_ratio=pooling_ratio,
-                )
-            else:
-                block = SAGEBlock(
-                    graph_input_dim,
-                    dropout=dropout,
-                    with_residual=True,
-                    output_dim=sage_channels,
-                )
-
+            block = SAGEBlock(
+                graph_input_dim,
+                output_dim=sage_channels,
+                dropout=dropout,
+                with_residual=True,
+                pooling_ratio=pooling_ratio,
+            )
             self.gcns.append(block)
 
         self.mlp = nn.Sequential(
             LinearBlock(
-                self.gcns[-1].output_dim,
+                block.output_dim,
                 linear_channels,
                 with_residual=False,
                 dropout=dropout,
