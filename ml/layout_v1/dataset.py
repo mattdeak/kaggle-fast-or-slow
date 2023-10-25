@@ -63,7 +63,6 @@ class LayoutDataset(Dataset):
         max_files_per_config: int | None = None,
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
-        device: str = "cpu",
         force_reload: bool = False,
         y_transform: Transform | None = None,
     ):

@@ -69,7 +69,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "memmapped"  # memmapped or in-memory
+DATASET_MODE = "lazy"  # memmapped or in-memory
 ATTEMPT_OVERFIT = True  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
@@ -375,7 +375,8 @@ def run(id: str | None = None):
                     print(ranked)
                     print(true_ranked)
 
-                    print("Debug: ", cpu_y[true_ranked])
+                    print("Debug: Y", cpu_y[true_ranked])
+                    print("Debug: Out", cpu_output[ranked])
 
                 data = [
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
