@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv, SAGPooling
+from torch_geometric.nn import ASAPooling, SAGEConv
 from torch_geometric.nn.pool import global_max_pool
 
 INPUT_DIM = 261
@@ -28,7 +28,9 @@ class SAGEBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         self.pooling_layer = (
-            SAGPooling(input_dim, ratio=pooling_ratio) if pooling_ratio else None
+            ASAPooling(input_dim, ratio=pooling_ratio, dropout=dropout)
+            if pooling_ratio
+            else None
         )
 
         self.output_dim = output_dim
@@ -42,9 +44,7 @@ class SAGEBlock(nn.Module):
         f = self.dropout(f)
 
         if self.pooling_layer:
-            f, edge_index, _, batch, _, _ = self.pooling_layer(
-                f, edge_index, batch=batch
-            )
+            f, edge_index, _, batch, _ = self.pooling_layer(f, edge_index, batch=batch)
 
         if self.with_residual:
             f += x
