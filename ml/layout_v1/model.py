@@ -83,7 +83,7 @@ class SAGEMLP(nn.Module):
         linear_channels: int = 32,
         linear_layers: int = 3,
         dropout: float = 0.2,
-        sag_pooling_ratio: float | None = None,
+        pooling_ratio: float | None = None,
     ):
         super().__init__()
 
@@ -94,7 +94,7 @@ class SAGEMLP(nn.Module):
                     sage_channels,
                     with_residual=False,
                     dropout=dropout,
-                    pooling_ratio=sag_pooling_ratio,
+                    pooling_ratio=pooling_ratio,
                 ),
             ]
             + [
@@ -102,7 +102,7 @@ class SAGEMLP(nn.Module):
                     sage_channels,
                     sage_channels,
                     dropout=dropout,
-                    pooling_ratio=sag_pooling_ratio,
+                    pooling_ratio=pooling_ratio,
                 )
                 for _ in range(sage_layers)
             ]
