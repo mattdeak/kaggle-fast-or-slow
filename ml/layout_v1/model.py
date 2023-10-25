@@ -125,12 +125,8 @@ class SAGEMLP(nn.Module):
         )
 
     def forward(self, data: Data) -> torch.Tensor:
-        x: torch.Tensor = data.x
-        batch: torch.Tensor = data.batch
-        edge_index: torch.Tensor = data.edge_index
-
         for gcn_block in self.gcns:
-            x = gcn_block(x, edge_index)
+            data = gcn_block(data)
 
-        max_pool = global_max_pool(x, batch)
+        max_pool = global_max_pool(data.x, data.batch)
         return self.mlp(max_pool)
