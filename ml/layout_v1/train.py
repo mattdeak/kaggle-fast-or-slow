@@ -375,6 +375,8 @@ def run(id: str | None = None):
                     print(ranked)
                     print(true_ranked)
 
+                    print("Debug: ", cpu_y[true_ranked])
+
                 data = [
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
                     for i in range(len(cpu_output))

@@ -235,7 +235,7 @@ class LayoutDataset(Dataset):
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
-            config_runtime.astype(np.float32),
+            config_runtime.astype(np.int64),
         )
 
     def extract_from_npz(self, idx: int) -> GraphTensorData:
