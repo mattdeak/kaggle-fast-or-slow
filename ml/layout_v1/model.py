@@ -106,7 +106,7 @@ class SAGEMLP(nn.Module):
                 graph_input_dim,
                 output_dim=sage_channels,
                 dropout=dropout,
-                with_residual=True,
+                with_residual=False,  # doesn't play well with pooling
                 pooling_ratio=pooling_ratio,
             )
             self.gcns.append(block)
