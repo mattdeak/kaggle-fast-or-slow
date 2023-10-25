@@ -49,7 +49,7 @@ POOLING_RATIO = 0.5
 
 
 # Training Details
-BATCH_SIZE = 4  # pretty low cause memory is hard
+BATCH_SIZE = 2  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
