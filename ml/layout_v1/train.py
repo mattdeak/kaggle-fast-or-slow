@@ -46,7 +46,7 @@ MARGIN = 0.5  # penalize by 0.1
 PENALTY_REGULARIZATION_W = 50.0
 PENALTY_REGULARIZATION_H = 5.0
 DELTA = 0.7  # 70% margin loss, 30% mse loss
-POOLING_RATIO = 0.5
+POOLING_RATIO = None
 
 
 # Training Details
