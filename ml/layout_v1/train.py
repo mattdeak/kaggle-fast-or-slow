@@ -1,6 +1,7 @@
 import argparse
 import heapq
 import os
+import pprint
 from dataclasses import dataclass
 
 import numpy as np
@@ -370,6 +371,8 @@ def run(id: str | None = None):
                     (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
                     for i in range(len(cpu_output))
                 ]
+                print("Example Data:")
+                pprint.pprint(data)
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
                 wandb.log(
