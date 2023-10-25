@@ -260,6 +260,9 @@ def train_batch(
     scaler.step(optim)
     scaler.update()
 
+    output = output.flatten().detach()
+    y = y.detach()
+
     return train_loss, output, y
 
 
