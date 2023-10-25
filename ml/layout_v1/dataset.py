@@ -246,7 +246,7 @@ class LayoutDataset(Dataset):
         edge_index = d["edge_index"]
         node_config_feat = d["node_config_feat"][config_idx, :, :]
         node_config_ids = d["node_config_ids"]
-        config_runtime = float(d["config_runtime"][config_idx])
+        config_runtime = d["config_runtime"][config_idx]
 
         # One hot encode the opcodes
         ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
@@ -258,7 +258,7 @@ class LayoutDataset(Dataset):
             edge_index=torch.from_numpy(edge_index),
             node_config_ids=torch.from_numpy(node_config_ids),
             config_features=torch.from_numpy(node_config_feat).float(),
-            config_runtime=torch.tensor(config_runtime).float(),
+            config_runtime=torch.tensor(config_runtime),
         )
 
     def extract_from_npy(self, idx: int) -> GraphTensorData:
