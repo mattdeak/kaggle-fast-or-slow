@@ -217,7 +217,12 @@ def loss_fn(
     max_combinations: int = 4,
 ) -> torch.Tensor:
     combination = torch.combinations(torch.arange(x.shape[0]), 2)
-    combination = combination[:max_combinations]
+
+    # randomly sample combinations
+    if combination.shape[0] > max_combinations:
+        combination = combination[
+            torch.randperm(combination.shape[0])[:max_combinations]
+        ]
 
     x1 = x[combination[:, 0]]
     x2 = x[combination[:, 1]]
