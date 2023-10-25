@@ -107,13 +107,22 @@ class SAGEMLP(nn.Module):
 
         for _ in range(sage_layers):
             graph_input_dim = block.output_dim
-            block = SAGEBlock(
-                graph_input_dim,
-                dropout=dropout,
-                with_residual=True,
-                pooling_ratio=pooling_ratio,
-                output_dim=sage_channels,
-            )
+
+            if pooling_ratio:
+                block = SAGEBlock(
+                    graph_input_dim,
+                    dropout=dropout,
+                    with_residual=True,
+                    pooling_ratio=pooling_ratio,
+                )
+            else:
+                block = SAGEBlock(
+                    graph_input_dim,
+                    dropout=dropout,
+                    with_residual=True,
+                    output_dim=sage_channels,
+                )
+
             self.gcns.append(block)
 
         self.mlp = nn.Sequential(
