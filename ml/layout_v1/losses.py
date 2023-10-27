@@ -73,6 +73,6 @@ def listmle_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         ),
         dim=0,
     )
-    listmle_loss = torch.sum(log_fact - sorted_y_pred)
+    listmle_loss = -torch.sum(log_fact - sorted_y_pred)
 
     return listmle_loss
