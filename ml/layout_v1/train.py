@@ -48,9 +48,6 @@ LR = 1e-3
 MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
 
-#
-loss_fn = margin_loss
-
 
 # Training Details
 BATCH_SIZE = 8  # pretty low cause memory is hard
@@ -282,7 +279,7 @@ def run(id: str | None = None):
             "categories": CATEGORIES,
             "amp": USE_AMP,
             "attempt_overfit": ATTEMPT_OVERFIT,
-            "loss": loss_fn.__name__,
+            "loss": "margin",
             "job_type": "layout",
             "subtype": "train",
         },
