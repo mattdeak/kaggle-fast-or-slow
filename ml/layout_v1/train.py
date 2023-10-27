@@ -243,8 +243,8 @@ def train_batch(
         y = batch.y
         # generate pairs for margin ranking loss
         loss = listmle_loss(
-            output,
-            y,
+            output.squeeze(),
+            y.squeeze(),
         )
 
     train_loss = loss.item()
