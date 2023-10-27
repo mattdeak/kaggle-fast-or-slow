@@ -66,6 +66,7 @@ class LinearBlock(nn.Module):
         super().__init__()
         self.linear = nn.Linear(input_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(output_dim)
         self.with_residual = with_residual
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
