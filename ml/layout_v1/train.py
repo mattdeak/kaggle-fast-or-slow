@@ -45,7 +45,7 @@ DROPOUT = 0.0
 # LR = 3e-4
 WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 1e-3
-MARGIN = 0.5  # penalize by 0.1
+MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
 
 #
