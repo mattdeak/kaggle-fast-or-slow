@@ -34,15 +34,15 @@ class ConfigCrossoverBatchSampler:
             for i in range(0, len(group), self.batch_size):
                 batch_list.append(group[i : i + self.batch_size])
 
-        random.shuffle(self.batch_list)
+        random.shuffle(batch_list)
 
         # apply crossover
         # for each batch, each element has a chance of being replaced by an element from another batch
-        for batch in self.batch_list:
+        for batch in batch_list:
             for i in range(len(batch)):
                 if random.random() < self.out_of_config_crossover_prob:
                     # choose a random batch
-                    random_batch = random.choice(self.batch_list)
+                    random_batch = random.choice(batch_list)
                     # choose a random element from that batch
                     random_element = random.choice(random_batch)
                     # replace the current element with the random element
