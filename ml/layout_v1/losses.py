@@ -59,3 +59,20 @@ def composite_margin_loss_with_huber(
 
     # return delta * margin_loss + (1 - delta) * huber
     return margin_loss
+
+
+@torch.jit.script
+def listmle_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    sorted_y_true, indices = torch.sort(y_true, descending=True, dim=-1)
+    sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
+
+    # Calculate ListMLE loss
+    log_fact = torch.cumsum(
+        torch.log(
+            sorted_y_true.new_tensor(range(1, sorted_y_true.shape[-1] + 1)).float()
+        ),
+        dim=0,
+    )
+    listmle_loss = torch.sum(log_fact - sorted_y_pred)
+
+    return listmle_loss

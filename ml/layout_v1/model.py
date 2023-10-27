@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import SAGEConv, SAGPooling
-from torch_geometric.nn.pool import global_max_pool
+from torch_geometric.nn.pool import global_max_pool, global_mean_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
@@ -65,9 +65,8 @@ class LinearBlock(nn.Module):
     ):
         super().__init__()
         self.linear = nn.Linear(input_dim, output_dim)
-        self.norm = nn.LayerNorm(output_dim)
-        self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
+        self.with_residual = with_residual
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         f = self.linear(x)
@@ -133,5 +132,5 @@ class SAGEMLP(nn.Module):
         for gcn_block in self.gcns:
             d = gcn_block(d)
 
-        max_pool = global_max_pool(d.x, d.batch)
-        return self.mlp(max_pool)
+        pool = global_mean_pool(d.x, d.batch)
+        return self.mlp(pool)
