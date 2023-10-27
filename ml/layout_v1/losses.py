@@ -66,7 +66,7 @@ def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     # check dimensions
     assert y_pred.shape == y_true.shape
 
-    sorted_y_true, indices = torch.argsort(y_true, descending=True, dim=-1)
+    sorted_y_true, indices = torch.sort(y_true, descending=True, dim=-1)
     sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
 
     sorted_y_pred = sorted_y_pred - sorted_y_pred.max(dim=-1, keepdim=True)[0]
