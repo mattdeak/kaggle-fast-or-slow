@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
-from ml.layout_v1.losses import listmle_loss
+from ml.layout_v1.losses import listMLE
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
@@ -211,7 +211,7 @@ def evaluate(
             output = model(eval_batch)
             y = eval_batch.y
             # generate pairs for margin ranking loss
-            loss = listmle_loss(
+            loss = listMLE(
                 output.squeeze(),
                 y.squeeze(),
             )
@@ -242,7 +242,7 @@ def train_batch(
         output = model(batch)
         y = batch.y
         # generate pairs for margin ranking loss
-        loss = listmle_loss(
+        loss = listMLE(
             output.squeeze(),
             y.squeeze(),
         )
