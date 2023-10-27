@@ -36,19 +36,16 @@ EVAL_INTERVAL = 5000
 
 # Model hyperparameters
 SAGE_LAYERS = 4
-SAGE_CHANNELS = 64
-LINEAR_LAYERS = 4
+SAGE_CHANNELS = 256
+LINEAR_LAYERS = 1
 LINEAR_CHANNELS = 64
 DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
 WEIGHT_DECAY = 1e-4 / 8  # smaller step size
-LR = 3e-4
+LR = 1e-3
 MARGIN = 0.5  # penalize by 0.1
-PENALTY_REGULARIZATION_W = 50.0
-PENALTY_REGULARIZATION_H = 5.0
-DELTA = 0.7  # 70% margin loss, 30% mse loss
 POOLING_RATIO = None  # trying with torch geometric compilation
 
 
@@ -280,10 +277,7 @@ def run(id: str | None = None):
             "categories": CATEGORIES,
             "amp": USE_AMP,
             "attempt_overfit": ATTEMPT_OVERFIT,
-            "margin": MARGIN,
-            "penalty_regularization_w": PENALTY_REGULARIZATION_W,
-            "penalty_regularization_h": PENALTY_REGULARIZATION_H,
-            "delta": DELTA,
+            "loss": "listMLE",
             "job_type": "layout",
             "subtype": "train",
         },
