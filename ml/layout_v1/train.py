@@ -53,7 +53,7 @@ POOLING_RATIO = None  # trying with torch geometric compilation
 
 
 # Training Details
-BATCH_SIZE = 4  # pretty low cause memory is hard
+BATCH_SIZE = 8  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
