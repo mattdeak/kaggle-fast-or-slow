@@ -212,8 +212,8 @@ def evaluate(
             y = eval_batch.y
             # generate pairs for margin ranking loss
             loss = listmle_loss(
-                output,
-                y,
+                output.squeeze(),
+                y.squeeze(),
             )
 
             predicted_rank = get_rank(output.flatten()).cpu().numpy()
