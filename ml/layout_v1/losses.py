@@ -62,7 +62,7 @@ def composite_margin_loss_with_huber(
 
 
 # @torch.jit.script
-def listmle_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+def listMLEx(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     sorted_y_true, indices = torch.sort(y_true, descending=True, dim=-1)
     sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
 
@@ -76,3 +76,34 @@ def listmle_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     listmle_loss = -torch.sum(log_fact - sorted_y_pred)
 
     return listmle_loss
+
+
+def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
+    """
+    ListMLE loss introduced in "Listwise Approach to Learning to Rank - Theory and Algorithm".
+    :param y_pred: predictions from the model, shape [batch_size, slate_length]
+    :param y_true: ground truth labels, shape [batch_size, slate_length]
+    :param eps: epsilon value, used for numerical stability
+    :param padded_value_indicator: an indicator of the y_true index containing a padded item, e.g. -1
+    :return: loss value, a torch.Tensor
+    """
+    # shuffle for randomised tie resolution
+    random_indices = torch.randperm(y_pred.shape[-1])
+    y_pred_shuffled = y_pred[:, random_indices]
+    y_true_shuffled = y_true[:, random_indices]
+
+    indices = y_true_shuffled.argsort(descending=True, dim=-1)
+
+    preds_sorted_by_true = torch.gather(y_pred_shuffled, dim=1, index=indices)
+
+    max_pred_values, _ = preds_sorted_by_true.max(dim=1, keepdim=True)
+
+    preds_sorted_by_true_minus_max = preds_sorted_by_true - max_pred_values
+
+    cumsums = torch.cumsum(
+        preds_sorted_by_true_minus_max.exp().flip(dims=[1]), dim=1
+    ).flip(dims=[1])
+
+    observation_loss = torch.log(cumsums + eps) - preds_sorted_by_true_minus_max
+
+    return torch.mean(torch.sum(observation_loss, dim=1))
