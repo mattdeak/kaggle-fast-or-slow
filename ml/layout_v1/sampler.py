@@ -9,12 +9,14 @@ class ConfigCrossoverBatchSampler:
         batch_size: int,
         shuffle_groups: bool = True,
         shuffle_within_groups: bool = True,
+        out_of_config_crossover_prob: float = 0.1,
     ):
         # TODO: implement crossover. it's my idea, theres no link
         self.groups = groups
         self.batch_size = batch_size
         self.shuffle = shuffle_groups
         self.shuffle_within_groups = shuffle_within_groups
+        self.out_of_config_crossover_prob = out_of_config_crossover_prob
 
         self.batch_list: list[list[int]] = self.get_batches()
 
@@ -23,17 +25,30 @@ class ConfigCrossoverBatchSampler:
         if self.shuffle:
             random.shuffle(self.groups)
 
-        self.batch_list: list[list[int]] = []
+        batch_list: list[list[int]] = []
 
         for group in self.groups:
             if self.shuffle_within_groups:
                 random.shuffle(group)
 
             for i in range(0, len(group), self.batch_size):
-                self.batch_list.append(group[i : i + self.batch_size])
+                batch_list.append(group[i : i + self.batch_size])
 
         random.shuffle(self.batch_list)
-        return self.batch_list
+
+        # apply crossover
+        # for each batch, each element has a chance of being replaced by an element from another batch
+        for batch in self.batch_list:
+            for i in range(len(batch)):
+                if random.random() < self.out_of_config_crossover_prob:
+                    # choose a random batch
+                    random_batch = random.choice(self.batch_list)
+                    # choose a random element from that batch
+                    random_element = random.choice(random_batch)
+                    # replace the current element with the random element
+                    batch[i] = random_element
+
+        return batch_list
 
     def __iter__(self) -> Iterator[list[int]]:
         for batch in self.batch_list:

@@ -47,6 +47,7 @@ WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 1e-3
 MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
+CROSSOVER_PROB = 0.1
 
 
 # Training Details
@@ -68,7 +69,7 @@ PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = True  # good for validating learning behaviour
+ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
 # ---- Data ---- #
@@ -132,18 +133,21 @@ train_sampler = ConfigCrossoverBatchSampler(
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
+    out_of_config_crossover_prob=CROSSOVER_PROB,
 )
 default_val_sampler = ConfigCrossoverBatchSampler(
     groups=default_val_xla_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
+    out_of_config_crossover_prob=0.0,
 )
 random_val_sampler = ConfigCrossoverBatchSampler(
     groups=random_val_xla_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
+    out_of_config_crossover_prob=0.0,
 )
 
 
