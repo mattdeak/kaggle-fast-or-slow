@@ -62,9 +62,11 @@ def composite_margin_loss_with_huber(
 
 
 # @torch.jit.script
-def listMLEx(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     sorted_y_true, indices = torch.sort(y_true, descending=True, dim=-1)
     sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
+
+    sorted_y_pred = sorted_y_pred - sorted_y_pred.max(dim=-1, keepdim=True)[0]
 
     # Calculate ListMLE loss
     log_fact = torch.cumsum(
@@ -78,7 +80,7 @@ def listMLEx(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     return listmle_loss
 
 
-def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
+def listMLEalt(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
     """
     ListMLE loss introduced in "Listwise Approach to Learning to Rank - Theory and Algorithm".
     :param y_pred: predictions from the model, shape [batch_size, slate_length]
