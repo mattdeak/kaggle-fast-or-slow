@@ -58,7 +58,7 @@ NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
 DATA_DIRS = [
-    XLA_DATA_DIR
+    NLP_DATA_DIR
 ]  # only xla this run. I think it may be nonsense to train on both
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
