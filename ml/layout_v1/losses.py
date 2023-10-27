@@ -112,3 +112,29 @@ def listMLEalt(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
     observation_loss = torch.log(cumsums + eps) - preds_sorted_by_true_minus_max
 
     return torch.mean(torch.sum(observation_loss, dim=1))
+
+
+@torch.jit.script
+def margin_loss(
+    y_pred: torch.Tensor, y_true: torch.Tensor, margin: float, n_permutations: int = 8
+) -> torch.Tensor:
+    with torch.no_grad():
+        combinations = torch.combinations(torch.arange(y_pred.shape[0]), 2)
+
+        # randomly sample combinations
+        if combinations.shape[0] > n_permutations:
+            combinations = combinations[
+                torch.randperm(combinations.shape[0])[:n_permutations]
+            ]
+
+    y_pred = y_pred - y_pred.max(dim=-1, keepdim=True)[0]  # idk
+    x1 = y_pred[combinations[:, 0]]
+    x2 = y_pred[combinations[:, 1]]
+
+    y1 = y_true[combinations[:, 0]]
+    y2 = y_true[combinations[:, 1]]
+
+    y_true = torch.where(y1 > y2, 1, -1)
+    loss = F.margin_ranking_loss(x1, x2, y_true, margin=margin, reduction="mean")
+
+    return loss

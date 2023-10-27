@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
-from ml.layout_v1.losses import listMLE
+from ml.layout_v1.losses import listMLE, margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
@@ -47,6 +47,9 @@ WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 1e-3
 MARGIN = 0.5  # penalize by 0.1
 POOLING_RATIO = None  # trying with torch geometric compilation
+
+#
+loss_fn = margin_loss
 
 
 # Training Details
@@ -208,9 +211,10 @@ def evaluate(
             output = model(eval_batch)
             y = eval_batch.y
             # generate pairs for margin ranking loss
-            loss = listMLE(
+            loss = margin_loss(
                 output.squeeze(),
                 y.squeeze(),
+                margin=MARGIN,
             )
 
             predicted_rank = get_rank(output.flatten()).cpu().numpy()
@@ -239,9 +243,10 @@ def train_batch(
         output = model(batch)
         y = batch.y
         # generate pairs for margin ranking loss
-        loss = listMLE(
+        loss = margin_loss(
             output.squeeze(),
             y.squeeze(),
+            margin=MARGIN,
         )
 
     train_loss = loss.item()
@@ -277,7 +282,7 @@ def run(id: str | None = None):
             "categories": CATEGORIES,
             "amp": USE_AMP,
             "attempt_overfit": ATTEMPT_OVERFIT,
-            "loss": "listMLE",
+            "loss": loss_fn.__name__,
             "job_type": "layout",
             "subtype": "train",
         },
