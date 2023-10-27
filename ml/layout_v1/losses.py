@@ -63,6 +63,9 @@ def composite_margin_loss_with_huber(
 
 # @torch.jit.script
 def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    # check dimensions
+    assert y_pred.shape == y_true.shape
+
     sorted_y_true, indices = torch.sort(y_true, descending=True, dim=-1)
     sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
 
