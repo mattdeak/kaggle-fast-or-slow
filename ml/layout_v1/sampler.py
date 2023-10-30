@@ -38,6 +38,12 @@ class ConfigCrossoverBatchSampler:
 
         # apply crossover
         # for each batch, each element has a chance of being replaced by an element from another batch
+        if self.out_of_config_crossover_prob > 0:
+            return self.apply_crossover(batch_list)
+
+        return batch_list
+
+    def apply_crossover(self, batch_list: list[list[int]]) -> list[list[int]]:
         for batch in batch_list:
             for i in range(len(batch)):
                 if random.random() < self.out_of_config_crossover_prob:

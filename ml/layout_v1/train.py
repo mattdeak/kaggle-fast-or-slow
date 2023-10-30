@@ -207,22 +207,25 @@ def evaluate(
             break
 
         eval_batch = eval_batch.to(device)
+        try:
+            with torch.autocast(device_type=device, enabled=USE_AMP):
+                output = model(eval_batch)
+                y = eval_batch.y
+                # generate pairs for margin ranking loss
+                loss = margin_loss(
+                    output.squeeze(),
+                    y.squeeze(),
+                    margin=MARGIN,
+                )
 
-        with torch.autocast(device_type=device, enabled=USE_AMP):
-            output = model(eval_batch)
-            y = eval_batch.y
-            # generate pairs for margin ranking loss
-            loss = margin_loss(
-                output.squeeze(),
-                y.squeeze(),
-                margin=MARGIN,
-            )
+                predicted_rank = get_rank(output.flatten()).cpu().numpy()
+                true_rank = get_rank(y.flatten()).cpu().numpy()
 
-            predicted_rank = get_rank(output.flatten()).cpu().numpy()
-            true_rank = get_rank(y.flatten()).cpu().numpy()
-
-            kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
-            kendall_taus.append(kendall_tau)
+                kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
+                kendall_taus.append(kendall_tau)
+        except:
+            print("Failed to evaluate batch. Batch: ", eval_batch)
+            raise
 
         total_loss += loss.item()
         num_iters += 1
