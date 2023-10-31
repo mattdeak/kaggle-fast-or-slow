@@ -89,7 +89,7 @@ val_directories = [
 def reduce_to_config_node_communities(
     x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
 ) -> torch.Tensor:
-    rows, _ = torch.where(edge_index == node_config_ids)
+    rows, _ = torch.where(torch.isin(edge_index, node_config_ids))
     x = x[rows]
 
     new_edge_index = edge_index[rows]
