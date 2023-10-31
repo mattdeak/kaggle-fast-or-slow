@@ -1,7 +1,7 @@
 import hashlib
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, Protocol, TypeVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -13,6 +13,13 @@ NUM_OPCODES = 121
 T = TypeVar("T")
 
 Transform = Callable[[Any], Any]
+
+
+class DataTransform(Protocol):
+    def __call__(
+        self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
+    ) -> torch.Tensor:
+        ...
 
 
 def get_file_id(file_path: str) -> str:
@@ -64,6 +71,7 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
+        data_transform: DataTransform | None = None,
         y_transform: Transform | None = None,
     ):
         """Directories should be a list of directories to load from.
@@ -78,6 +86,8 @@ class LayoutDataset(Dataset):
         self.limit = limit
         self.mode = mode
         self.force_reload = force_reload
+
+        self.data_transform = data_transform
         self.y_transform = y_transform
 
         if mode == "memmapped":
@@ -190,7 +200,14 @@ class LayoutDataset(Dataset):
         )
         processed_config_features[node_config_ids] = config_features
         all_features = torch.cat([node_features, processed_config_features], axis=1)
+        all_features = cast(torch.Tensor, all_features)
 
+        all_features, edge_index = (
+            self.data_transform(all_features, edge_index, node_config_ids)
+            if self.data_transform
+            else all_features,
+            edge_index,
+        )
         y = self.y_transform(config_runtime) if self.y_transform else config_runtime
 
         return Data(

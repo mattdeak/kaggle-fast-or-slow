@@ -86,8 +86,26 @@ val_directories = [
 ]
 
 
+def reduce_to_config_node_communities(
+    x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
+) -> torch.Tensor:
+    rows, _ = torch.where(edge_index == node_config_ids)
+    x = x[rows]
+
+    new_edge_index = edge_index[rows]
+    kept_nodes = torch.unique(new_edge_index)
+
+    for i, n in enumerate(kept_nodes):
+        new_edge_index[new_edge_index == n] = i
+
+    return x, new_edge_index
+
+
 dataset = LayoutDataset(
-    directories=directories, mode=DATASET_MODE, processed_dir="data/processed_layout"
+    directories=directories,
+    mode=DATASET_MODE,
+    processed_dir="data/processed_layout",
+    data_transform=reduce_to_config_node_communities,
 )
 dataset.load()
 
@@ -100,11 +118,13 @@ default_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
+    data_transform=reduce_to_config_node_communities,
 )
 random_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
+    data_transform=reduce_to_config_node_communities,
 )
 
 
