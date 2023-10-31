@@ -32,7 +32,11 @@ class ConfigCrossoverBatchSampler:
                 random.shuffle(group)
 
             for i in range(0, len(group), self.batch_size):
-                batch_list.append(group[i : i + self.batch_size])
+                new_batch = group[i : i + self.batch_size]
+
+                # We're going to just drop it if it's not the right size.
+                if len(new_batch) == self.batch_size:
+                    batch_list.append(new_batch)
 
         random.shuffle(batch_list)
 

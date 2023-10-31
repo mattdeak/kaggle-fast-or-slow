@@ -305,6 +305,16 @@ class LayoutDataset(Dataset):
                 )[config_idx, :, :]
             )
         )
+
+        # create a "using default" feature
+        # config_features = torch.cat(
+        #     [
+        #         config_features,
+        #         config_features.sum(axis=1) == -1 * config_features.shape[1],
+        #     ],
+        #     axis=1,
+        # )
+
         config_runtime = torch.tensor(
             float(
                 np.load(

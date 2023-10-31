@@ -44,10 +44,10 @@ DROPOUT = 0.0
 # Optimizer
 # LR = 3e-4
 WEIGHT_DECAY = 1e-4 / 8  # smaller step size
-LR = 1e-3
+LR = 3e-4
 MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.1
+CROSSOVER_PROB = 0.0
 
 
 # Training Details
@@ -324,7 +324,8 @@ def run(id: str | None = None):
 
         model = model.to(device)
         model = torch_geometric.compile(model)
-        optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+        # optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+        optim = torch.optim.SGD(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         wandb.watch(model)
 
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
