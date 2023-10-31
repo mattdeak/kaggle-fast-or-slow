@@ -114,13 +114,13 @@ if ATTEMPT_OVERFIT:
 
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
-default_val_xla_dataset = LayoutDataset(
+default_val_nlp_dataset = LayoutDataset(
     directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_transform=reduce_to_config_node_communities,
 )
-random_val_xla_dataset = LayoutDataset(
+random_val_nlp_dataset = LayoutDataset(
     directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
@@ -128,8 +128,8 @@ random_val_xla_dataset = LayoutDataset(
 )
 
 
-default_val_xla_dataset.load()
-random_val_xla_dataset.load()
+default_val_nlp_dataset.load()
+random_val_nlp_dataset.load()
 
 if ATTEMPT_OVERFIT:
     # we need to slice the idx groups too
@@ -156,14 +156,14 @@ train_sampler = ConfigCrossoverBatchSampler(
     out_of_config_crossover_prob=CROSSOVER_PROB,
 )
 default_val_sampler = ConfigCrossoverBatchSampler(
-    groups=default_val_xla_dataset.idx_groups,
+    groups=default_val_nlp_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
     out_of_config_crossover_prob=0.0,
 )
 random_val_sampler = ConfigCrossoverBatchSampler(
-    groups=random_val_xla_dataset.idx_groups,
+    groups=random_val_nlp_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
@@ -187,8 +187,8 @@ def make_dataloader(
 loader = make_dataloader(dataset, train_sampler)
 
 eval_loaders = {
-    "default_xla": make_dataloader(default_val_xla_dataset, default_val_sampler),
-    "random_xla": make_dataloader(random_val_xla_dataset, random_val_sampler),
+    "default_xla": make_dataloader(default_val_nlp_dataset, default_val_sampler),
+    "random_xla": make_dataloader(random_val_nlp_dataset, random_val_sampler),
 }
 
 
