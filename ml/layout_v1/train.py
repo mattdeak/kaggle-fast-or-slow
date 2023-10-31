@@ -68,7 +68,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "lazy"  # memmapped or in-memory
+DATASET_MODE = "memmapped"  # memmapped or in-memory
 ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
