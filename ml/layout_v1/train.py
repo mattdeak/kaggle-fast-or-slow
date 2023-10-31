@@ -115,13 +115,13 @@ if ATTEMPT_OVERFIT:
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
 default_val_xla_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
+    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_transform=reduce_to_config_node_communities,
 )
 random_val_xla_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
+    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_transform=reduce_to_config_node_communities,
