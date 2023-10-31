@@ -68,7 +68,7 @@ USE_AMP = False  # seems broken?
 PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
-DATASET_MODE = "memmapped"  # memmapped or in-memory
+DATASET_MODE = "lazy"  # memmapped or in-memory
 ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
 
@@ -88,7 +88,7 @@ val_directories = [
 
 def reduce_to_config_node_communities(
     x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     rows, _ = torch.where(torch.isin(edge_index, node_config_ids))
 
     new_edge_index = edge_index[rows]
@@ -97,7 +97,7 @@ def reduce_to_config_node_communities(
     for i, n in enumerate(kept_nodes):
         new_edge_index[new_edge_index == n] = i
 
-    x = x[kept_nodes]
+    x = x[kept_nodes, :]
     return x, new_edge_index
 
 

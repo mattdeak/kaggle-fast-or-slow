@@ -18,7 +18,8 @@ Transform = Callable[[Any], Any]
 class DataTransform(Protocol):
     def __call__(
         self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Perform a transform on the data (features or edges or both). Return the transformed data."""
         ...
 
 
@@ -205,8 +206,7 @@ class LayoutDataset(Dataset):
         all_features, edge_index = (
             self.data_transform(all_features, edge_index, node_config_ids)
             if self.data_transform
-            else all_features,
-            edge_index,
+            else (all_features, edge_index)
         )
         y = self.y_transform(config_runtime) if self.y_transform else config_runtime
 
