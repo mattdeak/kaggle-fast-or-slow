@@ -48,6 +48,7 @@ LR = 3e-4
 MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
 CROSSOVER_PROB = 0.0
+ITERS_WITH_NOISE = 20000
 
 
 # Training Details
@@ -260,12 +261,18 @@ def train_batch(
     batch: Batch,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
+    use_noise: bool = False,
 ) -> tuple[float, torch.Tensor, torch.Tensor]:
     optim.zero_grad()
 
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
         output = model(batch)
+
+        if use_noise:
+            noise = torch.normal(0, 0.1, size=output.shape, device=device)
+            output += noise
+
         y = batch.y
         # generate pairs for margin ranking loss
         loss = margin_loss(
@@ -381,7 +388,10 @@ def run(id: str | None = None):
 
             # Zero Gradients, Perform a Backward Pass, Update Weights
             with record_function("train_batch"):
-                batch_loss, output, y = train_batch(model, batch, optim, scaler)
+                use_noise = iter_count < ITERS_WITH_NOISE
+                batch_loss, output, y = train_batch(
+                    model, batch, optim, scaler, use_noise=use_noise
+                )
                 scheduler.step()
                 avg_loss += batch_loss
 
