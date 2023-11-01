@@ -127,7 +127,7 @@ def get_combinations(
     y2 = y_true[combinations[:, 1]]
 
     # calculate ease
-    ease = torch.nn.functional.softmax(y1 - y2)
+    ease = torch.nn.functional.softmax(y1 - y2, dim=0)
 
     # take the average of the ease and a uniform distribution
     uniform = torch.ones_like(ease) / ease.shape[0]
