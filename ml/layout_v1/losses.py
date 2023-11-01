@@ -115,17 +115,45 @@ def listMLEalt(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
 
 
 @torch.jit.script
+def get_combinations(
+    y_pred: torch.Tensor,
+    y_true: torch.Tensor,
+    n_permutations: int = 8,
+    ease_rate: float = 1.0,
+) -> torch.Tensor:
+    combinations = torch.combinations(torch.arange(y_pred.shape[0]), 2)
+
+    y1 = y_true[combinations[:, 0]]
+    y2 = y_true[combinations[:, 1]]
+
+    y_true = torch.where(y1 > y2, 1, -1)
+
+    # calculate ease
+    ease = torch.nn.functional.softmax(y1 - y2)
+
+    # take the average of the ease and a uniform distribution
+    uniform = torch.ones_like(ease) / ease.shape[0]
+    final_probs = ease_rate * ease + (1 - ease_rate) * uniform
+
+    # randomly sample combinations weighted by ease
+    if combinations.shape[0] > n_permutations:
+        combinations = combinations[
+            torch.multinomial(final_probs, n_permutations, replacement=False)
+        ]
+
+    return combinations
+
+
+@torch.jit.script
 def margin_loss(
-    y_pred: torch.Tensor, y_true: torch.Tensor, margin: float, n_permutations: int = 8
+    y_pred: torch.Tensor,
+    y_true: torch.Tensor,
+    margin: float,
+    n_permutations: int = 8,
+    ease_rate: float = 1.0,
 ) -> torch.Tensor:
     with torch.no_grad():
-        combinations = torch.combinations(torch.arange(y_pred.shape[0]), 2)
-
-        # randomly sample combinations
-        if combinations.shape[0] > n_permutations:
-            combinations = combinations[
-                torch.randperm(combinations.shape[0])[:n_permutations]
-            ]
+        combinations = get_combinations(y_pred, y_true, n_permutations, ease_rate)
 
     y_pred = y_pred - y_pred.max(dim=-1, keepdim=True)[0]  # idk
     x1 = y_pred[combinations[:, 0]]

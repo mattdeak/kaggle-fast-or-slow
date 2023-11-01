@@ -46,9 +46,13 @@ DROPOUT = 0.0
 WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 3e-4
 MARGIN = 1  # effectively hinge
+
+# Custom Optimization
 POOLING_RATIO = None  # trying with torch geometric compilation
 CROSSOVER_PROB = 0.0
 ITERS_WITH_NOISE = 20000
+EASE_RATE = 1.0
+EASE_DECAY = 0.99999
 
 
 # Training Details
@@ -72,6 +76,7 @@ SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
 ATTEMPT_OVERFIT = False  # good for validating learning behaviour
 OVERFIT_DATASET_SIZE = 1024
+
 
 # ---- Data ---- #
 directories = [
@@ -238,6 +243,7 @@ def evaluate(
                     y.squeeze(),
                     margin=MARGIN,
                     n_permutations=BATCH_SIZE * 2,
+                    ease_rate=0.0,  # no ease for eval
                 )
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
@@ -261,17 +267,13 @@ def train_batch(
     batch: Batch,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
-    use_noise: bool = False,
+    ease_rate: float = EASE_RATE,
 ) -> tuple[float, torch.Tensor, torch.Tensor]:
     optim.zero_grad()
 
     # Forward Pass
     with torch.autocast(device_type=device, enabled=USE_AMP):
         output = model(batch)
-
-        if use_noise:
-            noise = torch.normal(0, 0.1, size=output.shape, device=device)
-            output += noise
 
         y = batch.y
         # generate pairs for margin ranking loss
@@ -280,6 +282,7 @@ def train_batch(
             y.squeeze(),
             margin=MARGIN,
             n_permutations=BATCH_SIZE * 2,
+            ease_rate=ease_rate,
         )
 
     train_loss = loss.item()
@@ -345,6 +348,7 @@ def run(id: str | None = None):
 
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
         avg_loss = 0
+        ease_rate = EASE_RATE
 
         heap: list[tuple[int, str]] = []
         N = 5  # Number of recent checkpoints to keep
@@ -388,10 +392,11 @@ def run(id: str | None = None):
 
             # Zero Gradients, Perform a Backward Pass, Update Weights
             with record_function("train_batch"):
-                use_noise = iter_count < ITERS_WITH_NOISE
                 batch_loss, output, y = train_batch(
-                    model, batch, optim, scaler, use_noise=use_noise
+                    model, batch, optim, scaler, ease_rate=ease_rate
                 )
+
+                ease_rate *= EASE_DECAY
                 scheduler.step()
                 avg_loss += batch_loss
 
