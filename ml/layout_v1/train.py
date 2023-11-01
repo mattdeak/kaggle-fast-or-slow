@@ -61,7 +61,7 @@ NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
 DATA_DIRS = [
-    NLP_DATA_DIR
+    XLA_DATA_DIR
 ]  # only xla this run. I think it may be nonsense to train on both
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
@@ -121,13 +121,13 @@ if ATTEMPT_OVERFIT:
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
 default_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_transform=reduce_to_config_node_communities,
 )
 random_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_transform=reduce_to_config_node_communities,
