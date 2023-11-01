@@ -126,8 +126,10 @@ def get_combinations(
     y1 = y_true[combinations[:, 0]]
     y2 = y_true[combinations[:, 1]]
 
+    y_true = torch.where(y1 > y2, 1, -1)
+
     # calculate ease
-    ease = torch.nn.functional.softmax(y1 - y2, dim=0)
+    ease = torch.nn.functional.softmax(y1 - y2)
 
     # take the average of the ease and a uniform distribution
     uniform = torch.ones_like(ease) / ease.shape[0]
@@ -135,10 +137,9 @@ def get_combinations(
 
     # randomly sample combinations weighted by ease
     if combinations.shape[0] > n_permutations:
-        indices = torch.multinomial(
-            final_probs, n_permutations, replacement=False
-        ).cpu()  # don't know why we need that
-        combinations = combinations[indices, :]
+        combinations = combinations[
+            torch.multinomial(final_probs, n_permutations, replacement=False)
+        ]
 
     return combinations
 
@@ -149,10 +150,15 @@ def margin_loss(
     y_true: torch.Tensor,
     margin: float,
     n_permutations: int = 8,
-    ease_rate: float = 1.0,
 ) -> torch.Tensor:
     with torch.no_grad():
-        combinations = get_combinations(y_pred, y_true, n_permutations, ease_rate)
+        combinations = torch.combinations(torch.arange(y_pred.shape[0]), 2)
+
+        # randomly sample combinations
+        if combinations.shape[0] > n_permutations:
+            combinations = combinations[
+                torch.randperm(combinations.shape[0])[:n_permutations]
+            ]
 
     y_pred = y_pred - y_pred.max(dim=-1, keepdim=True)[0]  # idk
     x1 = y_pred[combinations[:, 0]]

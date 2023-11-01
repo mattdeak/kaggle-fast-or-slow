@@ -37,19 +37,19 @@ EVAL_INTERVAL = 5000
 # Model hyperparameters
 SAGE_LAYERS = 4
 SAGE_CHANNELS = 256
-LINEAR_LAYERS = 1
-LINEAR_CHANNELS = 64
+LINEAR_LAYERS = 3
+LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 1e-4 / 8  # smaller step size
+WEIGHT_DECAY = 1e-4 / 4  # smaller step size
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 
 # Custom Optimization
 POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.0
+CROSSOVER_PROB = 0.1  # seems to help get out of initial local minima
 ITERS_WITH_NOISE = 20000
 EASE_RATE = 1.0
 EASE_DECAY = 0.99999
@@ -243,7 +243,6 @@ def evaluate(
                     y.squeeze(),
                     margin=MARGIN,
                     n_permutations=BATCH_SIZE * 2,
-                    ease_rate=0.0,  # no ease for eval
                 )
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
@@ -282,7 +281,6 @@ def train_batch(
             y.squeeze(),
             margin=MARGIN,
             n_permutations=BATCH_SIZE * 2,
-            ease_rate=ease_rate,
         )
 
     train_loss = loss.item()
