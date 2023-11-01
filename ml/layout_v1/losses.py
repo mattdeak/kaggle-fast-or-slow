@@ -126,8 +126,6 @@ def get_combinations(
     y1 = y_true[combinations[:, 0]]
     y2 = y_true[combinations[:, 1]]
 
-    y_true = torch.where(y1 > y2, 1, -1)
-
     # calculate ease
     ease = torch.nn.functional.softmax(y1 - y2)
 
@@ -137,9 +135,8 @@ def get_combinations(
 
     # randomly sample combinations weighted by ease
     if combinations.shape[0] > n_permutations:
-        combinations = combinations[
-            torch.multinomial(final_probs, n_permutations, replacement=False)
-        ]
+        indices = torch.multinomial(final_probs, n_permutations, replacement=False)
+        combinations = combinations[indices]
 
     return combinations
 
