@@ -332,6 +332,7 @@ def run(id: str | None = None):
             optim,
             max_lr=0.01,
             total_steps=MAX_ITERS,
+            pct_start=0.1,
         )
         wandb.watch(model)
 
