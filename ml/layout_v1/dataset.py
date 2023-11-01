@@ -10,15 +10,13 @@ from torch_geometric.data import Data, Dataset
 
 NUM_OPCODES = 121
 
-T = TypeVar("T")
+T = TypeVar("T", torch.Tensor, npt.NDArray[Any])
 
 Transform = Callable[[Any], Any]
 
 
-class DataTransform(Protocol):
-    def __call__(
-        self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+class DataTransform(Protocol[T]):
+    def __call__(self, x: T, edge_index: T, node_config_ids: T) -> tuple[T, T]:
         """Perform a transform on the data (features or edges or both). Return the transformed data."""
         ...
 
@@ -72,7 +70,8 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
-        data_transform: DataTransform | None = None,
+        data_pre_transform: DataTransform[npt.NDArray[Any]] | None = None,
+        data_post_transform: DataTransform[torch.Tensor] | None = None,
         y_transform: Transform | None = None,
     ):
         """Directories should be a list of directories to load from.
@@ -88,7 +87,8 @@ class LayoutDataset(Dataset):
         self.mode = mode
         self.force_reload = force_reload
 
-        self.data_transform = data_transform
+        self.data_pre_transform = data_pre_transform
+        self.data_post_transform = data_post_transform
         self.y_transform = y_transform
 
         if mode == "memmapped":
@@ -204,8 +204,8 @@ class LayoutDataset(Dataset):
         all_features = cast(torch.Tensor, all_features)
 
         all_features, edge_index = (
-            self.data_transform(all_features, edge_index, node_config_ids)
-            if self.data_transform
+            self.data_post_transform(all_features, edge_index, node_config_ids)
+            if self.data_post_transform
             else (all_features, edge_index)
         )
         y = self.y_transform(config_runtime) if self.y_transform else config_runtime
@@ -228,6 +228,11 @@ class LayoutDataset(Dataset):
         ohe_opcodes = np.zeros((node_opcodes.shape[0], NUM_OPCODES))
         ohe_opcodes[np.arange(node_opcodes.shape[0]), node_opcodes] = 1
         node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
+
+        if self.data_pre_transform:
+            node_features, edge_index = self.data_pre_transform(
+                node_features, edge_index, node_config_ids
+            )
 
         assert (
             config_runtime.shape[0] == node_config_feat.shape[0]
