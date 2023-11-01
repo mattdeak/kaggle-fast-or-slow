@@ -15,8 +15,21 @@ T = TypeVar("T", torch.Tensor, npt.NDArray[Any])
 Transform = Callable[[Any], Any]
 
 
-class DataTransform(Protocol[T]):
-    def __call__(self, x: T, edge_index: T, node_config_ids: T) -> tuple[T, T]:
+class DataPreTransform(Protocol):
+    def __call__(
+        self,
+        x: npt.NDArray[Any],
+        edge_index: npt.NDArray[Any],
+        node_config_ids: npt.NDArray[Any],
+    ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
+        """Perform a transform on the data (features or edges or both). Return the transformed data."""
+        ...
+
+
+class DataPostTransform(Protocol):
+    def __call__(
+        self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Perform a transform on the data (features or edges or both). Return the transformed data."""
         ...
 
@@ -70,8 +83,8 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
-        data_pre_transform: DataTransform[npt.NDArray[Any]] | None = None,
-        data_post_transform: DataTransform[torch.Tensor] | None = None,
+        data_pre_transform: DataPreTransform | None = None,
+        data_post_transform: DataPostTransform | None = None,
         y_transform: Transform | None = None,
     ):
         """Directories should be a list of directories to load from.
@@ -230,7 +243,7 @@ class LayoutDataset(Dataset):
         node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
 
         if self.data_pre_transform:
-            node_features, edge_index = self.data_pre_transform(
+            node_features, edge_index, node_config_ids = self.data_pre_transform(
                 node_features, edge_index, node_config_ids
             )
 
