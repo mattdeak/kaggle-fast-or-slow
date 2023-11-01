@@ -49,7 +49,7 @@ MARGIN = 1  # effectively hinge
 
 # Custom Optimization
 POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.1  # seems to help get out of initial local minima
+CROSSOVER_PROB = 0.2  # seems to help get out of initial local minima
 ITERS_WITH_NOISE = 20000
 EASE_RATE = 1.0
 EASE_DECAY = 0.99999
