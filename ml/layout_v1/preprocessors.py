@@ -34,4 +34,4 @@ def reduce_to_config_node_communities_ndarray(
         new_node_config_ids[new_node_config_ids == n] = i
 
     x = x[kept_nodes, :]
-    return x, new_edge_index, node_config_ids
+    return x, new_edge_index, new_node_config_ids
