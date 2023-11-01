@@ -136,7 +136,7 @@ def get_combinations(
     # randomly sample combinations weighted by ease
     if combinations.shape[0] > n_permutations:
         indices = torch.multinomial(final_probs, n_permutations, replacement=False)
-        combinations = combinations[indices]
+        combinations = combinations[indices, :]
 
     return combinations
 
