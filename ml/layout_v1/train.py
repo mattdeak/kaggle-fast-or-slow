@@ -339,7 +339,7 @@ def run(id: str | None = None):
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optim,
             max_lr=0.01,
-            total_steps=MAX_ITERS,
+            total_steps=MAX_ITERS + 1,
             pct_start=0.1,
         )
         wandb.watch(model)
