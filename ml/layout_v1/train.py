@@ -30,7 +30,7 @@ print("Using device:", device)
 
 # Logging/Metrics
 LOG_INTERVAL = 500
-MAX_ITERS = 800000
+MAX_ITERS = 2000000
 EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
 
@@ -47,7 +47,7 @@ WEIGHT_DECAY = 1e-4 / 8  # smaller step size
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.1
+CROSSOVER_PROB = 0.0
 
 
 # Training Details
@@ -236,6 +236,7 @@ def evaluate(
                     output.squeeze(),
                     y.squeeze(),
                     margin=MARGIN,
+                    n_permutations=BATCH_SIZE * 2,
                 )
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
@@ -271,6 +272,7 @@ def train_batch(
             output.squeeze(),
             y.squeeze(),
             margin=MARGIN,
+            n_permutations=BATCH_SIZE * 2,
         )
 
     train_loss = loss.item()
@@ -324,8 +326,8 @@ def run(id: str | None = None):
 
         model = model.to(device)
         model = torch_geometric.compile(model)
-        # optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-        optim = torch.optim.SGD(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+        optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+        # optim = torch.optim.SGD(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optim,
             max_lr=0.01,

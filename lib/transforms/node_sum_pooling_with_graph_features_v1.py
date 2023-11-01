@@ -1,7 +1,8 @@
+from typing import Literal
+
 import networkx as nx
 import numpy as np
 import polars as pl
-from joblib.externals.cloudpickle.cloudpickle import Literal
 from polars.type_aliases import IntoExpr
 
 from lib.feature_name_mapping import NODE_FEATURE_MAP
