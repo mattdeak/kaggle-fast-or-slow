@@ -35,7 +35,7 @@ LOG_INTERVAL = 500
 # MAX_ITERS = 2000000
 EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
-EPOCHS = 10
+EPOCHS = 20
 
 # Model hyperparameters
 SAGE_LAYERS = 4
