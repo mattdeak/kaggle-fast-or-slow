@@ -32,9 +32,10 @@ print("Using device:", device)
 
 # Logging/Metrics
 LOG_INTERVAL = 500
-MAX_ITERS = 2000000
+# MAX_ITERS = 2000000
 EVAL_ITERS = 512  # per loader
 EVAL_INTERVAL = 5000
+EPOCHS = 3
 
 # Model hyperparameters
 SAGE_LAYERS = 4
@@ -179,6 +180,7 @@ def make_dataloader(
 
 
 loader = make_dataloader(dataset, train_sampler)
+MAX_ITERS = len(loader) * EPOCHS
 
 eval_loaders = {
     "default_xla": make_dataloader(default_val_nlp_dataset, default_val_sampler),
@@ -186,10 +188,12 @@ eval_loaders = {
 }
 
 
-def cycle(iterable):
+def cycle(loader: DataLoader):
     while True:
-        for x in iterable:
+        for x in loader:
             yield x
+
+        loader.batch_sampler.reset()
 
 
 loader = cycle(loader)

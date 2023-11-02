@@ -66,3 +66,6 @@ class ConfigCrossoverBatchSampler:
 
     def __len__(self):
         return len(self.batch_list)
+
+    def reset(self):
+        self.batch_list = self.get_batches()
