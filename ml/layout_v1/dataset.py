@@ -116,6 +116,7 @@ class LayoutDataset(Dataset):
 
         # Flattens the files into a list of configs. A single idx corresponds to
         # a file-config pair.
+        self.idx_to_source_file_and_config: dict[int, tuple[str, int]] = {}
         self.idx_to_config: dict[int, tuple[str, int]] = {}
         self.idx_groups: list[list[int]] = []
         self._loaded = False
@@ -187,6 +188,7 @@ class LayoutDataset(Dataset):
                 else:
                     self.idx_to_config[self._length] = (filepath, i)
 
+                self.idx_to_source_file_and_config[self._length] = (filepath, i)
                 self._length += 1
 
         self._loaded = True
