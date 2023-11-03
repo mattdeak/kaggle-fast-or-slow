@@ -64,7 +64,7 @@ EASE_DECAY = 0.99999
 
 
 # Training Details
-BATCH_SIZE = 8  # pretty low cause memory is hard
+BATCH_SIZE = 16  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
@@ -74,7 +74,10 @@ DATA_DIRS = [
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
 # Deterministic
-GRAPH_DIM = 279
+# new dims = 279 - 18 = 261 
+# plus config dims = 261 + 24 = 285
+GRAPH_DIM = 285
+
 
 # Training Mods
 USE_AMP = False  # seems broken?

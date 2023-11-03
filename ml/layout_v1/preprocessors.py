@@ -62,6 +62,7 @@ def log_transform_specific_features(
 class XLANodePreprocessor:
     NODE_FEAT_INDEX = np.arange(140)
     DROP_MASK = XLA_TRAIN_NODE_STDEVS == 0
+    NORM_MASK = np.logical_and(~DROP_MASK, NUMERIC_FEATURE_MASK)
 
     def __call__(
         self,
@@ -74,11 +75,10 @@ class XLANodePreprocessor:
         )
 
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
-        norm_mask = np.logical_and(~self.DROP_MASK, NUMERIC_FEATURE_MASK)
 
-        x[norm_mask] = (
-            x[norm_mask] - XLA_TRAIN_NODE_MEANS[norm_mask]
-        ) / XLA_TRAIN_NODE_STDEVS[norm_mask]
+        x[self.NORM_MASK] = (
+            x[self.NORM_MASK] - XLA_TRAIN_NODE_MEANS[self.NORM_MASK]
+        ) / XLA_TRAIN_NODE_STDEVS[self.NORM_MASK]
 
         # drop features if they have zero stdev on the train set
         x = x[:, ~self.DROP_MASK]
