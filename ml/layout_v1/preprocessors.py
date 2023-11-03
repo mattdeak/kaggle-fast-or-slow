@@ -138,15 +138,16 @@ class ConfigFeatureGenerator:
             np.isin(np.diff(kernel_tmp, axis=-1), [0, 1]), axis=-1
         )
 
-        output_nondefault_unique_count = np.sum(
-            np.unique(output_features, axis=-1) != -1, axis=-1
-        )
-        input_nondefault_unique_count = np.sum(
-            np.unique(input_features, axis=-1) != -1, axis=-1
-        )
-        kernel_nondefault_unique_count = np.sum(
-            np.unique(kernel_features, axis=-1) != -1, axis=-1
-        )
+        # TODO: this is super heavy. can we do this more efficiently?
+        # output_nondefault_unique_count = np.sum(
+        #     np.unique(output_features, axis=-1) != -1, axis=-1
+        # )
+        # input_nondefault_unique_count = np.sum(
+        #     np.unique(input_features, axis=-1) != -1, axis=-1
+        # )
+        # kernel_nondefault_unique_count = np.sum(
+        #     np.unique(kernel_features, axis=-1) != -1, axis=-1
+        # )
 
         # Get contiguity rank (contiguity / active_dims)
         output_contiguity_rank = output_contiguity_count / (output_active_dims + 1e-4)
@@ -158,9 +159,9 @@ class ConfigFeatureGenerator:
         input_active_dims = input_active_dims / 6
         kernel_active_dims = kernel_active_dims / 6
 
-        output_nondefault_unique_count = output_nondefault_unique_count / 6
-        input_nondefault_unique_count = input_nondefault_unique_count / 6
-        kernel_nondefault_unique_count = kernel_nondefault_unique_count / 6
+        # output_nondefault_unique_count = output_nondefault_unique_count / 6
+        # input_nondefault_unique_count = input_nondefault_unique_count / 6
+        # kernel_nondefault_unique_count = kernel_nondefault_unique_count / 6
 
         # normalize orders
         output_max_order = output_max_order / 6
@@ -201,9 +202,6 @@ class ConfigFeatureGenerator:
                 output_contiguity_rank,
                 input_contiguity_rank,
                 kernel_contiguity_rank,
-                output_nondefault_unique_count,
-                input_nondefault_unique_count,
-                kernel_nondefault_unique_count,
                 output_input_match,
                 output_kernel_match,
                 input_kernel_match,
