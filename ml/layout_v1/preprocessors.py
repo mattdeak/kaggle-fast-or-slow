@@ -121,29 +121,11 @@ class ConfigFeatureGenerator:
 
         # Get contiguity (# of contiguous dims)
         # Temporarily ignore the -1s
-        output_contiguity_count = np.sum(
-            np.isin(np.diff(output_features[output_features != -1.0], axis=-1), [0, 1]),
-            axis=-1,
-        )
-        input_contiguity_count = np.sum(
-            np.isin(np.diff(input_features[input_features != -1.0], axis=-1), [0, 1]),
-            axis=-1,
-        )
-        kernel_contiguity_count = np.sum(
-            np.isin(np.diff(kernel_features[kernel_features != -1.0], axis=-1), [0, 1]),
-            axis=-1,
-        )
+        output_contiguity_count = self.calculate_contiguity(output_features)
+        input_contiguity_count = self.calculate_contiguity(input_features)
+        kernel_contiguity_count = self.calculate_contiguity(kernel_features)
 
-        # TODO: this is super heavy. can we do this more efficiently?
-        # output_nondefault_unique_count = np.sum(
-        #     np.unique(output_features, axis=-1) != -1, axis=-1
-        # )
-        # input_nondefault_unique_count = np.sum(
-        #     np.unique(input_features, axis=-1) != -1, axis=-1
-        # )
-        # kernel_nondefault_unique_count = np.sum(
-        #     np.unique(kernel_features, axis=-1) != -1, axis=-1
-        # )
+        print(output_contiguity_count.shape)
 
         # Get contiguity rank (contiguity / active_dims)
         output_contiguity_rank = output_contiguity_count / (output_active_dims + 1e-4)
@@ -154,10 +136,6 @@ class ConfigFeatureGenerator:
         output_active_dims = output_active_dims / 6
         input_active_dims = input_active_dims / 6
         kernel_active_dims = kernel_active_dims / 6
-
-        # output_nondefault_unique_count = output_nondefault_unique_count / 6
-        # input_nondefault_unique_count = input_nondefault_unique_count / 6
-        # kernel_nondefault_unique_count = kernel_nondefault_unique_count / 6
 
         # normalize orders
         output_max_order = output_max_order / 6
@@ -180,6 +158,7 @@ class ConfigFeatureGenerator:
         # combine all features
         new_config_features = np.stack(
             [
+                config_features,
                 output_is_default,
                 input_is_default,
                 kernel_is_default,
@@ -210,3 +189,20 @@ class ConfigFeatureGenerator:
             [config_features, new_config_features], axis=-1
         )
         return config_features
+
+    def calculate_contiguity(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        valid_mask = features != -1
+
+        # Apply the mask to keep only valid values and fill the rest with `np.nan` for later use with `np.diff`
+        valid_features = np.where(valid_mask, features, np.nan)
+
+        # Calculate the difference along the last axis, ignoring NaNs
+        diffs = np.diff(valid_features, axis=-1, prepend=np.nan)
+
+        # Check if the differences are 0 or 1 which indicates contiguity
+        contiguity_mask = np.isin(diffs, [0, 1])
+
+        # Sum over the last axis to get the count of contiguous elements, ignoring NaNs
+        contiguity_count = np.nansum(contiguity_mask, axis=-1)
+
+        return contiguity_count
