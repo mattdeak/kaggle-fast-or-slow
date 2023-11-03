@@ -76,8 +76,8 @@ class XLANodePreprocessor:
 
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
 
-        x[self.NORM_MASK] = (
-            x[self.NORM_MASK] - XLA_TRAIN_NODE_MEANS[self.NORM_MASK]
+        x[:, self.NORM_MASK] = (
+            x[:, self.NORM_MASK] - XLA_TRAIN_NODE_MEANS[self.NORM_MASK]
         ) / XLA_TRAIN_NODE_STDEVS[self.NORM_MASK]
 
         # drop features if they have zero stdev on the train set
