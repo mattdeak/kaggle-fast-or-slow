@@ -20,13 +20,11 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import LayoutDataset
-from ml.layout_v1.losses import listMLE, margin_loss
+from ml.layout_v1.losses import margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, XLANodePreprocessor,
     reduce_to_config_node_communities_ndarray)
-
-    reduce_to_config_node_communities_ndarray
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
 
@@ -75,7 +73,7 @@ DATA_DIRS = [
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
 # Deterministic
-# new dims = 279 - 18 = 261 
+# new dims = 279 - 18 = 261
 # plus config dims = 261 + 24 = 285
 GRAPH_DIM = 285
 
@@ -105,13 +103,16 @@ val_directories = [
 
 xla_node_preprocessor = XLANodePreprocessor()
 
+
 def xla_pretransform(
     x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
 ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
     x, edge_index, node_config_ids = reduce_to_config_node_communities_ndarray(
         x, edge_index, node_config_ids
     )
-    x, edge_index, node_config_ids = xla_node_preprocessor(x, edge_index, node_config_ids)
+    x, edge_index, node_config_ids = xla_node_preprocessor(
+        x, edge_index, node_config_ids
+    )
     return x, edge_index, node_config_ids
 
 
@@ -120,7 +121,7 @@ dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
-    config_pre_transform=ConfigFeatureGenerator()
+    config_pre_transform=ConfigFeatureGenerator(),
 )
 dataset.load()
 
@@ -134,7 +135,7 @@ default_val_xla_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
-    config_pre_transform=ConfigFeatureGenerator()
+    config_pre_transform=ConfigFeatureGenerator(),
 )
 
 random_val_xla_dataset = LayoutDataset(
@@ -142,7 +143,7 @@ random_val_xla_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
-    config_pre_transform=ConfigFeatureGenerator()
+    config_pre_transform=ConfigFeatureGenerator(),
 )
 
 
@@ -441,7 +442,9 @@ def run(id: str | None = None):
                         }
                     )
                 else:
-                    wandb.log({"train_kendall_tau": kendall_tau, "train_loss": avg_loss})
+                    wandb.log(
+                        {"train_kendall_tau": kendall_tau, "train_loss": avg_loss}
+                    )
 
                 avg_loss = 0
 
