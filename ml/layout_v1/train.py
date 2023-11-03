@@ -36,10 +36,11 @@ torch.set_float32_matmul_precision("high")
 print("Using device:", device)
 
 # Logging/Metrics
-LOG_INTERVAL = 500
+LOG_INTERVAL = 1000
+LOG_TABLE_INTERVAL = 20000
 # MAX_ITERS = 2000000
 EVAL_ITERS = 512  # per loader
-EVAL_INTERVAL = 5000
+EVAL_INTERVAL = 10000
 EPOCHS = 20
 
 # Model hyperparameters
@@ -415,7 +416,6 @@ def run(id: str | None = None):
             if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
                 avg_loss /= LOG_INTERVAL
                 print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
-                wandb.log({"train_loss": avg_loss})
                 # also record the most recent outputs for examination
                 with torch.no_grad():
                     cpu_output = output.cpu().flatten().numpy()
@@ -429,15 +429,19 @@ def run(id: str | None = None):
                 ]
 
                 kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
-                wandb.log(
-                    {
-                        "train_example": wandb.Table(
-                            columns=["output", "y", "predicted_rank", "true_rank"],
-                            data=data,
-                        ),
-                        "train_kendall_tau": kendall_tau,
-                    }
-                )
+                if iter_count % LOG_TABLE_INTERVAL == 0:
+                    wandb.log(
+                        {
+                            "train_example": wandb.Table(
+                                columns=["output", "y", "predicted_rank", "true_rank"],
+                                data=data,
+                            ),
+                            "train_kendall_tau": kendall_tau,
+                            "train_loss": avg_loss,
+                        }
+                    )
+                else:
+                    wandb.log({"train_kendall_tau": kendall_tau, "train_loss": avg_loss})
 
                 avg_loss = 0
 
