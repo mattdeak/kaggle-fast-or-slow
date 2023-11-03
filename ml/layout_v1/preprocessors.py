@@ -125,8 +125,6 @@ class ConfigFeatureGenerator:
         input_contiguity_count = self.calculate_contiguity(input_features)
         kernel_contiguity_count = self.calculate_contiguity(kernel_features)
 
-        print(output_contiguity_count.shape)
-
         # Get contiguity rank (contiguity / active_dims)
         output_contiguity_rank = output_contiguity_count / (output_active_dims + 1e-4)
         input_contiguity_rank = input_contiguity_count / (input_active_dims + 1e-4)

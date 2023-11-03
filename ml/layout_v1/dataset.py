@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from torch_geometric.data import Data, Dataset
+from tqdm.auto import tqdm
 
 NUM_OPCODES = 121
 
@@ -95,6 +96,7 @@ class LayoutDataset(Dataset):
         data_post_transform: DataPostTransform | None = None,
         config_pre_transform: ConfigPreTransform | None = None,
         y_transform: Transform | None = None,
+        progress: bool = True,
     ):
         """Directories should be a list of directories to load from.
 
@@ -113,6 +115,7 @@ class LayoutDataset(Dataset):
         self.config_pre_transform = config_pre_transform
         self.data_post_transform = data_post_transform
         self.y_transform = y_transform
+        self.progress = progress
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -165,7 +168,7 @@ class LayoutDataset(Dataset):
     def _load_dir(self, raw_dir: str):
         """This function is bad"""
         files = os.listdir(raw_dir)
-        for f in files:
+        for f in tqdm(files, disable=not self.progress):
             filepath = os.path.join(raw_dir, f)
 
             if self.mode == "memmapped":
