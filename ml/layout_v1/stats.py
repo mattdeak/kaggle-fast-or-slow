@@ -534,4 +534,4 @@ XLA_TRAIN_NODE_STDEVS = np.array(
 )
 
 # The first 20 features are one-hot
-NUMERIC_FEATURE_MASK = np.arange(20, 140)
+NUMERIC_FEATURE_MASK = np.arange(140) >= 20
