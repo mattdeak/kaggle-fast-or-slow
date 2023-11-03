@@ -156,7 +156,6 @@ class ConfigFeatureGenerator:
         # combine all features
         new_config_features = np.stack(
             [
-                config_features,
                 output_is_default,
                 input_is_default,
                 kernel_is_default,
