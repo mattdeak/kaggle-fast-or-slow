@@ -26,6 +26,14 @@ class DataPreTransform(Protocol):
         ...
 
 
+class ConfigPreTransform(Protocol):
+    def __call__(
+        self,
+        config_features: npt.NDArray[Any],
+    ) -> npt.NDArray[Any]:
+        ...
+
+
 class DataPostTransform(Protocol):
     def __call__(
         self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
@@ -85,6 +93,7 @@ class LayoutDataset(Dataset):
         force_reload: bool = False,
         data_pre_transform: DataPreTransform | None = None,
         data_post_transform: DataPostTransform | None = None,
+        config_pre_transform: ConfigPreTransform | None = None,
         y_transform: Transform | None = None,
     ):
         """Directories should be a list of directories to load from.
@@ -101,6 +110,7 @@ class LayoutDataset(Dataset):
         self.force_reload = force_reload
 
         self.data_pre_transform = data_pre_transform
+        self.config_pre_transform = config_pre_transform
         self.data_post_transform = data_post_transform
         self.y_transform = y_transform
 
@@ -248,6 +258,9 @@ class LayoutDataset(Dataset):
             node_features, edge_index, node_config_ids = self.data_pre_transform(
                 node_features, edge_index, node_config_ids
             )
+
+        if self.config_pre_transform:
+            node_config_feat = self.config_pre_transform(node_config_feat)
 
         assert (
             config_runtime.shape[0] == node_config_feat.shape[0]

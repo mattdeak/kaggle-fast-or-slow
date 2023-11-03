@@ -3,8 +3,10 @@ import heapq
 import os
 import pprint
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import scipy.stats as ss
 import torch
 import torch.nn as nn
@@ -20,7 +22,10 @@ import wandb
 from ml.layout_v1.dataset import LayoutDataset
 from ml.layout_v1.losses import listMLE, margin_loss
 from ml.layout_v1.model import SAGEMLP
-from ml.layout_v1.preprocessors import \
+from ml.layout_v1.preprocessors import (
+    ConfigFeatureGenerator, XLANodePreprocessor,
+    reduce_to_config_node_communities_ndarray)
+
     reduce_to_config_node_communities_ndarray
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
@@ -94,12 +99,24 @@ val_directories = [
     for category in CATEGORIES
 ]
 
+xla_node_preprocessor = XLANodePreprocessor()
+
+def xla_pretransform(
+    x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
+) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
+    x, edge_index, node_config_ids = reduce_to_config_node_communities_ndarray(
+        x, edge_index, node_config_ids
+    )
+    x, edge_index, node_config_ids = xla_node_preprocessor(x, edge_index, node_config_ids)
+    return x, edge_index, node_config_ids
+
 
 dataset = LayoutDataset(
     directories=directories,
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=reduce_to_config_node_communities_ndarray,
+    data_pre_transform=xla_pretransform,
+    config_pre_transform=ConfigFeatureGenerator()
 )
 dataset.load()
 
@@ -108,23 +125,25 @@ if ATTEMPT_OVERFIT:
 
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
-default_val_nlp_dataset = LayoutDataset(
+default_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=reduce_to_config_node_communities_ndarray,
+    data_pre_transform=xla_pretransform,
+    config_pre_transform=ConfigFeatureGenerator()
 )
 
-random_val_nlp_dataset = LayoutDataset(
+random_val_xla_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=reduce_to_config_node_communities_ndarray,
+    data_pre_transform=xla_pretransform,
+    config_pre_transform=ConfigFeatureGenerator()
 )
 
 
-default_val_nlp_dataset.load()
-random_val_nlp_dataset.load()
+default_val_xla_dataset.load()
+random_val_xla_dataset.load()
 
 if ATTEMPT_OVERFIT:
     # we need to slice the idx groups too
@@ -151,14 +170,14 @@ train_sampler = ConfigCrossoverBatchSampler(
     out_of_config_crossover_prob=CROSSOVER_PROB,
 )
 default_val_sampler = ConfigCrossoverBatchSampler(
-    groups=default_val_nlp_dataset.idx_groups,
+    groups=default_val_xla_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
     out_of_config_crossover_prob=0.0,
 )
 random_val_sampler = ConfigCrossoverBatchSampler(
-    groups=random_val_nlp_dataset.idx_groups,
+    groups=random_val_xla_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
@@ -183,8 +202,8 @@ loader = make_dataloader(dataset, train_sampler)
 MAX_ITERS = len(loader) * EPOCHS
 
 eval_loaders = {
-    "default_xla": make_dataloader(default_val_nlp_dataset, default_val_sampler),
-    "random_xla": make_dataloader(random_val_nlp_dataset, random_val_sampler),
+    "default_xla": make_dataloader(default_val_xla_dataset, default_val_sampler),
+    "random_xla": make_dataloader(random_val_xla_dataset, random_val_sampler),
 }
 
 
