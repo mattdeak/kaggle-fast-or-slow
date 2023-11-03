@@ -121,21 +121,17 @@ class ConfigFeatureGenerator:
 
         # Get contiguity (# of contiguous dims)
         # Temporarily ignore the -1s
-        output_tmp = output_features.copy()
-        output_tmp[output_tmp == -1] = np.nan
-        input_tmp = input_features.copy()
-        input_tmp[input_tmp == -1] = np.nan
-        kernel_tmp = kernel_features.copy()
-        kernel_tmp[kernel_tmp == -1] = np.nan
-
         output_contiguity_count = np.sum(
-            np.isin(np.diff(output_tmp, axis=-1), [0, 1]), axis=-1
+            np.isin(np.diff(output_features[output_features != -1.0], axis=-1), [0, 1]),
+            axis=-1,
         )
         input_contiguity_count = np.sum(
-            np.isin(np.diff(input_tmp, axis=-1), [0, 1]), axis=-1
+            np.isin(np.diff(input_features[input_features != -1.0], axis=-1), [0, 1]),
+            axis=-1,
         )
         kernel_contiguity_count = np.sum(
-            np.isin(np.diff(kernel_tmp, axis=-1), [0, 1]), axis=-1
+            np.isin(np.diff(kernel_features[kernel_features != -1.0], axis=-1), [0, 1]),
+            axis=-1,
         )
 
         # TODO: this is super heavy. can we do this more efficiently?
