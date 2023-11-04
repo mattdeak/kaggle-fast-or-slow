@@ -232,8 +232,7 @@ class GlobalFeatureGenerator:
         # 2. Number of edges
         # 3. Number of configs
         digraph = nx.DiGraph()
-        print(edge_index.shape)
-        digraph.add_edges_from(edge_index.T)  # type: ignore
+        digraph.add_edges_from(edge_index)  # type: ignore
 
         # These ones I think are justified since we do have this information at inference time
         # 4. Is nlp/xla
