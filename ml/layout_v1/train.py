@@ -352,12 +352,12 @@ def run(id: str | None = None):
         model = torch_geometric.compile(model)
         optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         # optim = torch.optim.SGD(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optim,
-            max_lr=0.01,
-            total_steps=MAX_ITERS + 1,
-            pct_start=0.1,
-        )
+        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        #     optim,
+        #     max_lr=0.01,
+        #     total_steps=MAX_ITERS + 1,
+        #     pct_start=0.1,
+        # )
         wandb.watch(model)
 
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
@@ -411,7 +411,7 @@ def run(id: str | None = None):
                 )
 
                 ease_rate *= EASE_DECAY
-                scheduler.step()
+                # scheduler.step()
                 avg_loss += batch_loss
 
             if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
