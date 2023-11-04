@@ -46,7 +46,7 @@ SAGE_LAYERS = 4
 SAGE_CHANNELS = 256
 LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 256
-DROPOUT = 0.0
+DROPOUT = 0.2
 
 # Optimizer
 # LR = 3e-4
@@ -56,7 +56,7 @@ MARGIN = 1  # effectively hinge
 
 # Custom Optimization
 POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.2  # seems to help get out of initial local minima
+CROSSOVER_PROB = 0.05  # seems to help get out of initial local minima
 ITERS_WITH_NOISE = 20000
 EASE_RATE = 1.0
 EASE_DECAY = 0.99999
