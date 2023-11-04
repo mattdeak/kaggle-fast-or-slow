@@ -126,7 +126,7 @@ default_dataset = LayoutDataset(
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
 )
-defaul_dataset.load()
+default_dataset.load()
 
 random_dataset = LayoutDataset(
     directories=[os.path.join(NLP_DATA_DIR, "random", "train")],
@@ -320,6 +320,7 @@ def run(id: str | None = None):
             "linear_channels": LINEAR_CHANNELS,
             "pooling_ratio": POOLING_RATIO,
             "dropout": DROPOUT,
+            "global_features": GLOBAL_FEATURES,
             "lr": LR,
             "weight_decay": WEIGHT_DECAY,
             "batch_size": BATCH_SIZE,
@@ -340,6 +341,7 @@ def run(id: str | None = None):
             sage_channels=SAGE_CHANNELS,
             linear_channels=LINEAR_CHANNELS,
             linear_layers=LINEAR_LAYERS,
+            global_features_dim=GLOBAL_FEATURES,
             dropout=DROPOUT,
             pooling_ratio=POOLING_RATIO,
         )
