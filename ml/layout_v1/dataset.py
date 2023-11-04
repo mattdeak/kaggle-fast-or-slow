@@ -400,6 +400,8 @@ class ConcatenatedDataset(Dataset):
         self.datasets = [dataset1, dataset2]
         self.idx_groups = self.get_idx_groups()
 
+        super().__init__()
+
     def get_idx_groups(self):
         ds1_groups = self.datasets[0].idx_groups
         ds2_groups = self.datasets[1].idx_groups
