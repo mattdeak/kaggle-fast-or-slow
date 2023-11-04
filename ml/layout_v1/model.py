@@ -144,7 +144,7 @@ class SAGEMLP(nn.Module):
         if data.global_features is not None:
             # shape we need from global features is (batch, global_features_dim)
             # shape we have is (batch * global_features_dim)
-            global_features = data.global_features.reshape(data.batch.shape[0], -1)
+            global_features = data.global_features.reshape(pool.shape[0], -1)
             pool = torch.cat([pool, global_features], dim=1)
 
         return self.mlp(pool)
