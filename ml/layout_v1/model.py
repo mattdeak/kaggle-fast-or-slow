@@ -84,6 +84,7 @@ class SAGEMLP(nn.Module):
     def __init__(
         self,
         graph_input_dim: int = INPUT_DIM,
+        global_features_dim: int | None = GLOBAL_INPUT_DIM,
         sage_channels: int = 64,
         sage_layers: int = 6,
         linear_channels: int = 32,
@@ -114,9 +115,14 @@ class SAGEMLP(nn.Module):
             )
             self.gcns.append(block)
 
+        if global_features_dim:
+            first_linear_input_dim = block.output_dim + global_features_dim
+        else:
+            first_linear_input_dim = block.output_dim
+
         self.mlp = nn.Sequential(
             LinearBlock(
-                block.output_dim,
+                first_linear_input_dim,
                 linear_channels,
                 with_residual=False,
                 dropout=dropout,
@@ -134,4 +140,8 @@ class SAGEMLP(nn.Module):
             d = gcn_block(d)
 
         pool = global_mean_pool(d.x, d.batch)
+
+        if data.global_features is not None:
+            pool = torch.cat([pool, data.global_features], dim=1)
+
         return self.mlp(pool)

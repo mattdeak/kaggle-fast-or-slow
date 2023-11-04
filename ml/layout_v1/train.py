@@ -19,11 +19,11 @@ from torch_geometric.loader.dataloader import Batch
 from tqdm.auto import tqdm
 
 import wandb
-from ml.layout_v1.dataset import LayoutDataset
+from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.preprocessors import (
-    ConfigFeatureGenerator, NodePreprocessor,
+    ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
@@ -76,6 +76,7 @@ CATEGORIES = ["default", "random"]  # I think this is fine though?
 # new dims = 279 - 18 = 261
 # plus config dims = 261 + 24 = 285
 GRAPH_DIM = 125  # 195 for xla
+GLOBAL_FEATURES = 6
 
 
 # Training Mods
@@ -114,18 +115,30 @@ def xla_pretransform(
     return x, edge_index, node_config_ids
 
 
-dataset = LayoutDataset(
-    directories=directories,
+default_global_preprocessor = GlobalFeatureGenerator("nlp", "default")
+random_global_preprocessor = GlobalFeatureGenerator("nlp", "random")
+
+default_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "default", "train")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
+    global_pre_transform=default_global_preprocessor,
 )
-dataset.load()
+defaul_dataset.load()
 
-if ATTEMPT_OVERFIT:
-    dataset = dataset[:OVERFIT_DATASET_SIZE]
+random_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "random", "train")],
+    mode=DATASET_MODE,
+    processed_dir="data/processed_layout",
+    data_pre_transform=xla_pretransform,
+    config_pre_transform=ConfigFeatureGenerator(),
+    global_pre_transform=random_global_preprocessor,
+)
+random_dataset.load()
 
+dataset = ConcatenatedDataset(default_dataset, random_dataset)
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
 default_val_nlp_dataset = LayoutDataset(
@@ -148,22 +161,7 @@ random_val_nlp_dataset = LayoutDataset(
 default_val_nlp_dataset.load()
 random_val_nlp_dataset.load()
 
-if ATTEMPT_OVERFIT:
-    # we need to slice the idx groups too
-    train_idx_groups = sorted(dataset.idx_groups, key=lambda x: max(x))
-    # this is nested. We want to slice by a running total
-    idx_groups = []
-    remaining = OVERFIT_DATASET_SIZE
-    for group in train_idx_groups:
-        sgroup = sorted(group)
-        if len(sgroup) > remaining:
-            idx_groups.append(sgroup[:remaining])
-            break
-        else:
-            idx_groups.append(sgroup)
-            remaining -= len(group)
-else:
-    idx_groups = dataset.idx_groups
+idx_groups = dataset.idx_groups
 
 train_sampler = ConfigCrossoverBatchSampler(
     groups=idx_groups,
@@ -189,7 +187,7 @@ random_val_sampler = ConfigCrossoverBatchSampler(
 
 
 def make_dataloader(
-    dataset: LayoutDataset, sampler: ConfigCrossoverBatchSampler
+    dataset: LayoutDataset | ConcatenatedDataset, sampler: ConfigCrossoverBatchSampler
 ) -> DataLoader:
     return DataLoader(
         dataset,
@@ -202,7 +200,7 @@ def make_dataloader(
 
 
 loader = make_dataloader(dataset, train_sampler)
-MAX_ITERS = len(loader) * EPOCHS
+MAX_ITERS = len(train_sampler) * EPOCHS
 
 eval_loaders = {
     "default": make_dataloader(default_val_nlp_dataset, default_val_sampler),

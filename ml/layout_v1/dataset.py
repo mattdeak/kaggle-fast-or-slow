@@ -35,6 +35,16 @@ class ConfigPreTransform(Protocol):
         ...
 
 
+class GlobalPreTransform(Protocol):
+    def __call__(
+        self,
+        x: npt.NDArray[Any],
+        edge_index: npt.NDArray[Any],
+        node_config_ids: npt.NDArray[Any],
+    ) -> npt.NDArray[Any]:
+        ...
+
+
 class DataPostTransform(Protocol):
     def __call__(
         self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
@@ -54,6 +64,7 @@ class GraphTensorData:
     node_config_ids: torch.Tensor
     config_features: torch.Tensor
     config_runtime: torch.Tensor
+    global_features: torch.Tensor | None = None
 
     def __iter__(self):
         return iter(
@@ -82,6 +93,7 @@ class LayoutDataset(Dataset):
     CONFIG_FEATURES_FILE = "node_config_feat.npy"
     NODE_IDS_FILE = "node_config_ids.npy"
     CONFIG_RUNTIME_FILE = "config_runtime.npy"
+    GLOBAL_FEATURES_FILE = "global_feat.npy"
 
     def __init__(
         self,
@@ -95,6 +107,7 @@ class LayoutDataset(Dataset):
         data_pre_transform: DataPreTransform | None = None,
         data_post_transform: DataPostTransform | None = None,
         config_pre_transform: ConfigPreTransform | None = None,
+        global_pre_transform: GlobalPreTransform | None = None,
         y_transform: Transform | None = None,
         progress: bool = True,
     ):
@@ -113,6 +126,7 @@ class LayoutDataset(Dataset):
 
         self.data_pre_transform = data_pre_transform
         self.config_pre_transform = config_pre_transform
+        self.global_pre_transform = global_pre_transform
         self.data_post_transform = data_post_transform
         self.y_transform = y_transform
         self.progress = progress
@@ -214,6 +228,7 @@ class LayoutDataset(Dataset):
                 node_config_ids,
                 config_features,
                 config_runtime,
+                global_features,
             ) = self.extract_from_npy(idx)
         else:
             (
@@ -222,6 +237,7 @@ class LayoutDataset(Dataset):
                 node_config_ids,
                 config_features,
                 config_runtime,
+                global_features,
             ) = self.extract_from_npz(idx)
 
         processed_config_features = torch.zeros(
@@ -289,6 +305,14 @@ class LayoutDataset(Dataset):
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
             config_runtime.astype(np.int64),
         )
+        if self.global_pre_transform:
+            global_features = self.global_pre_transform(
+                node_features, edge_index, node_config_ids
+            )
+            np.save(
+                os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
+                global_features.astype(np.float32),
+            )
 
     def extract_from_npz(self, idx: int) -> GraphTensorData:
         file_path, config_idx = self.idx_to_config[idx]
@@ -342,15 +366,6 @@ class LayoutDataset(Dataset):
             )
         )
 
-        # create a "using default" feature
-        # config_features = torch.cat(
-        #     [
-        #         config_features,
-        #         config_features.sum(axis=1) == -1 * config_features.shape[1],
-        #     ],
-        #     axis=1,
-        # )
-
         config_runtime = torch.tensor(
             float(
                 np.load(
@@ -360,10 +375,42 @@ class LayoutDataset(Dataset):
             )
         )
 
+        global_features = None
+        if os.path.exists(os.path.join(file_path, self.GLOBAL_FEATURES_FILE)):
+            global_features = torch.from_numpy(
+                np.load(
+                    os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
+                    mmap_mode="r",
+                )
+            )
+
         return GraphTensorData(
             node_features=node_features,
             edge_index=edge_index,
             node_config_ids=node_config_ids,
             config_features=config_features,
             config_runtime=config_runtime,
+            global_features=global_features,
         )
+
+
+class ConcatenatedDataset(Dataset):
+    def __init__(self, dataset1: LayoutDataset, dataset2: LayoutDataset):
+        self.datasets = [dataset1, dataset2]
+        self.idx_groups = self.get_idx_groups()
+
+    def get_idx_groups(self):
+        ds1_groups = self.datasets[0].idx_groups
+        ds2_groups = self.datasets[1].idx_groups
+
+        ds2_groups = [[x + len(self.datasets[0]) for x in g] for g in ds2_groups]
+        return ds1_groups + ds2_groups
+
+    def len(self):
+        return len(self.datasets[0]) + len(self.datasets[1])
+
+    def get(self, idx: int) -> Data:
+        if idx < len(self.datasets[0]):
+            return self.datasets[0].get(idx)
+        else:
+            return self.datasets[1].get(idx - len(self.datasets[0]))
