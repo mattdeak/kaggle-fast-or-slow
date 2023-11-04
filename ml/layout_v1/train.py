@@ -147,6 +147,8 @@ default_val_nlp_dataset = LayoutDataset(
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
+    global_pre_transform=default_global_preprocessor,
+    force_reload=True,
 )
 
 random_val_nlp_dataset = LayoutDataset(
@@ -155,6 +157,8 @@ random_val_nlp_dataset = LayoutDataset(
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
+    global_pre_transform=random_global_preprocessor,
+    force_reload=True,
 )
 
 
