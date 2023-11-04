@@ -23,7 +23,7 @@ from ml.layout_v1.dataset import LayoutDataset
 from ml.layout_v1.losses import margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.preprocessors import (
-    ConfigFeatureGenerator, XLANodePreprocessor,
+    ConfigFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
@@ -68,7 +68,7 @@ NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
 DATA_DIRS = [
-    XLA_DATA_DIR
+    NLP_DATA_DIR,
 ]  # only xla this run. I think it may be nonsense to train on both
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
@@ -101,7 +101,7 @@ val_directories = [
     for category in CATEGORIES
 ]
 
-xla_node_preprocessor = XLANodePreprocessor()
+node_preprocessor = NodePreprocessor("nlp")
 
 
 def xla_pretransform(
@@ -110,9 +110,7 @@ def xla_pretransform(
     x, edge_index, node_config_ids = reduce_to_config_node_communities_ndarray(
         x, edge_index, node_config_ids
     )
-    x, edge_index, node_config_ids = xla_node_preprocessor(
-        x, edge_index, node_config_ids
-    )
+    x, edge_index, node_config_ids = node_preprocessor(x, edge_index, node_config_ids)
     return x, edge_index, node_config_ids
 
 
@@ -130,16 +128,16 @@ if ATTEMPT_OVERFIT:
 
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
-default_val_xla_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
+default_val_nlp_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
 )
 
-random_val_xla_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
+random_val_nlp_dataset = LayoutDataset(
+    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     data_pre_transform=xla_pretransform,
@@ -147,8 +145,8 @@ random_val_xla_dataset = LayoutDataset(
 )
 
 
-default_val_xla_dataset.load()
-random_val_xla_dataset.load()
+default_val_nlp_dataset.load()
+random_val_nlp_dataset.load()
 
 if ATTEMPT_OVERFIT:
     # we need to slice the idx groups too
@@ -175,14 +173,14 @@ train_sampler = ConfigCrossoverBatchSampler(
     out_of_config_crossover_prob=CROSSOVER_PROB,
 )
 default_val_sampler = ConfigCrossoverBatchSampler(
-    groups=default_val_xla_dataset.idx_groups,
+    groups=default_val_nlp_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
     out_of_config_crossover_prob=0.0,
 )
 random_val_sampler = ConfigCrossoverBatchSampler(
-    groups=random_val_xla_dataset.idx_groups,
+    groups=random_val_nlp_dataset.idx_groups,
     batch_size=BATCH_SIZE,
     shuffle_groups=True,
     shuffle_within_groups=True,
@@ -207,8 +205,8 @@ loader = make_dataloader(dataset, train_sampler)
 MAX_ITERS = len(loader) * EPOCHS
 
 eval_loaders = {
-    "default_xla": make_dataloader(default_val_xla_dataset, default_val_sampler),
-    "random_xla": make_dataloader(random_val_xla_dataset, random_val_sampler),
+    "default": make_dataloader(default_val_nlp_dataset, default_val_sampler),
+    "random": make_dataloader(random_val_nlp_dataset, random_val_sampler),
 }
 
 
@@ -452,27 +450,26 @@ def run(id: str | None = None):
             if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
                 model.eval()
                 with record_function("evaluate"):
-                    random_xla_eval_loss, random_kt, random_kt_std = evaluate(
-                        model, eval_loaders["random_xla"], EVAL_ITERS, device
+                    random_eval_loss, random_kt, random_kt_std = evaluate(
+                        model, eval_loaders["random"], EVAL_ITERS, device
                     )
 
-                    default_xla_eval_loss, default_kt, default_kt_std = evaluate(
+                    default_eval_loss, default_kt, default_kt_std = evaluate(
                         model,
-                        eval_loaders["default_xla"],
+                        eval_loaders["default"],
                         EVAL_ITERS,
                         device,
                     )
 
                 wandb.log(
                     {
-                        "xla_random_val_loss": random_xla_eval_loss,
-                        "xla_default_val_loss": default_xla_eval_loss,
-                        "xla_random_kendall_tau": default_kt,
-                        "xla_default_kendall_tau": random_kt,
+                        "random_val_loss": random_eval_loss,
+                        "default_val_loss": default_eval_loss,
+                        "random_kendall_tau": default_kt,
+                        "default_kendall_tau": random_kt,
                         "avg_kendall_tau": (random_kt + default_kt) / 2,
                         "avg_kendall_tau_std": (random_kt_std + default_kt_std) / 2,
-                        "avg_val_loss": (random_xla_eval_loss + default_xla_eval_loss)
-                        / 2,
+                        "avg_val_loss": (random_eval_loss + default_eval_loss) / 2,
                     }
                 )
 
