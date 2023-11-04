@@ -74,6 +74,7 @@ class GraphTensorData:
                 self.node_config_ids,
                 self.config_features,
                 self.config_runtime,
+                self.global_features,
             )
         )
 
