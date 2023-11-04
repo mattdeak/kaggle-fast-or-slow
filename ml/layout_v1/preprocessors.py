@@ -1,10 +1,11 @@
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
 import torch
 
-from ml.layout_v1.stats import (NUMERIC_FEATURE_MASK, XLA_TRAIN_NODE_MEANS,
+from ml.layout_v1.stats import (NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS,
+                                NUMERIC_FEATURE_MASK, XLA_TRAIN_NODE_MEANS,
                                 XLA_TRAIN_NODE_STDEVS)
 
 
@@ -59,10 +60,20 @@ def log_transform_specific_features(
     return x, edge_index, node_config_ids
 
 
-class XLANodePreprocessor:
+class NodePreprocessor:
     NODE_FEAT_INDEX = np.arange(140)
-    DROP_MASK = XLA_TRAIN_NODE_STDEVS == 0
-    NORM_MASK = np.logical_and(~DROP_MASK, NUMERIC_FEATURE_MASK)
+
+    def __init__(self, dataset: Literal["xla", "nlp"]):
+        if dataset == "xla":
+            means, stdevs = XLA_TRAIN_NODE_MEANS, XLA_TRAIN_NODE_STDEVS
+        else:
+            means, stdevs = NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS
+
+        self.drop_mask = stdevs == 0
+        self.norm_mask = np.logical_and(~self.drop_mask, NUMERIC_FEATURE_MASK)
+
+        self.mean = means[self.norm_mask]
+        self.std = stdevs[self.norm_mask]
 
     def __call__(
         self,
@@ -75,13 +86,10 @@ class XLANodePreprocessor:
         )
 
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
-
-        x[:, self.NORM_MASK] = (
-            x[:, self.NORM_MASK] - XLA_TRAIN_NODE_MEANS[self.NORM_MASK]
-        ) / XLA_TRAIN_NODE_STDEVS[self.NORM_MASK]
+        x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
 
         # drop features if they have zero stdev on the train set
-        x = x[:, ~self.DROP_MASK]
+        x = x[:, ~self.drop_mask]
 
         return x, edge_index, node_config_ids
 
