@@ -258,6 +258,7 @@ class LayoutDataset(Dataset):
             x=all_features,  # type: ignore
             edge_index=edge_index.T.contiguous(),
             y=y,
+            global_features=global_features,
         )
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
