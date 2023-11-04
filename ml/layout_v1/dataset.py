@@ -337,7 +337,7 @@ class LayoutDataset(Dataset):
             np.array(
                 np.load(
                     os.path.join(file_path, self.CONFIG_FEATURES_FILE),
-                    mmap_mode="r",
+                    mmap_mode="r+",
                 )[config_idx, :, :]
             )
         )
