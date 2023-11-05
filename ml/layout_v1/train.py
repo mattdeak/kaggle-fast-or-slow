@@ -22,8 +22,7 @@ import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import listMLEalt, margin_loss
 from ml.layout_v1.model import SAGEMLP
-from ml.layout_v1.pooling import (DegreeScaledGlobalPooler, DegreeScaler,
-                                  multi_agg)
+from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
