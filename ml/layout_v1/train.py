@@ -43,14 +43,14 @@ EPOCHS = 20
 
 # Model hyperparameters
 SAGE_LAYERS = 4
-SAGE_CHANNELS = 256
+SAGE_CHANNELS = 512
 LINEAR_LAYERS = 3
-LINEAR_CHANNELS = 256
-DROPOUT = 0.2
+LINEAR_CHANNELS = 512
+DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 1e-4 / 4  # smaller step size
+WEIGHT_DECAY = 1e-1
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 
@@ -63,7 +63,7 @@ EASE_DECAY = 0.99999
 
 
 # Training Details
-BATCH_SIZE = 16  # pretty low cause memory is hard
+BATCH_SIZE = 8  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
