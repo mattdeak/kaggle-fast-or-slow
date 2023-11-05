@@ -63,7 +63,7 @@ class DegreeScaledGlobalPooler(nn.Module):
         """
         self.avg_degree = avg_degree
         self.aggregators = [self.AGGREGATORS[agg] for agg in aggregators]
-        self.scaler = DegreeScaler(avg_degree=avg_degree)
+        self.scaler = DegreeScaler(avg_log_degree=avg_degree)
         super().__init__()
 
     def forward(

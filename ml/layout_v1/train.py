@@ -354,7 +354,8 @@ def run(id: str | None = None):
             linear_layers=LINEAR_LAYERS,
             global_features_dim=GLOBAL_FEATURES,
             dropout=DROPOUT,
-            pooling_ratio=POOLING_RATIO,
+            pooling_fn=pooling,
+            pooling_feature_multiplier=4,  # 4 aggregators
         )
 
         model = model.to(device)
