@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
-from ml.layout_v1.losses import listMLE, margin_loss
+from ml.layout_v1.losses import listMLEalt, margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
@@ -258,7 +258,7 @@ def evaluate(
                 #     margin=MARGIN,
                 #     n_permutations=BATCH_SIZE * 2,
                 # )
-                loss = listMLE(output.squeeze(), y.squeeze())
+                loss = listMLEalt(output.squeeze(), y.squeeze())
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
                 true_rank = get_rank(y.flatten()).cpu().numpy()
@@ -297,7 +297,7 @@ def train_batch(
         #     margin=MARGIN,
         #     n_permutations=BATCH_SIZE * 2,
         # )
-        loss = listMLE(output.squeeze(), y.squeeze())
+        loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
