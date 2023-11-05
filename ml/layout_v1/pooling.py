@@ -73,7 +73,7 @@ class DegreeScaledGlobalPooler(nn.Module):
         degrees = torch.stack(
             [
                 self.scaler(in_degree, alpha=1),
-                self.scaler(in_degree, alpha=-1),
+                self.scaler(in_degree, alpha=0.5),
             ]
         ).T
 
