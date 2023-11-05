@@ -252,13 +252,13 @@ def evaluate(
                 output = model(eval_batch)
                 y = eval_batch.y
                 # generate pairs for margin ranking loss
-                # loss = margin_loss(
-                #     output.squeeze(),
-                #     y.squeeze(),
-                #     margin=MARGIN,
-                #     n_permutations=BATCH_SIZE * 2,
-                # )
-                loss = listMLEalt(output.squeeze(), y.squeeze())
+                loss = margin_loss(
+                    output.squeeze(),
+                    y.squeeze(),
+                    margin=MARGIN,
+                    n_permutations=BATCH_SIZE * 2,
+                )
+                # loss = listMLEalt(output.squeeze(), y.squeeze())
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
                 true_rank = get_rank(y.flatten()).cpu().numpy()
@@ -291,13 +291,13 @@ def train_batch(
 
         y = batch.y
         # generate pairs for margin ranking loss
-        # loss = margin_loss(
-        #     output.squeeze(),
-        #     y.squeeze(),
-        #     margin=MARGIN,
-        #     n_permutations=BATCH_SIZE * 2,
-        # )
-        loss = listMLEalt(output.squeeze(), y.squeeze())
+        loss = margin_loss(
+            output.squeeze(),
+            y.squeeze(),
+            margin=MARGIN,
+            n_permutations=BATCH_SIZE * 2,
+        )
+        # loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
