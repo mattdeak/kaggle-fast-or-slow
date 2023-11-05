@@ -10,8 +10,8 @@ class DegreeScaler(nn.Module):
         """
         The avg log degree is 1/|train| * sum_{i in train}(log(d+1)) where d is the average degree of the graph.
         """
-        self.avg_degree = avg_log_degree
         super().__init__()
+        self.avg_degree = avg_log_degree
 
     def forward(
         self,
@@ -61,10 +61,10 @@ class DegreeScaledGlobalPooler(nn.Module):
         Args:
             avg_degree (float): average degree of the graph. Must be precomputed.
         """
+        super().__init__()
         self.avg_degree = avg_degree
         self.aggregators = [self.AGGREGATORS[agg] for agg in aggregators]
         self.scaler = DegreeScaler(avg_log_degree=avg_degree)
-        super().__init__()
 
     def forward(
         self, x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor
