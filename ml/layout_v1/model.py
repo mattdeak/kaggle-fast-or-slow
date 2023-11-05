@@ -131,7 +131,9 @@ class SAGEMLP(nn.Module):
         for gcn_block in self.gcns:
             d = gcn_block(d)
 
-        pool = self.pooling_fn(d.x, d.batch)
+        # TODO: this is specific to the pooling function we made. We should make
+        # sure our poolers are interchangeable.
+        pool = self.pooling_fn(d.x, d.edge_index, d.batch)  # type: ignore
 
         if data.global_features is not None:
             # shape we need from global features is (batch, global_features_dim)
