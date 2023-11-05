@@ -100,24 +100,24 @@ def listMLEalt(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
     """
     # shuffle for randomised tie resolution
     random_indices = torch.randperm(y_pred.shape[-1])
-    y_pred_shuffled = y_pred[:, random_indices]
-    y_true_shuffled = y_true[:, random_indices]
+    y_pred_shuffled = y_pred[random_indices]
+    y_true_shuffled = y_true[random_indices]
 
     indices = y_true_shuffled.argsort(descending=True, dim=-1)
 
-    preds_sorted_by_true = torch.gather(y_pred_shuffled, dim=1, index=indices)
+    preds_sorted_by_true = torch.gather(y_pred_shuffled, dim=0, index=indices)
 
-    max_pred_values, _ = preds_sorted_by_true.max(dim=1, keepdim=True)
+    max_pred_values, _ = preds_sorted_by_true.max(dim=0, keepdim=True)
 
     preds_sorted_by_true_minus_max = preds_sorted_by_true - max_pred_values
 
     cumsums = torch.cumsum(
-        preds_sorted_by_true_minus_max.exp().flip(dims=[1]), dim=1
-    ).flip(dims=[1])
+        preds_sorted_by_true_minus_max.exp().flip(dims=[0]), dim=0
+    ).flip(dims=[0])
 
     observation_loss = torch.log(cumsums + eps) - preds_sorted_by_true_minus_max
 
-    return torch.mean(torch.sum(observation_loss, dim=1))
+    return torch.mean(torch.sum(observation_loss, dim=0))
 
 
 @torch.jit.script
