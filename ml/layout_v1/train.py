@@ -75,7 +75,7 @@ CATEGORIES = ["default", "random"]  # I think this is fine though?
 # Deterministic
 # new dims = 279 - 18 = 261
 # plus config dims = 261 + 24 = 285
-GRAPH_DIM = 125  # 195 for xla
+GRAPH_DIM = 195  # 195 for xla
 GLOBAL_FEATURES = 6
 
 
@@ -85,8 +85,6 @@ PROFILE = False
 WANDB_LOG = True
 SAVE_CHECKPOINTS = True
 DATASET_MODE = "memmapped"  # memmapped or in-memory
-ATTEMPT_OVERFIT = False  # good for validating learning behaviour
-OVERFIT_DATASET_SIZE = 1024
 
 
 # ---- Data ---- #
@@ -102,10 +100,10 @@ val_directories = [
     for category in CATEGORIES
 ]
 
-node_preprocessor = NodePreprocessor("nlp")
+node_preprocessor = NodePreprocessor("xla")
 
 
-def xla_pretransform(
+def pretransform(
     x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
 ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
     x, edge_index, node_config_ids = reduce_to_config_node_communities_ndarray(
@@ -115,24 +113,24 @@ def xla_pretransform(
     return x, edge_index, node_config_ids
 
 
-default_global_preprocessor = GlobalFeatureGenerator("nlp", "default")
-random_global_preprocessor = GlobalFeatureGenerator("nlp", "random")
+default_global_preprocessor = GlobalFeatureGenerator("xla", "default")
+random_global_preprocessor = GlobalFeatureGenerator("xla", "random")
 
 default_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "default", "train")],
+    directories=[os.path.join(XLA_DATA_DIR, "default", "train")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=xla_pretransform,
+    data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
 )
 default_dataset.load()
 
 random_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "random", "train")],
+    directories=[os.path.join(XLA_DATA_DIR, "random", "train")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=xla_pretransform,
+    data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=random_global_preprocessor,
 )
@@ -142,20 +140,20 @@ dataset = ConcatenatedDataset(default_dataset, random_dataset)
 # We break these up because the distributions are different,
 # so we may want to analyze the metrics separately
 default_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "default", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=xla_pretransform,
+    data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
     force_reload=True,
 )
 
 random_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(NLP_DATA_DIR, "random", "valid")],
+    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=xla_pretransform,
+    data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=random_global_preprocessor,
     force_reload=True,
