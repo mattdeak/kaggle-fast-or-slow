@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
-from ml.layout_v1.losses import margin_loss
+from ml.layout_v1.losses import listMLE, margin_loss
 from ml.layout_v1.model import SAGEMLP
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
@@ -43,14 +43,14 @@ EPOCHS = 20
 
 # Model hyperparameters
 SAGE_LAYERS = 4
-SAGE_CHANNELS = 512
+SAGE_CHANNELS = 256
 LINEAR_LAYERS = 3
-LINEAR_CHANNELS = 512
+LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 1e-1
+WEIGHT_DECAY = 1e-2
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 
@@ -252,12 +252,13 @@ def evaluate(
                 output = model(eval_batch)
                 y = eval_batch.y
                 # generate pairs for margin ranking loss
-                loss = margin_loss(
-                    output.squeeze(),
-                    y.squeeze(),
-                    margin=MARGIN,
-                    n_permutations=BATCH_SIZE * 2,
-                )
+                # loss = margin_loss(
+                #     output.squeeze(),
+                #     y.squeeze(),
+                #     margin=MARGIN,
+                #     n_permutations=BATCH_SIZE * 2,
+                # )
+                loss = listMLE(output.squeeze(), y.squeeze())
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
                 true_rank = get_rank(y.flatten()).cpu().numpy()
@@ -290,12 +291,13 @@ def train_batch(
 
         y = batch.y
         # generate pairs for margin ranking loss
-        loss = margin_loss(
-            output.squeeze(),
-            y.squeeze(),
-            margin=MARGIN,
-            n_permutations=BATCH_SIZE * 2,
-        )
+        # loss = margin_loss(
+        #     output.squeeze(),
+        #     y.squeeze(),
+        #     margin=MARGIN,
+        #     n_permutations=BATCH_SIZE * 2,
+        # )
+        loss = listMLE(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
