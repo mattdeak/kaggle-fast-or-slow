@@ -1,11 +1,8 @@
-from dataclasses import dataclass
-from typing import cast
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv, SAGPooling
+from torch_geometric.nn import SAGEConv
 from torch_geometric.nn.pool import global_max_pool, global_mean_pool
 
 INPUT_DIM = 261
