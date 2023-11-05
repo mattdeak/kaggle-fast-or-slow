@@ -17,7 +17,7 @@ class DegreeScaler(nn.Module):
         self,
         edge_index: torch.Tensor,
         num_nodes: int,
-        alpha: float = 0.0,
+        alpha: int = 0,
     ) -> torch.Tensor:
         r"""
         Args:
@@ -71,7 +71,7 @@ class DegreeScaledGlobalPooler(nn.Module):
         self, x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor
     ) -> torch.Tensor:
         num_nodes = x.shape[0]
-        degrees = torch.hstack(
+        degrees = torch.stack(
             [
                 self.scaler(edge_index, num_nodes, alpha=0),
                 self.scaler(edge_index, num_nodes, alpha=1),
