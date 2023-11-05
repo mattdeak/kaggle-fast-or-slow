@@ -81,7 +81,7 @@ GLOBAL_FEATURES = 6
 
 
 # WARNING: If preprocessing changes, this will need to be updated
-XLA_AVG_LOG_DEGREE = 0.68
+XLA_AVG_LOG_DEGREE = 0.601
 
 
 # Training Mods
@@ -289,7 +289,6 @@ def train_batch(
     batch: Batch,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
-    ease_rate: float = EASE_RATE,
 ) -> tuple[float, torch.Tensor, torch.Tensor]:
     optim.zero_grad()
 

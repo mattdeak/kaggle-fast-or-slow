@@ -15,8 +15,7 @@ class DegreeScaler(nn.Module):
 
     def forward(
         self,
-        edge_index: torch.Tensor,
-        num_nodes: int,
+        degree: torch.Tensor,
         alpha: int = 0,
     ) -> torch.Tensor:
         r"""
@@ -25,8 +24,7 @@ class DegreeScaler(nn.Module):
         Returns:
             Tensor: output scalar, shape (1,)
         """
-        in_degree = degree(edge_index[1], num_nodes)
-        s = (torch.log(in_degree + 1) / self.avg_degree) ** alpha
+        s = (torch.log(degree + 1) / self.avg_degree) ** alpha
         return s
 
 
@@ -71,17 +69,24 @@ class DegreeScaledGlobalPooler(nn.Module):
         self, x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor
     ) -> torch.Tensor:
         num_nodes = x.shape[0]
+        in_degree = degree(edge_index[1, :], num_nodes)
         degrees = torch.stack(
             [
-                self.scaler(edge_index, num_nodes, alpha=0),
-                self.scaler(edge_index, num_nodes, alpha=1),
-                self.scaler(edge_index, num_nodes, alpha=-1),
+                self.scaler(in_degree, alpha=1),
+                self.scaler(in_degree, alpha=-1),
             ]
-        )
-        agg_features = [agg(x, batch) for agg in self.aggregators]
+        ).T
+
+        x_unsqueeze = x.unsqueeze(1)
+        degrees_unsqueeze = degrees.unsqueeze(2)
+
+        result = (x_unsqueeze * degrees_unsqueeze).view(num_nodes, -1)
+        # add back the original features
+        result = torch.hstack([x, result])
+        aggs = torch.hstack([agg(result, batch) for agg in self.aggregators])
 
         # compute tensor product of features and degrees
-        return torch.cat([agg * degrees for agg in agg_features], dim=1)
+        return aggs
 
     def __repr__(self):
         return f"{self.__class__.__name__}(avg_degree={self.avg_degree}, aggregators={self.aggregators})"
