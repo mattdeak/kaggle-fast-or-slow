@@ -133,7 +133,7 @@ class SAGEMLP(nn.Module):
 
         # TODO: this is specific to the pooling function we made. We should make
         # sure our poolers are interchangeable.
-        pool = self.pooling_fn(d.x, d.edge_index, d.batch)  # type: ignore
+        pool = self.pooling_fn(d.x, d.batch)  # type: ignore
 
         if data.global_features is not None:
             # shape we need from global features is (batch, global_features_dim)

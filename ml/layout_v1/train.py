@@ -22,7 +22,8 @@ import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import listMLEalt, margin_loss
 from ml.layout_v1.model import SAGEMLP
-from ml.layout_v1.pooling import DegreeScaledGlobalPooler, DegreeScaler
+from ml.layout_v1.pooling import (DegreeScaledGlobalPooler, DegreeScaler,
+                                  multi_agg)
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
@@ -118,7 +119,7 @@ def pretransform(
     return x, edge_index, node_config_ids
 
 
-pooling = DegreeScaledGlobalPooler(avg_degree=XLA_AVG_LOG_DEGREE)
+pooling = multi_agg
 
 
 default_global_preprocessor = GlobalFeatureGenerator("xla", "default")
@@ -354,7 +355,7 @@ def run(id: str | None = None):
             global_features_dim=GLOBAL_FEATURES,
             dropout=DROPOUT,
             pooling_fn=pooling,
-            pooling_feature_multiplier=4 * 3,  # 4 aggregators * 3 scales
+            pooling_feature_multiplier=4,  # 4 aggregators * 3 scales
         )
 
         model = model.to(device)

@@ -43,6 +43,17 @@ def global_min_pool(x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
     return global_max_pool(-x, batch)
 
 
+def multi_agg(x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
+    return torch.hstack(
+        [
+            global_mean_pool(x, batch),
+            global_std_pool(x, batch),
+            global_max_pool(x, batch),
+            global_min_pool(x, batch),
+        ]
+    )
+
+
 class DegreeScaledGlobalPooler(nn.Module):
     AGGREGATORS = {
         "mean": global_mean_pool,
@@ -68,8 +79,25 @@ class DegreeScaledGlobalPooler(nn.Module):
     def forward(
         self, x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor
     ) -> torch.Tensor:
+        """
+        Args:
+            x (Tensor): input feature, shape (N, C, *)
+            edge_index (LongTensor): graph connectivity in COO format, shape (2, E)
+            batch (LongTensor): batch vector, shape (N,)
+        Returns:
+            Tensor: output feature, shape (B, O) where O = C * len(aggregators) * (scales + 1)
+        """
+        ...
+        # The following code works for a single graph, but not for a batch of graphs.
         num_nodes = x.shape[0]
-        in_degree = degree(edge_index[1, :], num_nodes)
+        # in_degree = degree(edge_index[1, :], num_nodes)
+        
+        
+        index[1, :]),
+        
+        
+        
+
         degrees = torch.stack(
             [
                 self.scaler(in_degree, alpha=1),
@@ -83,6 +111,7 @@ class DegreeScaledGlobalPooler(nn.Module):
         result = (x_unsqueeze * degrees_unsqueeze).view(num_nodes, -1)
         # add back the original features
         result = torch.hstack([x, result])
+
         aggs = torch.hstack([agg(result, batch) for agg in self.aggregators])
 
         # compute tensor product of features and degrees
