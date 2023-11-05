@@ -25,7 +25,7 @@ class DegreeScaler(nn.Module):
         Returns:
             Tensor: output scalar, shape (1,)
         """
-        in_degree = torch.mean(degree(edge_index[1]), num_nodes)
+        in_degree = torch.mean(degree(edge_index[1], num_nodes))
         s = (torch.log(in_degree + 1) / self.avg_degree) ** alpha
         return s
 
