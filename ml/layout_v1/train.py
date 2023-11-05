@@ -146,7 +146,7 @@ default_val_nlp_dataset = LayoutDataset(
     data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
-    force_reload=True,
+    # force_reload=True,
 )
 
 random_val_nlp_dataset = LayoutDataset(
@@ -156,7 +156,7 @@ random_val_nlp_dataset = LayoutDataset(
     data_pre_transform=pretransform,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=random_global_preprocessor,
-    force_reload=True,
+    # force_reload=True,
 )
 
 
@@ -330,7 +330,6 @@ def run(id: str | None = None):
             "data_dir": DATA_DIRS,
             "categories": CATEGORIES,
             "amp": USE_AMP,
-            "attempt_overfit": ATTEMPT_OVERFIT,
             "loss": "margin",
             "job_type": "layout",
             "subtype": "train",
