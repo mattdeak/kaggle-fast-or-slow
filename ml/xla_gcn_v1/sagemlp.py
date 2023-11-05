@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import cast
 
 import torch
@@ -8,6 +9,8 @@ from torch_geometric.nn import SAGEConv, global_add_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
+
+GlobalPoolingFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 class SAGEBlock(nn.Module):
@@ -72,9 +75,11 @@ class SAGEMLP(nn.Module):
         linear_channels: int = 32,
         linear_layers: int = 3,
         dropout: float = 0.2,
+        global_pooling: GlobalPoolingFn = global_mean_pool,
     ):
         super().__init__()
 
+        self.pooling = global_pooling
         self.gcns = nn.ModuleList(
             [
                 SAGEBlock(

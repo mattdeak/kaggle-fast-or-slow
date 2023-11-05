@@ -22,6 +22,7 @@ import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import listMLEalt, margin_loss
 from ml.layout_v1.model import SAGEMLP
+from ml.layout_v1.pooling import DegreeScaledGlobalPooler, DegreeScaler
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
@@ -79,6 +80,10 @@ GRAPH_DIM = 195  # 195 for xla
 GLOBAL_FEATURES = 6
 
 
+# WARNING: If preprocessing changes, this will need to be updated
+XLA_AVG_LOG_DEGREE = 0.68
+
+
 # Training Mods
 USE_AMP = False  # seems broken?
 PROFILE = False
@@ -111,6 +116,9 @@ def pretransform(
     )
     x, edge_index, node_config_ids = node_preprocessor(x, edge_index, node_config_ids)
     return x, edge_index, node_config_ids
+
+
+pooling = DegreeScaledGlobalPooler(avg_degree=XLA_AVG_LOG_DEGREE)
 
 
 default_global_preprocessor = GlobalFeatureGenerator("xla", "default")
@@ -252,13 +260,13 @@ def evaluate(
                 output = model(eval_batch)
                 y = eval_batch.y
                 # generate pairs for margin ranking loss
-                loss = margin_loss(
-                    output.squeeze(),
-                    y.squeeze(),
-                    margin=MARGIN,
-                    n_permutations=BATCH_SIZE * 2,
-                )
-                # loss = listMLEalt(output.squeeze(), y.squeeze())
+                # loss = margin_loss(
+                #     output.squeeze(),
+                #     y.squeeze(),
+                #     margin=MARGIN,
+                #     n_permutations=BATCH_SIZE * 2,
+                # )
+                loss = listMLEalt(output.squeeze(), y.squeeze())
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
                 true_rank = get_rank(y.flatten()).cpu().numpy()
@@ -291,13 +299,13 @@ def train_batch(
 
         y = batch.y
         # generate pairs for margin ranking loss
-        loss = margin_loss(
-            output.squeeze(),
-            y.squeeze(),
-            margin=MARGIN,
-            n_permutations=BATCH_SIZE * 2,
-        )
-        # loss = listMLEalt(output.squeeze(), y.squeeze())
+        # loss = margin_loss(
+        #     output.squeeze(),
+        #     y.squeeze(),
+        #     margin=MARGIN,
+        #     n_permutations=BATCH_SIZE * 2,
+        # )
+        loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
@@ -322,7 +330,7 @@ def run(id: str | None = None):
             "sage_channels": SAGE_CHANNELS,
             "linear_layers": LINEAR_LAYERS,
             "linear_channels": LINEAR_CHANNELS,
-            "pooling_ratio": POOLING_RATIO,
+            "pooling": str(pooling),
             "dropout": DROPOUT,
             "global_features": GLOBAL_FEATURES,
             "lr": LR,

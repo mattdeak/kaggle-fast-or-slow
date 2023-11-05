@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +9,8 @@ from torch_geometric.nn.pool import global_max_pool, global_mean_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
+
+GlobalPoolingFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 class SAGEBlock(nn.Module):
@@ -75,10 +79,12 @@ class SAGEMLP(nn.Module):
         linear_channels: int = 32,
         linear_layers: int = 3,
         dropout: float = 0.2,
-        pooling_ratio: float | None = None,
+        pooling_fn: GlobalPoolingFn = global_mean_pool,
+        pooling_feature_multiplier: int = 1,
     ):
         super().__init__()
 
+        self.pooling_fn = pooling_fn
         self.gcns = nn.ModuleList()
 
         block = SAGEBlock(
@@ -100,9 +106,11 @@ class SAGEMLP(nn.Module):
             self.gcns.append(block)
 
         if global_features_dim:
-            first_linear_input_dim = 3 * block.output_dim + global_features_dim
+            first_linear_input_dim = (
+                pooling_feature_multiplier * block.output_dim + global_features_dim
+            )
         else:
-            first_linear_input_dim = 3 * block.output_dim
+            first_linear_input_dim = pooling_feature_multiplier * block.output_dim
 
         self.mlp = nn.Sequential(
             LinearBlock(
@@ -123,11 +131,7 @@ class SAGEMLP(nn.Module):
         for gcn_block in self.gcns:
             d = gcn_block(d)
 
-        mean_pool = global_mean_pool(d.x, d.batch)
-        max_pool = global_max_pool(d.x, d.batch)
-        min_pool = global_max_pool(-d.x, d.batch)
-
-        pool = torch.cat([mean_pool, max_pool, min_pool], dim=1)
+        pool = self.pooling_fn(d.x, d.batch)
 
         if data.global_features is not None:
             # shape we need from global features is (batch, global_features_dim)
