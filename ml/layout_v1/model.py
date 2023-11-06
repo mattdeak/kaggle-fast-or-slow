@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv
+from torch_geometric.nn import GATv2Conv, SAGEConv
 from torch_geometric.nn.pool import global_max_pool, global_mean_pool
 
 INPUT_DIM = 261
@@ -13,16 +13,17 @@ GLOBAL_INPUT_DIM = 24
 GlobalPoolingFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
-class SAGEBlock(nn.Module):
+class GraphBlock(nn.Module):
     def __init__(
         self,
         input_dim: int,
         output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
+        graph_conv: type[nn.Module] = SAGEConv,
     ):
         super().__init__()
-        self.conv = SAGEConv(input_dim, output_dim)
+        self.conv = graph_conv(input_dim, output_dim)
         self.norm = nn.LayerNorm(output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
@@ -81,23 +82,25 @@ class SAGEMLP(nn.Module):
         dropout: float = 0.2,
         pooling_fn: GlobalPoolingFn = global_mean_pool,
         pooling_feature_multiplier: int = 1,
+        graph_conv: type[nn.Module] = SAGEConv,
     ):
         super().__init__()
 
         self.pooling_fn = pooling_fn
         self.gcns = nn.ModuleList()
 
-        block = SAGEBlock(
+        block = GraphBlock(
             graph_input_dim,
             dropout=dropout,
             with_residual=False,
             output_dim=sage_channels,
+            graph_conv=graph_conv,
         )
         self.gcns.append(block)
 
         for _ in range(sage_layers):
             graph_input_dim = block.output_dim
-            block = SAGEBlock(
+            block = GraphBlock(
                 graph_input_dim,
                 output_dim=sage_channels,
                 dropout=dropout,

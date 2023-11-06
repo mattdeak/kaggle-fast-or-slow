@@ -3,6 +3,7 @@ import heapq
 import os
 import pprint
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
+from torch_geometric.nn import GATv2Conv, SAGEConv
 from tqdm.auto import tqdm
 
 import wandb
@@ -28,6 +30,15 @@ from ml.layout_v1.preprocessors import (
     reduce_to_config_node_communities_ndarray)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
+
+GATv2HEADS = 4
+
+partial_gatv2_conv = partial(GATv2Conv, heads=GATv2HEADS)
+
+CONVS = {
+    "gat": partial_gatv2_conv,
+    "sage": SAGEConv,
+}
 
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -45,13 +56,14 @@ EPOCHS = 10
 # Model hyperparameters
 SAGE_LAYERS = 3
 SAGE_CHANNELS = 256
-LINEAR_LAYERS = 5
+LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 256
-DROPOUT = 0.5
+DROPOUT = 0.0
+CONV_TYPE = "gatv2"
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 1e-4
+WEIGHT_DECAY = 1e-2
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 
@@ -342,9 +354,11 @@ def run(id: str | None = None):
             "loss": "margin",
             "job_type": "layout",
             "subtype": "train",
+            "conv_type": CONV_TYPE,
         },
         mode="online" if WANDB_LOG else "disabled",
     ):
+        graphconv = CONVS[CONV_TYPE]
         model = SAGEMLP(
             graph_input_dim=GRAPH_DIM,
             sage_layers=SAGE_LAYERS,
@@ -355,6 +369,7 @@ def run(id: str | None = None):
             dropout=DROPOUT,
             pooling_fn=pooling,
             pooling_feature_multiplier=4,  # 4 aggregators * 3 scales
+            graph_conv=graphconv,
         )
 
         model = model.to(device)
