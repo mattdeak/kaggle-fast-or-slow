@@ -1,13 +1,9 @@
 import argparse
 import heapq
 import os
-import pprint
 from dataclasses import dataclass
-from functools import partial
-from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 import scipy.stats as ss
 import torch
 import torch.nn as nn
@@ -24,9 +20,11 @@ from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import listMLEalt, margin_loss
 from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.pooling import multi_agg
-from ml.layout_v1.preprocessors import (
-    ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
-    OpcodeGroupOHEEmbedder, reduce_to_config_node_communities_ndarray)
+from ml.layout_v1.preprocessors import (ConfigFeatureGenerator,
+                                        ConfigNodeCommunityPreprocessor,
+                                        GlobalFeatureGenerator,
+                                        NodePreprocessor,
+                                        OpcodeGroupOHEEmbedder)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
 
@@ -49,7 +47,7 @@ SAGE_CHANNELS = 128
 LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 128
 DROPOUT = 0.0
-CONV_TYPE = "gat"
+CONV_TYPE = "sage"
 GAT_HEADS = 2
 
 # Optimizer
@@ -67,7 +65,7 @@ EASE_DECAY = 0.99999
 
 
 # Training Details
-BATCH_SIZE = 8  # pretty low cause memory is hard
+BATCH_SIZE = 16  # pretty low cause memory is hard
 NUM_WORKERS = 4
 XLA_DATA_DIR = "data/layout/xla"
 NLP_DATA_DIR = "data/layout/nlp"
@@ -108,7 +106,7 @@ val_directories = [
     for category in CATEGORIES
 ]
 
-graph_preprocessor = reduce_to_config_node_communities_ndarray
+graph_preprocessor = ConfigNodeCommunityPreprocessor(hops=2)
 node_preprocessor = NodePreprocessor("xla")
 config_preprocessor = ConfigFeatureGenerator()
 opcode_preprocessor = OpcodeGroupOHEEmbedder()
@@ -330,9 +328,9 @@ def run(id: str | None = None):
             "model": "SAGEMLP",
             "resume": "allow",
             "preprocessors": {
-                "graph": graph_preprocessor.__name__,
-                "node": node_preprocessor.__class__.__name__,
-                "config": config_preprocessor.__class__.__name__,
+                "graph": repr(graph_preprocessor),
+                "node": repr(node_preprocessor),
+                "config": repr(config_preprocessor),
             },
             "sage_layers": SAGE_LAYERS,
             "sage_channels": SAGE_CHANNELS,
