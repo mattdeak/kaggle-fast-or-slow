@@ -45,13 +45,13 @@ EPOCHS = 10
 # Model hyperparameters
 SAGE_LAYERS = 3
 SAGE_CHANNELS = 256
-LINEAR_LAYERS = 3
+LINEAR_LAYERS = 5
 LINEAR_CHANNELS = 256
 DROPOUT = 0.5
 
 # Optimizer
 # LR = 3e-4
-WEIGHT_DECAY = 1e-2
+WEIGHT_DECAY = 1e-4
 LR = 3e-4
 MARGIN = 1  # effectively hinge
 
