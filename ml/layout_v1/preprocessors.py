@@ -136,7 +136,9 @@ class NodePreprocessor:
             )
 
         self.drop_mask = stdevs == 0
-        self.norm_mask = np.logical_and(~self.drop_mask, NUMERIC_FEATURE_MASK)
+        self.norm_mask = np.logical_and(
+            ~self.drop_mask, NUMERIC_FEATURE_MASK[self.NODE_FEAT_INDEX]
+        )
 
         self.mean = means[self.norm_mask]
         self.std = stdevs[self.norm_mask]
