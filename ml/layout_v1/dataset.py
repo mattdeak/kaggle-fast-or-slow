@@ -9,6 +9,8 @@ import torch
 from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
 
+from ml.layout_v1.preprocessors import ohe_opcodes
+
 NUM_OPCODES = 121
 
 T = TypeVar("T", torch.Tensor, npt.NDArray[Any])
@@ -24,6 +26,15 @@ class DataPreTransform(Protocol):
         node_config_ids: npt.NDArray[Any],
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
         """Perform a transform on the data (features or edges or both). Return the transformed data."""
+        ...
+
+
+class OpcodeEmbedder(Protocol):
+    def __call__(
+        self,
+        opcodes: npt.NDArray[Any],
+    ) -> npt.NDArray[Any]:
+        """Perform a transform the opcodes to generate an embedding."""
         ...
 
 
@@ -60,6 +71,7 @@ def get_file_id(file_path: str) -> str:
 @dataclass
 class GraphTensorData:
     node_features: torch.Tensor
+    opcode_embeds: torch.Tensor
     edge_index: torch.Tensor
     node_config_ids: torch.Tensor
     config_features: torch.Tensor
@@ -70,6 +82,7 @@ class GraphTensorData:
         return iter(
             (
                 self.node_features,
+                self.opcode_embeds,
                 self.edge_index,
                 self.node_config_ids,
                 self.config_features,
@@ -90,6 +103,7 @@ class LayoutDataset(Dataset):
     ]
 
     NODE_FEATURES_FILE = "node_feat.npy"
+    OPCODE_EMBEDDINGS_FILE = "node_opcode.npy"
     EDGE_INDEX_FILE = "edge_index.npy"
     CONFIG_FEATURES_FILE = "node_config_feat.npy"
     NODE_IDS_FILE = "node_config_ids.npy"
@@ -105,6 +119,7 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
+        opcode_embedder: OpcodeEmbedder = ohe_opcodes,
         data_pre_transform: DataPreTransform | None = None,
         data_post_transform: DataPostTransform | None = None,
         config_pre_transform: ConfigPreTransform | None = None,
@@ -125,6 +140,7 @@ class LayoutDataset(Dataset):
         self.mode = mode
         self.force_reload = force_reload
 
+        self.opcode_embedder = opcode_embedder
         self.data_pre_transform = data_pre_transform
         self.config_pre_transform = config_pre_transform
         self.global_pre_transform = global_pre_transform
@@ -225,6 +241,7 @@ class LayoutDataset(Dataset):
         if self.mode == "memmapped":
             (
                 node_features,
+                opcode_embeds,
                 edge_index,
                 node_config_ids,
                 config_features,
@@ -234,6 +251,7 @@ class LayoutDataset(Dataset):
         else:
             (
                 node_features,
+                opcode_embeds,
                 edge_index,
                 node_config_ids,
                 config_features,
@@ -245,14 +263,12 @@ class LayoutDataset(Dataset):
             (node_features.shape[0], config_features.shape[1])
         )
         processed_config_features[node_config_ids] = config_features
-        all_features = torch.cat([node_features, processed_config_features], axis=1)
+
+        all_features = torch.cat(
+            [node_features, opcode_embeds, processed_config_features], axis=1
+        )
         all_features = cast(torch.Tensor, all_features)
 
-        all_features, edge_index = (
-            self.data_post_transform(all_features, edge_index, node_config_ids)
-            if self.data_post_transform
-            else (all_features, edge_index)
-        )
         y = self.y_transform(config_runtime) if self.y_transform else config_runtime
 
         return Data(
@@ -271,9 +287,7 @@ class LayoutDataset(Dataset):
         node_config_ids = d["node_config_ids"]
         config_runtime = d["config_runtime"]
 
-        ohe_opcodes = np.zeros((node_opcodes.shape[0], NUM_OPCODES))
-        ohe_opcodes[np.arange(node_opcodes.shape[0]), node_opcodes] = 1
-        node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
+        embedded_opcodes = self.opcode_embedder(node_opcodes)
 
         if self.data_pre_transform:
             node_features, edge_index, node_config_ids = self.data_pre_transform(
@@ -291,6 +305,12 @@ class LayoutDataset(Dataset):
             os.path.join(target_file_path, self.NODE_FEATURES_FILE),
             node_features.astype(np.float32),
         )
+
+        np.save(
+            os.path.join(target_file_path, self.OPCODE_EMBEDDINGS_FILE),
+            embedded_opcodes.astype(np.float32),
+        )
+
         np.save(
             os.path.join(target_file_path, self.EDGE_INDEX_FILE),
             edge_index.astype(np.int64),
@@ -327,12 +347,11 @@ class LayoutDataset(Dataset):
         config_runtime = d["config_runtime"][config_idx]
 
         # One hot encode the opcodes
-        ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
-        ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
-        node_features = np.concatenate([node_features, ohe_opcodes], axis=1)
+        opcodes = self.opcode_embedder(opcodes)
 
         return GraphTensorData(
             node_features=torch.from_numpy(node_features).float(),
+            opcode_embeds=torch.from_numpy(opcodes).float(),
             edge_index=torch.from_numpy(edge_index),
             node_config_ids=torch.from_numpy(node_config_ids),
             config_features=torch.from_numpy(node_config_feat).float(),
@@ -346,6 +365,13 @@ class LayoutDataset(Dataset):
                 os.path.join(file_path, self.NODE_FEATURES_FILE),
             )
         )
+
+        opcodes = torch.from_numpy(
+            np.load(
+                os.path.join(file_path, self.OPCODE_EMBEDDINGS_FILE),
+            )
+        )
+
         edge_index = torch.from_numpy(
             np.load(
                 os.path.join(file_path, self.EDGE_INDEX_FILE),
@@ -388,6 +414,7 @@ class LayoutDataset(Dataset):
 
         return GraphTensorData(
             node_features=node_features,
+            opcode_embeds=opcodes,
             edge_index=edge_index,
             node_config_ids=node_config_ids,
             config_features=config_features,

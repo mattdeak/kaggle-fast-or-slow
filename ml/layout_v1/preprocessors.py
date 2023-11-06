@@ -9,6 +9,60 @@ from ml.layout_v1.stats import (NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS,
                                 NUMERIC_FEATURE_MASK, XLA_TRAIN_NODE_MEANS,
                                 XLA_TRAIN_NODE_STDEVS)
 
+NUM_OPCODES = 121
+
+
+def ohe_opcodes(opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
+    ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
+    ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
+    return ohe_opcodes
+
+
+class OpcodeGroupOHEEmbedder:
+    # See the notebook "opcode analysis" for how these groups were determined
+    GROUPS = {
+        0: [2, 95, 59, 32, 60, 1, 66, 73, 50, 51, 37, 38, 94, 81, 103, 90],
+        1: [7, 30, 91, 96, 15, 40, 80, 118, 107],
+        2: [53, 52, 54, 55, 87, 88, 89, 11, 12, 65, 19],
+        3: [20, 83, 17, 49],
+        4: [34, 26, 16, 99],
+        5: [27, 29, 28, 35, 36, 42, 82, 22, 92, 108, 75, 76, 98, 62, 93],
+        6: [48, 77, 79, 78, 13, 21, 67, 46, 25, 12, 119],
+        7: [70, 72, 71, 111, 5, 109, 110, 10, 9, 8, 57, 58, 104, 112, 113],
+        8: [14, 23, 102],
+        9: [
+            85,
+            86,
+            68,
+            69,
+            47,
+            61,
+            6,
+            18,
+            105,
+            106,
+            104,
+            112,
+            113,
+            5,
+            109,
+            110,
+            111,
+            84,
+        ],
+        10: [4, 100, 45, 44, 43, 63, 64, 74, 33],
+        11: [115, 116, 117, 114],
+        12: [63, 24],
+        13: [31],
+        14: [41],
+    }
+
+    def __call__(self, opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        group_opcodes = np.zeros((opcodes.shape[0], len(self.GROUPS)))
+        for group_num, group in self.GROUPS.items():
+            group_opcodes[np.isin(opcodes, group), group_num] = 1
+        return group_opcodes
+
 
 # These features have zero stdev on the train sets
 def reduce_to_config_node_communities_tensor(
@@ -94,7 +148,7 @@ class NodePreprocessor:
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
         x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
 
-        # drop features if they have zero stdev on the train set
+        # drop features if they have zero stdev on the train set and are numeric
         x = x[:, ~self.drop_mask]
 
         return x, edge_index, node_config_ids

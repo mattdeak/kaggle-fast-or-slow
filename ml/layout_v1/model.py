@@ -55,12 +55,15 @@ class GATBlock(nn.Module):
         dropout: float = 0.5,
     ):
         super().__init__()
+
+        output_dim = output_dim // heads
+
         self.conv = GATConv(input_dim, output_dim, heads=heads)
         self.norm = nn.LayerNorm(output_dim * heads)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
-        self.output_dim = output_dim * heads
+        self.output_dim = output_dim
 
     def forward(self, d: Data) -> Data:
         x, edge_index, batch = d.x, d.edge_index, d.batch
