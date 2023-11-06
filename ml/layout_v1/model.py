@@ -59,7 +59,7 @@ class GATBlock(nn.Module):
         output_dim = output_dim // heads
 
         self.conv = GATConv(input_dim, output_dim, heads=heads)
-        self.norm = nn.LayerNorm(output_dim * heads)
+        self.norm = nn.LayerNorm(output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
