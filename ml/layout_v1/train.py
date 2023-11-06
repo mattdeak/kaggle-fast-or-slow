@@ -17,28 +17,18 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
-from torch_geometric.nn import GATv2Conv, SAGEConv
 from tqdm.auto import tqdm
 
 import wandb
 from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
 from ml.layout_v1.losses import listMLEalt, margin_loss
-from ml.layout_v1.model import SAGEMLP
+from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
     reduce_to_config_node_communities_ndarray)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
-
-GATv2HEADS = 4
-
-partial_gatv2_conv = partial(GATv2Conv, heads=GATv2HEADS)
-
-CONVS = {
-    "gat": partial_gatv2_conv,
-    "sage": SAGEConv,
-}
 
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -60,6 +50,7 @@ LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 256
 DROPOUT = 0.0
 CONV_TYPE = "gat"
+GAT_HEADS = 4
 
 # Optimizer
 # LR = 3e-4
@@ -358,18 +349,23 @@ def run(id: str | None = None):
         },
         mode="online" if WANDB_LOG else "disabled",
     ):
-        graphconv = CONVS[CONV_TYPE]
-        model = SAGEMLP(
+        if CONV_TYPE == "gat":
+            kwargs = {"heads": GAT_HEADS}
+        else:
+            kwargs = None
+
+        model = GraphMLP(
             graph_input_dim=GRAPH_DIM,
-            sage_layers=SAGE_LAYERS,
-            sage_channels=SAGE_CHANNELS,
+            graph_layers=SAGE_LAYERS,
+            graph_channels=SAGE_CHANNELS,
             linear_channels=LINEAR_CHANNELS,
             linear_layers=LINEAR_LAYERS,
             global_features_dim=GLOBAL_FEATURES,
             dropout=DROPOUT,
             pooling_fn=pooling,
             pooling_feature_multiplier=4,  # 4 aggregators * 3 scales
-            graph_conv=graphconv,
+            graph_conv=CONV_TYPE,
+            graph_conv_kwargs=kwargs,
         )
 
         model = model.to(device)

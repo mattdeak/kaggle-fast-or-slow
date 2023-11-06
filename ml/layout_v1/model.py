@@ -1,11 +1,12 @@
 from collections.abc import Callable
+from typing import Any, Literal
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import GATv2Conv, SAGEConv
-from torch_geometric.nn.pool import global_max_pool, global_mean_pool
+from torch_geometric.nn.pool import global_mean_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
@@ -13,18 +14,49 @@ GLOBAL_INPUT_DIM = 24
 GlobalPoolingFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
-class GraphBlock(nn.Module):
+class SAGEBlock(nn.Module):
     def __init__(
         self,
         input_dim: int,
         output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
-        graph_conv: type[nn.Module] = SAGEConv,
     ):
         super().__init__()
-        self.conv = graph_conv(input_dim, output_dim)
+        self.conv = SAGEConv(input_dim, output_dim)
         self.norm = nn.LayerNorm(output_dim)
+        self.with_residual = with_residual
+        self.dropout = nn.Dropout(dropout)
+
+        self.output_dim = output_dim
+
+    def forward(self, d: Data) -> Data:
+        x, edge_index, batch = d.x, d.edge_index, d.batch
+
+        f = self.conv(x, edge_index)
+        f = F.gelu(f)
+        f = self.norm(f)
+        f = self.dropout(f)
+
+        if self.with_residual:
+            f += x
+
+        new_data = Data(x=f, edge_index=edge_index, batch=batch)
+        return d.update(new_data)
+
+
+class GATBlock(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        heads: int = 4,
+        with_residual: bool = True,
+        dropout: float = 0.5,
+    ):
+        super().__init__()
+        self.conv = GATv2Conv(input_dim, output_dim, heads=heads)
+        self.norm = nn.LayerNorm(output_dim * heads)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
@@ -67,42 +99,45 @@ class LinearBlock(nn.Module):
 
         if self.with_residual:
             f += x
+
         return f
 
 
-class SAGEMLP(nn.Module):
+class GraphMLP(nn.Module):
     def __init__(
         self,
         graph_input_dim: int = INPUT_DIM,
         global_features_dim: int | None = GLOBAL_INPUT_DIM,
-        sage_channels: int = 64,
-        sage_layers: int = 6,
+        graph_channels: int = 64,
+        graph_layers: int = 6,
         linear_channels: int = 32,
         linear_layers: int = 3,
         dropout: float = 0.2,
         pooling_fn: GlobalPoolingFn = global_mean_pool,
         pooling_feature_multiplier: int = 1,
-        graph_conv: type[nn.Module] = SAGEConv,
+        graph_conv: Literal["sage", "gat"] = "sage",
+        graph_conv_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__()
 
         self.pooling_fn = pooling_fn
         self.gcns = nn.ModuleList()
 
-        block = GraphBlock(
+        conv = SAGEBlock if graph_conv == "sage" else GATBlock
+        block = conv(
             graph_input_dim,
             dropout=dropout,
             with_residual=False,
-            output_dim=sage_channels,
-            graph_conv=graph_conv,
+            output_dim=graph_channels,
+            **(graph_conv_kwargs or {}),
         )
         self.gcns.append(block)
 
-        for _ in range(sage_layers):
+        for _ in range(graph_layers):
             graph_input_dim = block.output_dim
-            block = GraphBlock(
+            block = conv(
                 graph_input_dim,
-                output_dim=sage_channels,
+                output_dim=graph_channels,
                 dropout=dropout,
                 with_residual=False,  # doesn't play well with pooling
             )
