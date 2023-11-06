@@ -20,13 +20,12 @@ class ConfigNodeCommunityPreprocessor:
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
         ...
         rows, _ = np.where(np.isin(edge_index, node_config_ids))
-
         new_edge_index = edge_index[rows]
         kept_nodes = np.unique(new_edge_index)
 
         for _ in range(self.hops):
-            rows, _ = np.where(np.isin(new_edge_index, kept_nodes))
-            new_edge_index = new_edge_index[rows]
+            rows, _ = np.where(np.isin(edge_index, kept_nodes))
+            new_edge_index = edge_index[rows]
             kept_nodes = np.unique(new_edge_index)
 
         new_node_config_ids = node_config_ids.copy()
