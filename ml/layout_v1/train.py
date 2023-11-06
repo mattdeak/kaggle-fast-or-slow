@@ -26,7 +26,7 @@ from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors import (
     ConfigFeatureGenerator, GlobalFeatureGenerator, NodePreprocessor,
-    reduce_to_config_node_communities_ndarray)
+    OpcodeGroupOHEEmbedder, reduce_to_config_node_communities_ndarray)
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
 
@@ -111,6 +111,7 @@ val_directories = [
 graph_preprocessor = reduce_to_config_node_communities_ndarray
 node_preprocessor = NodePreprocessor("xla")
 config_preprocessor = ConfigFeatureGenerator()
+opcode_preprocessor = OpcodeGroupOHEEmbedder()
 
 
 pooling = multi_agg
@@ -124,6 +125,7 @@ default_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     graph_pre_transform=graph_preprocessor,
+    opcode_embedder=opcode_preprocessor,
     node_pre_transform=node_preprocessor,
     config_pre_transform=config_preprocessor,
     global_pre_transform=default_global_preprocessor,
@@ -135,6 +137,7 @@ random_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     graph_pre_transform=graph_preprocessor,
+    opcode_embedder=opcode_preprocessor,
     node_pre_transform=node_preprocessor,
     config_pre_transform=config_preprocessor,
     global_pre_transform=random_global_preprocessor,
@@ -149,6 +152,7 @@ default_val_nlp_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     graph_pre_transform=graph_preprocessor,
+    opcode_embedder=opcode_preprocessor,
     node_pre_transform=node_preprocessor,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
@@ -160,6 +164,7 @@ random_val_nlp_dataset = LayoutDataset(
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
     graph_pre_transform=graph_preprocessor,
+    opcode_embedder=opcode_preprocessor,
     node_pre_transform=node_preprocessor,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=random_global_preprocessor,
