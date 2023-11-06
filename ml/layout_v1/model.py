@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import GATv2Conv, SAGEConv
+from torch_geometric.nn import GATConv, GATv2Conv, SAGEConv
 from torch_geometric.nn.pool import global_mean_pool
 
 INPUT_DIM = 261
@@ -55,7 +55,7 @@ class GATBlock(nn.Module):
         dropout: float = 0.5,
     ):
         super().__init__()
-        self.conv = GATv2Conv(input_dim, output_dim, heads=heads)
+        self.conv = GATConv(input_dim, output_dim, heads=heads)
         self.norm = nn.LayerNorm(output_dim * heads)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
