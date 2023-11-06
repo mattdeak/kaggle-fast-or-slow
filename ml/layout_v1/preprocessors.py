@@ -12,7 +12,10 @@ from ml.layout_v1.stats import (NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS,
 
 # These features have zero stdev on the train sets
 def reduce_to_config_node_communities_tensor(
-    x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
+    x: torch.Tensor,
+    edge_index: torch.Tensor,
+    node_config_ids: torch.Tensor,
+    hops: int = 1,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     rows, _ = torch.where(torch.isin(edge_index, node_config_ids))
 
@@ -27,7 +30,9 @@ def reduce_to_config_node_communities_tensor(
 
 
 def reduce_to_config_node_communities_ndarray(
-    x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
+    x: npt.NDArray[Any],
+    edge_index: npt.NDArray[Any],
+    node_config_ids: npt.NDArray[Any],
 ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
     rows, _ = np.where(np.isin(edge_index, node_config_ids))
 
