@@ -108,17 +108,9 @@ val_directories = [
     for category in CATEGORIES
 ]
 
+graph_preprocessor = reduce_to_config_node_communities_ndarray
 node_preprocessor = NodePreprocessor("xla")
-
-
-def pretransform(
-    x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
-) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
-    x, edge_index, node_config_ids = reduce_to_config_node_communities_ndarray(
-        x, edge_index, node_config_ids
-    )
-    x, edge_index, node_config_ids = node_preprocessor(x, edge_index, node_config_ids)
-    return x, edge_index, node_config_ids
+config_preprocessor = ConfigFeatureGenerator()
 
 
 pooling = multi_agg
@@ -131,8 +123,9 @@ default_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "train")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=pretransform,
-    config_pre_transform=ConfigFeatureGenerator(),
+    graph_pre_transform=graph_preprocessor,
+    node_pre_transform=node_preprocessor,
+    config_pre_transform=config_preprocessor,
     global_pre_transform=default_global_preprocessor,
 )
 default_dataset.load()
@@ -141,8 +134,9 @@ random_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "train")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=pretransform,
-    config_pre_transform=ConfigFeatureGenerator(),
+    graph_pre_transform=graph_preprocessor,
+    node_pre_transform=node_preprocessor,
+    config_pre_transform=config_preprocessor,
     global_pre_transform=random_global_preprocessor,
 )
 random_dataset.load()
@@ -154,7 +148,8 @@ default_val_nlp_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=pretransform,
+    graph_pre_transform=graph_preprocessor,
+    node_pre_transform=node_preprocessor,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=default_global_preprocessor,
     # force_reload=True,
@@ -164,7 +159,8 @@ random_val_nlp_dataset = LayoutDataset(
     directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
     mode=DATASET_MODE,
     processed_dir="data/processed_layout",
-    data_pre_transform=pretransform,
+    graph_pre_transform=graph_preprocessor,
+    node_pre_transform=node_preprocessor,
     config_pre_transform=ConfigFeatureGenerator(),
     global_pre_transform=random_global_preprocessor,
     # force_reload=True,
@@ -328,6 +324,11 @@ def run(id: str | None = None):
         config={
             "model": "SAGEMLP",
             "resume": "allow",
+            "preprocessors": {
+                "graph": graph_preprocessor.__name__,
+                "node": node_preprocessor.__class__.__name__,
+                "config": config_preprocessor.__class__.__name__,
+            },
             "sage_layers": SAGE_LAYERS,
             "sage_channels": SAGE_CHANNELS,
             "linear_layers": LINEAR_LAYERS,
