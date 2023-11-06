@@ -29,6 +29,18 @@ class DataPreTransform(Protocol):
         ...
 
 
+class GraphPreTransform(Protocol):
+    def __call__(
+        self,
+        node_features: npt.NDArray[Any],
+        opcodes: npt.NDArray[Any],
+        edge_index: npt.NDArray[Any],
+        node_config_ids: npt.NDArray[Any],
+    ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
+        """Perform a transform on the data (features or edges or both). Return the transformed data."""
+        ...
+
+
 class OpcodeEmbedder(Protocol):
     def __call__(
         self,
@@ -120,8 +132,8 @@ class LayoutDataset(Dataset):
         processed_dir: str | None = None,
         force_reload: bool = False,
         opcode_embedder: OpcodeEmbedder = ohe_opcodes,
-        data_pre_transform: DataPreTransform | None = None,
-        data_post_transform: DataPostTransform | None = None,
+        graph_pre_transform: GraphPreTransform | None = None,
+        node_pre_transform: DataPreTransform | None = None,
         config_pre_transform: ConfigPreTransform | None = None,
         global_pre_transform: GlobalPreTransform | None = None,
         y_transform: Transform | None = None,
@@ -141,7 +153,8 @@ class LayoutDataset(Dataset):
         self.force_reload = force_reload
 
         self.opcode_embedder = opcode_embedder
-        self.data_pre_transform = data_pre_transform
+        self.graph_pre_transform = graph_pre_transform
+        self.data_pre_transform = node_pre_transform
         self.config_pre_transform = config_pre_transform
         self.global_pre_transform = global_pre_transform
         self.data_post_transform = data_post_transform
@@ -280,12 +293,22 @@ class LayoutDataset(Dataset):
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
         d = np.load(source_file_path)
-        node_features = d["node_feat"]
-        node_opcodes = d["node_opcode"]
-        edge_index = d["edge_index"]
-        node_config_feat = d["node_config_feat"]
-        node_config_ids = d["node_config_ids"]
-        config_runtime = d["config_runtime"]
+        node_features: npt.NDArray[Any] = d["node_feat"]
+        node_opcodes: npt.NDArray[Any] = d["node_opcode"]
+        edge_index: npt.NDArray[Any] = d["edge_index"]
+        node_config_feat: npt.NDArray[Any] = d["node_config_feat"]
+        node_config_ids: npt.NDArray[Any] = d["node_config_ids"]
+        config_runtime: npt.NDArray[Any] = d["config_runtime"]
+
+        if self.graph_pre_transform:
+            (
+                node_features,
+                node_opcodes,
+                edge_index,
+                node_config_ids,
+            ) = self.graph_pre_transform(
+                node_features, node_opcodes, edge_index, node_config_ids
+            )
 
         embedded_opcodes = self.opcode_embedder(node_opcodes)
 
