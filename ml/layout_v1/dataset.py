@@ -157,7 +157,6 @@ class LayoutDataset(Dataset):
         self.data_pre_transform = node_pre_transform
         self.config_pre_transform = config_pre_transform
         self.global_pre_transform = global_pre_transform
-        self.data_post_transform = data_post_transform
         self.y_transform = y_transform
         self.progress = progress
 
