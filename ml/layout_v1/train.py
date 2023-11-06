@@ -79,7 +79,7 @@ CATEGORIES = ["default", "random"]  # I think this is fine though?
 # Deterministic
 # new dims = 279 - 18 = 261
 # plus config dims = 261 + 24 = 285
-GRAPH_DIM = 195  # 195 for xla
+GRAPH_DIM = 163
 GLOBAL_FEATURES = 6
 
 
