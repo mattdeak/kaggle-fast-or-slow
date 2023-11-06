@@ -1068,3 +1068,4 @@ NLP_TRAIN_NODE_STDEVS = np.array(
 
 # The first 20 features are one-hot, the mid 120 are numeric
 NUMERIC_FEATURE_MASK = np.isin(np.arange(len(XLA_TRAIN_NODE_MEANS)), np.arange(20, 140))
+NODE_FEATURE_MASK = np.isin(np.arange(len(XLA_TRAIN_NODE_MEANS)), np.arange(140))

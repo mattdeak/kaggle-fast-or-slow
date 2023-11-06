@@ -125,9 +125,15 @@ class NodePreprocessor:
 
     def __init__(self, dataset: Literal["xla", "nlp"]):
         if dataset == "xla":
-            means, stdevs = XLA_TRAIN_NODE_MEANS, XLA_TRAIN_NODE_STDEVS
+            means, stdevs = (
+                XLA_TRAIN_NODE_MEANS[self.NODE_FEAT_INDEX],
+                XLA_TRAIN_NODE_STDEVS[self.NODE_FEAT_INDEX],
+            )
         else:
-            means, stdevs = NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS
+            means, stdevs = (
+                NLP_TRAIN_NODE_MEANS[self.NODE_FEAT_INDEX],
+                NLP_TRAIN_NODE_STDEVS[self.NODE_FEAT_INDEX],
+            )
 
         self.drop_mask = stdevs == 0
         self.norm_mask = np.logical_and(~self.drop_mask, NUMERIC_FEATURE_MASK)
