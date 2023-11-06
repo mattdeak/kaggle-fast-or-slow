@@ -60,7 +60,7 @@ class GATBlock(nn.Module):
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
-        self.output_dim = output_dim
+        self.output_dim = output_dim * heads
 
     def forward(self, d: Data) -> Data:
         x, edge_index, batch = d.x, d.edge_index, d.batch
