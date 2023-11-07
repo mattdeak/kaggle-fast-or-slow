@@ -13,11 +13,6 @@ class ConfigFeatureGenerator:
         self,
         config_features: npt.NDArray[Any],  # config is nc x c x 18
     ) -> npt.NDArray[Any]:
-        # config_features is nc x c x 18, but if we are postprocessing a single config, it will be c x 18
-        # so we need to add a batch dimension
-        if config_features.ndim == 2:
-            config_features = config_features[np.newaxis, ...]
-
         output_features = config_features[:, :, self.OUTPUT_MASK]
         input_features = config_features[:, :, self.INPUT_MASK]
         kernel_features = config_features[:, :, self.KERNEL_MASK]

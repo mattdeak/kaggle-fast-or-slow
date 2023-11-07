@@ -338,6 +338,10 @@ class LayoutDataset(Dataset):
                 config_runtime,
                 global_features,
             ) = self.extract_from_npz(idx)
+
+        if config_features.ndim == 2:
+            config_features = config_features[np.newaxis, :, :]
+
         (
             node_features,
             opcode_embeds,
