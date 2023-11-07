@@ -151,9 +151,14 @@ class ConfigFeatureGenerator:
         return contiguity_count
 
     def calculate_variance(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
-        """Calculates variance along the last axis, ignoring -1s"""
-        valid_features = features[features != -1]
-        variance = np.var(valid_features, axis=-1)
+        """Calculates variance along the last axis, ignoring -1s.
+        The array is shape (n, m, 6) where n is the number of configs and m is the number of features.
+        Our resulting array should be shape (n, m, 1) where each value is the variance of the 6 features,
+        ignoring -1s.
+        """
+        mask = features != -1
+        valid_features = np.where(mask, features, np.nan)
+        variance = np.nanvar(valid_features, axis=-1)
         return variance
 
     def calculate_permutations(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
