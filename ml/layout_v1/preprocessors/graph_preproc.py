@@ -23,7 +23,7 @@ class ConfigNodeCommunityPreprocessor:
         new_edge_index = edge_index[rows]
         kept_nodes = np.unique(new_edge_index)
 
-        for _ in range(self.hops):
+        for _ in range(self.hops - 1):
             rows, _ = np.where(np.isin(edge_index, kept_nodes))
             new_edge_index = edge_index[rows]
             kept_nodes = np.unique(new_edge_index)
