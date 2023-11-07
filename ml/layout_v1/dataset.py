@@ -405,7 +405,7 @@ class LayoutDataset(Dataset):
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
             graph_data.config_runtime.astype(np.int64),
         )
-        if graph_data.global_features:
+        if graph_data.global_features is not None:
             np.save(
                 os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
                 graph_data.global_features.astype(np.float32),
