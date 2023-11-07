@@ -18,7 +18,15 @@ class ConfigNodeCommunityPreprocessor:
         edge_index: npt.NDArray[Any],
         node_config_ids: npt.NDArray[Any],
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
-        ...
+        """Reduce the graph to only the nodes that are in the same neighborhood as at least one configurable node.
+        Args:
+            node_features: The node features (nc x f)
+            opcodes: The opcodes (nc)
+            edge_index: The edge index in COO (e x 2)
+            node_config_ids: The node config ids (nc)
+        Returns:
+            The reduced node features, opcodes, edge index, and node config ids.
+        """
         rows, _ = np.where(np.isin(edge_index, node_config_ids))
         new_edge_index = edge_index[rows]
         kept_nodes = np.unique(new_edge_index)

@@ -75,9 +75,7 @@ DATA_DIRS = [
 CATEGORIES = ["default", "random"]  # I think this is fine though?
 
 # Deterministic
-# new dims = 279 - 18 = 261
-# plus config dims = 261 + 24 = 285
-GRAPH_DIM = 163
+GRAPH_DIM = 190
 GLOBAL_FEATURES = 6
 
 
