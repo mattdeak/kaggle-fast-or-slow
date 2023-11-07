@@ -1,5 +1,6 @@
 import hashlib
 import os
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol, TypeVar, cast
 
@@ -8,17 +9,13 @@ import numpy.typing as npt
 import torch
 from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
+from tqdm.contrib import concurrent
+from tqdm.contrib.concurrent import process_map
 
 from ml.layout_v1.preprocessors import ohe_opcodes
 
-NUM_OPCODES = 121
 
-T = TypeVar("T", torch.Tensor, npt.NDArray[Any])
-
-Transform = Callable[[Any], Any]
-
-
-class DataPreTransform(Protocol):
+class DataTransform(Protocol):
     def __call__(
         self,
         x: npt.NDArray[Any],
@@ -29,7 +26,7 @@ class DataPreTransform(Protocol):
         ...
 
 
-class GraphPreTransform(Protocol):
+class GraphTransform(Protocol):
     def __call__(
         self,
         node_features: npt.NDArray[Any],
@@ -50,7 +47,7 @@ class OpcodeEmbedder(Protocol):
         ...
 
 
-class ConfigPreTransform(Protocol):
+class ConfigTransform(Protocol):
     def __call__(
         self,
         config_features: npt.NDArray[Any],
@@ -58,7 +55,7 @@ class ConfigPreTransform(Protocol):
         ...
 
 
-class GlobalPreTransform(Protocol):
+class GlobalTransform(Protocol):
     def __call__(
         self,
         x: npt.NDArray[Any],
@@ -76,21 +73,27 @@ class DataPostTransform(Protocol):
         ...
 
 
+class TargetTransform(Protocol):
+    def __call__(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Perform a transform on the target. Return the transformed target."""
+        ...
+
+
 def get_file_id(file_path: str) -> str:
     return os.path.basename(file_path).removesuffix(".npz")
 
 
 @dataclass
-class GraphTensorData:
-    node_features: torch.Tensor
-    opcode_embeds: torch.Tensor
-    edge_index: torch.Tensor
-    node_config_ids: torch.Tensor
-    config_features: torch.Tensor
-    config_runtime: torch.Tensor
-    global_features: torch.Tensor | None = None
+class GraphNumpyData:
+    node_features: npt.NDArray[Any]
+    opcode_embeds: npt.NDArray[Any]
+    edge_index: npt.NDArray[Any]
+    node_config_ids: npt.NDArray[Any]
+    config_features: npt.NDArray[Any]
+    config_runtime: npt.NDArray[Any]
+    global_features: npt.NDArray[Any] | None = None
 
-    def __iter__(self):
+    def __iter__(self) -> tuple[npt.NDArray[Any], ...]:
         return iter(
             (
                 self.node_features,
@@ -102,6 +105,34 @@ class GraphTensorData:
                 self.global_features,
             )
         )
+
+    def to_tensors(self) -> tuple[torch.Tensor, ...]:
+        return (
+            torch.from_numpy(self.node_features),
+            torch.from_numpy(self.opcode_embeds),
+            torch.from_numpy(self.edge_index),
+            torch.from_numpy(self.node_config_ids),
+            torch.from_numpy(self.config_features),
+            torch.from_numpy(self.config_runtime),
+            torch.from_numpy(self.global_features) if self.global_features else None,
+        )
+
+
+@dataclass
+class Transforms:
+    node_transform: DataTransform | None = None
+    opcode_transform: OpcodeEmbedder | None = None
+    graph_transform: GraphTransform | None = None
+    config_transform: ConfigTransform | None = None
+    global_transform: GlobalTransform | None = None
+    target_transform: TargetTransform | None = None
+
+
+@dataclass
+class ProcessResult:
+    num_configs: int
+    idx_to_config: dict[int, tuple[str, int]]
+    idx_to_source_file_and_config: dict[int, tuple[str, int]]
 
 
 class LayoutDataset(Dataset):
@@ -131,12 +162,18 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
-        opcode_embedder: OpcodeEmbedder = ohe_opcodes,
-        graph_pre_transform: GraphPreTransform | None = None,
-        node_pre_transform: DataPreTransform | None = None,
-        config_pre_transform: ConfigPreTransform | None = None,
-        global_pre_transform: GlobalPreTransform | None = None,
-        y_transform: Transform | None = None,
+        node_pre_transform: DataTransform | None = None,
+        node_post_transform: DataTransform | None = None,
+        opcode_pre_transform: OpcodeEmbedder | None = None,
+        opcode_post_transform: OpcodeEmbedder | None = None,
+        graph_pre_transform: GraphTransform | None = None,
+        graph_post_transform: GraphTransform | None = None,
+        config_pre_transform: ConfigTransform | None = None,
+        config_post_transform: ConfigTransform | None = None,
+        global_pre_transform: GlobalTransform | None = None,
+        global_post_transform: GlobalTransform | None = None,
+        target_pre_transform: TargetTransform | None = None,
+        target_post_transform: TargetTransform | None = None,
         progress: bool = True,
     ):
         """Directories should be a list of directories to load from.
@@ -152,12 +189,24 @@ class LayoutDataset(Dataset):
         self.mode = mode
         self.force_reload = force_reload
 
-        self.opcode_embedder = opcode_embedder
-        self.graph_pre_transform = graph_pre_transform
-        self.data_pre_transform = node_pre_transform
-        self.config_pre_transform = config_pre_transform
-        self.global_pre_transform = global_pre_transform
-        self.y_transform = y_transform
+        self.pretransforms = Transforms(
+            node_transform=node_pre_transform,
+            opcode_transform=opcode_pre_transform,
+            graph_transform=graph_pre_transform,
+            config_transform=config_pre_transform,
+            global_transform=global_pre_transform,
+            target_transform=target_pre_transform,
+        )
+
+        self.posttransforms = Transforms(
+            node_transform=node_post_transform,
+            opcode_transform=opcode_post_transform,
+            graph_transform=graph_post_transform,
+            config_transform=config_post_transform,
+            global_transform=global_post_transform,
+            target_transform=target_post_transform,
+        )
+
         self.progress = progress
 
         if mode == "memmapped":
@@ -211,43 +260,73 @@ class LayoutDataset(Dataset):
     def _load_dir(self, raw_dir: str):
         """This function is bad"""
         files = os.listdir(raw_dir)
-        for f in tqdm(files, disable=not self.progress):
-            filepath = os.path.join(raw_dir, f)
+        with ProcessPoolExecutor() as executor:
+            results = list(
+                tqdm(
+                    executor.map(
+                        self.process_file,
+                        [raw_dir] * len(files),
+                        [os.path.join(raw_dir, f) for f in files],
+                    ),
+                    total=len(files),
+                    disable=not self.progress,
+                )
+            )
 
-            if self.mode == "memmapped":
-                processed_subdir = self.get_subdir(raw_dir, filepath)
-                os.makedirs(processed_subdir, exist_ok=True)
-            else:
-                processed_subdir = None
-
-            d = np.load(filepath)
-            num_configs = d["config_runtime"].shape[0]
-
-            if self.max_configs_per_file is not None:
-                num_configs = min(self.max_configs_per_file, num_configs)
-
-            if self.mode == "memmapped" and processed_subdir:
-                if self.force_reload or not self._file_is_processed(raw_dir, filepath):
-                    self.process_to_npy(filepath, processed_subdir)
-
-            if num_configs == 0:
+        for result in results:
+            if result.num_configs == 0:
                 continue
 
             self._groups += 1
             self.idx_groups.append(
-                list(range(self._length, self._length + num_configs))
+                list(range(self._length, self._length + result.num_configs))
             )
 
-            for i in range(num_configs):
-                if self.mode == "memmapped" and processed_subdir:
-                    self.idx_to_config[self._length] = (processed_subdir, i)
-                else:
-                    self.idx_to_config[self._length] = (filepath, i)
-
-                self.idx_to_source_file_and_config[self._length] = (filepath, i)
+            for idx, config in result.idx_to_config.items():
+                self.idx_to_config[self._length] = config
+                self.idx_to_source_file_and_config[
+                    self._length
+                ] = result.idx_to_source_file_and_config[idx]
                 self._length += 1
 
         self._loaded = True
+
+    def process_file(self, raw_dir: str, file_path: str) -> ProcessResult:
+        """Process a single file. This will save the processed file to disk.,
+        And then return the number of configs in the file that were processed."""
+
+        if self.mode == "memmapped":
+            processed_subdir = self.get_subdir(raw_dir, file_path)
+            os.makedirs(processed_subdir, exist_ok=True)
+        else:
+            processed_subdir = None
+
+        d = np.load(file_path)
+        num_configs = d["config_runtime"].shape[0]
+
+        if self.max_configs_per_file is not None:
+            num_configs = min(self.max_configs_per_file, num_configs)
+
+        if self.mode == "memmapped" and processed_subdir:
+            if self.force_reload or not self._file_is_processed(raw_dir, file_path):
+                self.process_to_npy(file_path, processed_subdir)
+
+        if num_configs == 0:
+            return ProcessResult(0, {}, {})
+
+        # number of groups
+        idx_to_config = {}
+        idx_to_source_file_and_config = {}
+
+        for i in range(num_configs):
+            if self.mode == "memmapped" and processed_subdir:
+                idx_to_config[i] = (processed_subdir, i)
+            else:
+                idx_to_config[i] = (file_path, i)
+
+            idx_to_source_file_and_config[i] = (file_path, i)
+
+        return ProcessResult(num_configs, idx_to_config, idx_to_source_file_and_config)
 
     def get(self, idx: int) -> Data:
         if self.mode == "memmapped":
@@ -270,6 +349,24 @@ class LayoutDataset(Dataset):
                 config_runtime,
                 global_features,
             ) = self.extract_from_npz(idx)
+
+        (
+            node_features,
+            opcode_embeds,
+            edge_index,
+            node_config_ids,
+            config_features,
+            config_runtime,
+            global_features,
+        ) = self.apply_transforms(
+            node_features,
+            opcode_embeds,
+            edge_index,
+            node_config_ids,
+            config_features,
+            config_runtime,
+            self.posttransforms,
+        )
 
         processed_config_features = torch.zeros(
             (node_features.shape[0], config_features.shape[1])
@@ -299,25 +396,23 @@ class LayoutDataset(Dataset):
         node_config_ids: npt.NDArray[Any] = d["node_config_ids"]
         config_runtime: npt.NDArray[Any] = d["config_runtime"]
 
-        if self.graph_pre_transform:
-            (
-                node_features,
-                node_opcodes,
-                edge_index,
-                node_config_ids,
-            ) = self.graph_pre_transform(
-                node_features, node_opcodes, edge_index, node_config_ids
-            )
-
-        embedded_opcodes = self.opcode_embedder(node_opcodes)
-
-        if self.data_pre_transform:
-            node_features, edge_index, node_config_ids = self.data_pre_transform(
-                node_features, edge_index, node_config_ids
-            )
-
-        if self.config_pre_transform:
-            node_config_feat = self.config_pre_transform(node_config_feat)
+        (
+            node_features,
+            node_opcodes,
+            edge_index,
+            node_config_ids,
+            node_config_feat,
+            config_runtime,
+            global_features,
+        ) = self.apply_transforms(
+            node_features,
+            node_opcodes,
+            edge_index,
+            node_config_ids,
+            node_config_feat,
+            config_runtime,
+            self.pretransforms,
+        )
 
         assert (
             config_runtime.shape[0] == node_config_feat.shape[0]
@@ -330,7 +425,7 @@ class LayoutDataset(Dataset):
 
         np.save(
             os.path.join(target_file_path, self.OPCODE_EMBEDDINGS_FILE),
-            embedded_opcodes.astype(np.float32),
+            node_opcodes.astype(np.float32),
         )
 
         np.save(
@@ -349,16 +444,13 @@ class LayoutDataset(Dataset):
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
             config_runtime.astype(np.int64),
         )
-        if self.global_pre_transform:
-            global_features = self.global_pre_transform(
-                node_features, edge_index, node_config_ids
-            )
+        if global_features:
             np.save(
                 os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
                 global_features.astype(np.float32),
             )
 
-    def extract_from_npz(self, idx: int) -> GraphTensorData:
+    def extract_from_npz(self, idx: int) -> GraphNumpyData:
         file_path, config_idx = self.idx_to_config[idx]
         d = np.load(file_path)
         node_features = d["node_feat"]
@@ -368,73 +460,54 @@ class LayoutDataset(Dataset):
         node_config_ids = d["node_config_ids"]
         config_runtime = d["config_runtime"][config_idx]
 
-        # One hot encode the opcodes
-        opcodes = self.opcode_embedder(opcodes)
-
-        return GraphTensorData(
-            node_features=torch.from_numpy(node_features).float(),
-            opcode_embeds=torch.from_numpy(opcodes).float(),
-            edge_index=torch.from_numpy(edge_index),
-            node_config_ids=torch.from_numpy(node_config_ids),
-            config_features=torch.from_numpy(node_config_feat).float(),
-            config_runtime=torch.tensor(config_runtime),
+        return GraphNumpyData(
+            node_features=node_features,
+            opcode_embeds=opcodes,
+            edge_index=edge_index,
+            node_config_ids=node_config_ids,
+            config_features=node_config_feat,
+            config_runtime=config_runtime,
         )
 
-    def extract_from_npy(self, idx: int) -> GraphTensorData:
+    def extract_from_npy(self, idx: int) -> GraphNumpyData:
         file_path, config_idx = self.idx_to_config[idx]
-        node_features = torch.from_numpy(
-            np.load(
-                os.path.join(file_path, self.NODE_FEATURES_FILE),
-            )
+        node_features = np.load(
+            os.path.join(file_path, self.NODE_FEATURES_FILE),
         )
 
-        opcodes = torch.from_numpy(
-            np.load(
-                os.path.join(file_path, self.OPCODE_EMBEDDINGS_FILE),
-            )
+        opcodes = np.load(
+            os.path.join(file_path, self.OPCODE_EMBEDDINGS_FILE),
         )
 
-        edge_index = torch.from_numpy(
-            np.load(
-                os.path.join(file_path, self.EDGE_INDEX_FILE),
-            )
+        edge_index = np.load(
+            os.path.join(file_path, self.EDGE_INDEX_FILE),
         )
 
-        node_config_ids = torch.from_numpy(
-            np.load(
-                os.path.join(file_path, self.NODE_IDS_FILE),
-            )
+        node_config_ids = np.load(
+            os.path.join(file_path, self.NODE_IDS_FILE),
         )
 
         # debug
-        config_features = torch.from_numpy(
-            np.array(
-                np.load(
-                    os.path.join(file_path, self.CONFIG_FEATURES_FILE),
-                    mmap_mode="r+",
-                )[config_idx, :, :]
-            )
+        config_features = np.array(
+            np.load(
+                os.path.join(file_path, self.CONFIG_FEATURES_FILE),
+                mmap_mode="r+",
+            )[config_idx, :, :]
         )
 
-        config_runtime = torch.tensor(
-            float(
-                np.load(
-                    os.path.join(file_path, self.CONFIG_RUNTIME_FILE),
-                    mmap_mode="r",
-                )[config_idx]
-            )
-        )
+        config_runtime = np.load(
+            os.path.join(file_path, self.CONFIG_RUNTIME_FILE),
+            mmap_mode="r",
+        )[config_idx]
 
         global_features = None
         if os.path.exists(os.path.join(file_path, self.GLOBAL_FEATURES_FILE)):
-            global_features = torch.from_numpy(
-                np.load(
-                    os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
-                    mmap_mode="r",
-                )
+            global_features = np.load(
+                os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
+                mmap_mode="r",
             )
 
-        return GraphTensorData(
+        return GraphNumpyData(
             node_features=node_features,
             opcode_embeds=opcodes,
             edge_index=edge_index,
@@ -442,6 +515,64 @@ class LayoutDataset(Dataset):
             config_features=config_features,
             config_runtime=config_runtime,
             global_features=global_features,
+        )
+
+    def apply_transforms(
+        self,
+        node_features: npt.NDArray[Any],
+        opcodes: npt.NDArray[Any],
+        edge_index: npt.NDArray[Any],
+        node_config_ids: npt.NDArray[Any],
+        config_features: npt.NDArray[Any],
+        config_runtime: npt.NDArray[Any],
+        transforms: Transforms,
+    ) -> tuple[
+        npt.NDArray[Any],
+        npt.NDArray[Any],
+        npt.NDArray[Any],
+        npt.NDArray[Any],
+        npt.NDArray[Any],
+        npt.NDArray[Any],
+        npt.NDArray[Any] | None,
+    ]:
+        if transforms.graph_transform:
+            (
+                node_features,
+                opcodes,
+                edge_index,
+                node_config_ids,
+            ) = transforms.graph_transform(
+                node_features, opcodes, edge_index, node_config_ids
+            )
+
+        if transforms.node_transform:
+            node_features, edge_index, node_config_ids = transforms.node_transform(
+                node_features, edge_index, node_config_ids
+            )
+
+        if transforms.opcode_transform:
+            opcodes = transforms.opcode_transform(opcodes)
+
+        if transforms.config_transform:
+            config_features = transforms.config_transform(config_features)
+
+        global_features = None
+        if transforms.global_transform:
+            global_features = transforms.global_transform(
+                node_features, edge_index, node_config_ids
+            )
+
+        if transforms.target_transform:
+            config_runtime = transforms.target_transform(config_runtime)
+
+        return (
+            node_features,
+            opcodes,
+            edge_index,
+            node_config_ids,
+            config_features,
+            config_runtime,
+            global_features,
         )
 
 

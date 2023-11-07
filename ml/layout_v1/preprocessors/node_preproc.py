@@ -45,13 +45,7 @@ class NodePreprocessor:
         edge_index: npt.NDArray[Any],
         node_config_ids: npt.NDArray[Any],
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
-        x, edge_index, node_config_ids = _log_transform_specific_features(
-            x, edge_index, node_config_ids
-        )
-
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
-        x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
-
         # Engineered features
         if self.use_engineered_features:
             engineered = np.hstack(
@@ -64,11 +58,17 @@ class NodePreprocessor:
                     self.reversal_ratio(x),
                 )
             )
+
+            # log transform specific features
+            x = _log_transform_specific_features(x)
+            x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
             x = x[:, ~self.drop_mask]
             x = np.hstack((x, engineered))
 
         # drop features if they have zero stdev on the train set and are numeric
         else:
+            x = _log_transform_specific_features(x)
+            x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
             x = x[:, ~self.drop_mask]
 
         return x, edge_index, node_config_ids
@@ -109,11 +109,11 @@ class NodePreprocessor:
 
 
 def _log_transform_specific_features(
-    x: npt.NDArray[Any], edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
-) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
+    x: npt.NDArray[Any],
+) -> npt.NDArray[Any]:
     """These features are highly skewed"""
     # log transform feature 28, 120 (shape product, slice_dims_limit_product). this feature is highly skewed.
-    x[:, [21, 22, 24, 27, 28, 44, 120, 124]] = np.log(
-        x[:, [21, 22, 24, 27, 28, 44, 120, 124]] + 1e-4
+    x[:, [21, 22, 24, 27, 28, 44, 115, 120, 124, 127]] = np.log(
+        x[:, [21, 22, 24, 27, 28, 44, 115, 120, 124, 127]] + 1e-4
     )
-    return x, edge_index, node_config_ids
+    return x
