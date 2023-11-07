@@ -340,7 +340,7 @@ class LayoutDataset(Dataset):
             ) = self.extract_from_npz(idx)
         (
             node_features,
-            node_opcodes,
+            opcode_embeds,
             edge_index,
             node_config_ids,
             node_config_feat,
@@ -348,7 +348,7 @@ class LayoutDataset(Dataset):
             global_features,
         ) = self.apply_transforms(
             node_features=node_features,
-            opcodes=node_opcodes,
+            opcodes=opcode_embeds,
             edge_index=edge_index,
             node_config_ids=node_config_ids,
             config_features=node_config_feat,
@@ -361,18 +361,18 @@ class LayoutDataset(Dataset):
         )
         processed_config_features[node_config_ids] = config_features
 
-        all_features = torch.cat(
+        all_features = np.concatenate(
             [node_features, opcode_embeds, processed_config_features], axis=1
         )
         all_features = cast(torch.Tensor, all_features)
 
-        y = self.y_transform(config_runtime) if self.y_transform else config_runtime
-
         return Data(
-            x=all_features,  # type: ignore
-            edge_index=edge_index.T.contiguous(),
-            y=y,
-            global_features=global_features,
+            x=torch.from_numpy(all_features),  # type: ignore
+            edge_index=torch.from_numpy(edge_index).T.contiguous(),
+            y=torch.from_numpy(config_runtime),
+            global_features=torch.from_numpy(global_features)
+            if global_features
+            else None,
         )
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
