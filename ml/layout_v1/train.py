@@ -47,7 +47,7 @@ SAGE_CHANNELS = 128
 LINEAR_LAYERS = 3
 LINEAR_CHANNELS = 128
 DROPOUT = 0.0
-CONV_TYPE = "sage"
+CONV_TYPE = "gat"
 GAT_HEADS = 4
 
 # Optimizer
@@ -298,13 +298,13 @@ def train_batch(
 
         y = batch.y
         # generate pairs for margin ranking loss
-        # loss = margin_loss(
-        #     output.squeeze(),
-        #     y.squeeze(),
-        #     margin=MARGIN,
-        #     n_permutations=BATCH_SIZE * 2,
-        # )
-        loss = listMLEalt(output.squeeze(), y.squeeze())
+        loss = margin_loss(
+            output.squeeze(),
+            y.squeeze(),
+            margin=MARGIN,
+            n_permutations=BATCH_SIZE * 2,
+        )
+        # loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
@@ -344,7 +344,7 @@ def run(id: str | None = None):
             "data_dir": DATA_DIRS,
             "categories": CATEGORIES,
             "amp": USE_AMP,
-            "loss": "margin",
+            "loss": "margin_loss(actually)",
             "job_type": "layout",
             "subtype": "train",
             "conv_type": CONV_TYPE,
