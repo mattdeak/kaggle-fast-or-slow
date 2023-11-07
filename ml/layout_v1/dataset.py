@@ -319,62 +319,40 @@ class LayoutDataset(Dataset):
 
     def get(self, idx: int) -> Data:
         if self.mode == "memmapped":
-            (
-                node_features,
-                opcode_embeds,
-                edge_index,
-                node_config_ids,
-                config_features,
-                config_runtime,
-                global_features,
-            ) = self.extract_from_npy(idx)
+            graph_data = self.extract_from_npy(idx)
         else:
-            (
-                node_features,
-                opcode_embeds,
-                edge_index,
-                node_config_ids,
-                config_features,
-                config_runtime,
-                global_features,
-            ) = self.extract_from_npz(idx)
+            graph_data = self.extract_from_npz(idx)
 
-        if config_features.ndim == 2:
-            config_features = config_features[np.newaxis, :, :]
+        if graph_data.config_features.ndim == 2:
+            graph_data.config_features = graph_data.config_features[np.newaxis, :, :]
 
-        (
-            node_features,
-            opcode_embeds,
-            edge_index,
-            node_config_ids,
-            config_features,
-            config_runtime,
-            global_features,
-        ) = self.apply_transforms(
-            node_features=node_features,
-            opcodes=opcode_embeds,
-            edge_index=edge_index,
-            node_config_ids=node_config_ids,
-            config_features=config_features,
-            config_runtime=config_runtime,
+        graph_data = self.apply_transforms(
+            graph_data=graph_data,
             transforms=self.posttransforms,
         )
 
         processed_config_features = np.zeros(
-            (node_features.shape[0], config_features.shape[-1])
+            (graph_data.node_features.shape[0], graph_data.config_features.shape[-1])
         )
-        processed_config_features[node_config_ids] = config_features
+        processed_config_features[
+            graph_data.node_config_ids
+        ] = graph_data.config_features
 
         all_features = np.concatenate(
-            [node_features, opcode_embeds, processed_config_features], axis=1
+            [
+                graph_data.node_features,
+                graph_data.opcode_embeds,
+                processed_config_features,
+            ],
+            axis=1,
         )
 
         return Data(
             x=torch.from_numpy(all_features),  # type: ignore
-            edge_index=torch.from_numpy(edge_index).T.contiguous(),
-            y=torch.tensor(config_runtime),
-            global_features=torch.from_numpy(global_features)
-            if global_features is not None
+            edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
+            y=torch.tensor(graph_data.config_runtime),
+            global_features=torch.from_numpy(graph_data.global_features)
+            if graph_data.global_features is not None
             else None,
         )
 
@@ -387,58 +365,50 @@ class LayoutDataset(Dataset):
         node_config_ids: npt.NDArray[Any] = d["node_config_ids"]
         config_runtime: npt.NDArray[Any] = d["config_runtime"]
 
-        (
-            node_features,
-            node_opcodes,
-            edge_index,
-            node_config_ids,
-            node_config_feat,
-            config_runtime,
-            global_features,
-        ) = self.apply_transforms(
+        graph_data = GraphNumpyData(
             node_features=node_features,
-            opcodes=node_opcodes,
+            opcode_embeds=node_opcodes,
             edge_index=edge_index,
             node_config_ids=node_config_ids,
             config_features=node_config_feat,
             config_runtime=config_runtime,
+        )
+
+        graph_data = self.apply_transforms(
+            graph_data=graph_data,
             transforms=self.pretransforms,
         )
 
-        assert (
-            config_runtime.shape[0] == node_config_feat.shape[0]
-        ), f"Config shape mismatch on source file: {source_file_path}"
-
         np.save(
             os.path.join(target_file_path, self.NODE_FEATURES_FILE),
-            node_features.astype(np.float32),
+            graph_data.node_features.astype(np.float32),
         )
 
         np.save(
             os.path.join(target_file_path, self.OPCODE_EMBEDDINGS_FILE),
-            node_opcodes.astype(np.float32),
+            graph_data.opcode_embeds.astype(np.float32),
         )
 
         np.save(
             os.path.join(target_file_path, self.EDGE_INDEX_FILE),
-            edge_index.astype(np.int64),
+            graph_data.edge_index.astype(np.int64),
         )
         np.save(
             os.path.join(target_file_path, self.NODE_IDS_FILE),
-            node_config_ids.astype(np.int64),
+            graph_data.node_config_ids.astype(np.int64),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_FEATURES_FILE),
-            node_config_feat.astype(np.float32),
+            graph_data.config_features.astype(np.float32),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
-            config_runtime.astype(np.int64),
+            graph_data.config_runtime.astype(np.int64),
         )
-        if global_features:
+        if graph_data.global_features:
             np.save(
                 os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
-                global_features.astype(np.float32),
+                graph_data.global_features.astype(np.float32),
             )
 
     def extract_from_npz(self, idx: int) -> GraphNumpyData:
@@ -511,22 +481,18 @@ class LayoutDataset(Dataset):
     def apply_transforms(
         self,
         *,
-        node_features: npt.NDArray[Any],
-        opcodes: npt.NDArray[Any],
-        edge_index: npt.NDArray[Any],
-        node_config_ids: npt.NDArray[Any],
-        config_features: npt.NDArray[Any],
-        config_runtime: npt.NDArray[Any],
+        graph_data: GraphNumpyData,
         transforms: Transforms,
-    ) -> tuple[
-        npt.NDArray[Any],
-        npt.NDArray[Any],
-        npt.NDArray[Any],
-        npt.NDArray[Any],
-        npt.NDArray[Any],
-        npt.NDArray[Any],
-        npt.NDArray[Any] | None,
-    ]:
+    ) -> GraphNumpyData:
+        # aliasing. unpacking is annoying cause type hints
+        node_features = graph_data.node_features
+        opcodes = graph_data.opcode_embeds
+        edge_index = graph_data.edge_index
+        node_config_ids = graph_data.node_config_ids
+        config_features = graph_data.config_features
+        config_runtime = graph_data.config_runtime
+        global_features = graph_data.global_features
+
         if transforms.graph_transform:
             (
                 node_features,
