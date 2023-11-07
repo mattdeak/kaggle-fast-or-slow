@@ -523,14 +523,14 @@ class LayoutDataset(Dataset):
         if transforms.target_transform:
             config_runtime = transforms.target_transform(config_runtime)
 
-        return (
-            node_features,
-            opcodes,
-            edge_index,
-            node_config_ids,
-            config_features,
-            config_runtime,
-            global_features,
+        return GraphNumpyData(
+            node_features=node_features,
+            opcode_embeds=opcodes,
+            edge_index=edge_index,
+            node_config_ids=node_config_ids,
+            config_features=config_features,
+            config_runtime=config_runtime,
+            global_features=global_features,
         )
 
 
