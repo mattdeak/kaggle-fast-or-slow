@@ -93,7 +93,7 @@ class GraphNumpyData:
     config_runtime: npt.NDArray[Any]
     global_features: npt.NDArray[Any] | None = None
 
-    def __iter__(self) -> tuple[npt.NDArray[Any], ...]:
+    def __iter__(self):
         return iter(
             (
                 self.node_features,
@@ -104,17 +104,6 @@ class GraphNumpyData:
                 self.config_runtime,
                 self.global_features,
             )
-        )
-
-    def to_tensors(self) -> tuple[torch.Tensor, ...]:
-        return (
-            torch.from_numpy(self.node_features),
-            torch.from_numpy(self.opcode_embeds),
-            torch.from_numpy(self.edge_index),
-            torch.from_numpy(self.node_config_ids),
-            torch.from_numpy(self.config_features),
-            torch.from_numpy(self.config_runtime),
-            torch.from_numpy(self.global_features) if self.global_features else None,
         )
 
 
@@ -349,23 +338,22 @@ class LayoutDataset(Dataset):
                 config_runtime,
                 global_features,
             ) = self.extract_from_npz(idx)
-
         (
             node_features,
-            opcode_embeds,
+            node_opcodes,
             edge_index,
             node_config_ids,
-            config_features,
+            node_config_feat,
             config_runtime,
             global_features,
         ) = self.apply_transforms(
-            node_features,
-            opcode_embeds,
-            edge_index,
-            node_config_ids,
-            config_features,
-            config_runtime,
-            self.posttransforms,
+            node_features=node_features,
+            opcodes=node_opcodes,
+            edge_index=edge_index,
+            node_config_ids=node_config_ids,
+            config_features=node_config_feat,
+            config_runtime=config_runtime,
+            transforms=self.posttransforms,
         )
 
         processed_config_features = torch.zeros(
@@ -405,13 +393,13 @@ class LayoutDataset(Dataset):
             config_runtime,
             global_features,
         ) = self.apply_transforms(
-            node_features,
-            node_opcodes,
-            edge_index,
-            node_config_ids,
-            node_config_feat,
-            config_runtime,
-            self.pretransforms,
+            node_features=node_features,
+            opcodes=node_opcodes,
+            edge_index=edge_index,
+            node_config_ids=node_config_ids,
+            config_features=node_config_feat,
+            config_runtime=config_runtime,
+            transforms=self.pretransforms,
         )
 
         assert (
@@ -519,6 +507,7 @@ class LayoutDataset(Dataset):
 
     def apply_transforms(
         self,
+        *,
         node_features: npt.NDArray[Any],
         opcodes: npt.NDArray[Any],
         edge_index: npt.NDArray[Any],
