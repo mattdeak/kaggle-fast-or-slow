@@ -25,6 +25,7 @@ from ml.layout_v1.preprocessors import (ConfigFeatureGenerator,
                                         GlobalFeatureGenerator,
                                         NodePreprocessor,
                                         OpcodeGroupOHEEmbedder)
+from ml.layout_v1.preprocessors.node_preproc import NodeProcessor
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 from ml.layout_v1.utils import get_rank
 
@@ -105,7 +106,7 @@ val_directories = [
 ]
 
 graph_preprocessor = ConfigNodeCommunityPreprocessor(hops=2)
-node_preprocessor = NodePreprocessor("xla")
+node_preprocessor = NodeProcessor("xla")
 config_preprocessor = ConfigFeatureGenerator()
 opcode_preprocessor = OpcodeGroupOHEEmbedder()
 

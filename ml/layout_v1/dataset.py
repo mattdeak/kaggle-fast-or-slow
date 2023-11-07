@@ -2,17 +2,13 @@ import hashlib
 import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Protocol, TypeVar, cast
+from typing import Any, Literal, Protocol
 
 import numpy as np
 import numpy.typing as npt
 import torch
 from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
-from tqdm.contrib import concurrent
-from tqdm.contrib.concurrent import process_map
-
-from ml.layout_v1.preprocessors import ohe_opcodes
 
 
 class DataTransform(Protocol):
@@ -247,7 +243,7 @@ class LayoutDataset(Dataset):
             self._load_dir(raw_dir)
 
     def _load_dir(self, raw_dir: str):
-        """This function is bad"""
+        """Process all files in a directory."""
         files = os.listdir(raw_dir)
         with ProcessPoolExecutor() as executor:
             results = list(
@@ -535,24 +531,28 @@ class LayoutDataset(Dataset):
 
 
 class ConcatenatedDataset(Dataset):
-    def __init__(self, dataset1: LayoutDataset, dataset2: LayoutDataset):
-        self.datasets = [dataset1, dataset2]
+    def __init__(self, layout_datasets: list[LayoutDataset]):
+        self.datasets = layout_datasets
         self.idx_groups = self.get_idx_groups()
-
         super().__init__()
 
     def get_idx_groups(self):
-        ds1_groups = self.datasets[0].idx_groups
-        ds2_groups = self.datasets[1].idx_groups
+        groups: list[list[int]] = []
+        total_processed = 0
+        for ds in self.datasets:
+            groups += [[x + total_processed for x in g] for g in ds.idx_groups]
+            total_processed += len(ds)
 
-        ds2_groups = [[x + len(self.datasets[0]) for x in g] for g in ds2_groups]
-        return ds1_groups + ds2_groups
+        return groups
 
     def len(self):
-        return len(self.datasets[0]) + len(self.datasets[1])
+        return sum(len(ds) for ds in self.datasets)
 
     def get(self, idx: int) -> Data:
-        if idx < len(self.datasets[0]):
-            return self.datasets[0].get(idx)
-        else:
-            return self.datasets[1].get(idx - len(self.datasets[0]))
+        for ds in self.datasets:
+            if idx < len(ds):
+                return ds.get(idx)
+            else:
+                idx -= len(ds)
+
+        raise IndexError("Index out of range")

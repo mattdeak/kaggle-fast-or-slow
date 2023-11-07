@@ -11,7 +11,7 @@ from ml.layout_v1.stats import (NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS,
 EPSILON = 1e-4
 
 
-class NodePreprocessor:
+class NodeProcessor:
     NODE_FEAT_INDEX = np.arange(140)
     SHAPE_DIM_FEATURES = np.arange(21, 27)
 
@@ -60,7 +60,6 @@ class NodePreprocessor:
             )
 
             # log transform specific features
-            x = _log_transform_specific_features(x)
             x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
             x = x[:, ~self.drop_mask]
             x = np.hstack((x, engineered))
@@ -106,6 +105,16 @@ class NodePreprocessor:
     def reversal_ratio(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate reversal ratio of node features shape"""
         return (x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)).reshape(-1, 1)
+
+
+class NodeStandardizer:
+    def __init__(
+        self,
+        run_log_transform: bool = True,
+        drop_strategy: Literal["none", "auto"] = "auto",
+    ):
+        self.log_transform = log_transform
+        self.drop_strategy = drop_strategy
 
 
 def _log_transform_specific_features(
