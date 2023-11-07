@@ -372,7 +372,7 @@ class LayoutDataset(Dataset):
         return Data(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(edge_index).T.contiguous(),
-            y=torch.from_numpy(config_runtime),
+            y=torch.tensor(config_runtime),
             global_features=torch.from_numpy(global_features)
             if global_features
             else None,
