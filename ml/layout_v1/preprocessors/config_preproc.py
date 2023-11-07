@@ -32,16 +32,46 @@ class ConfigFeatureGenerator:
         input_max_order = np.max(input_features, axis=-1)
         kernel_max_order = np.max(kernel_features, axis=-1)
 
-        # Get min order
-        output_min_order = np.min(output_features, axis=-1)
-        input_min_order = np.min(input_features, axis=-1)
-        kernel_min_order = np.min(kernel_features, axis=-1)
-
         # Get contiguity (# of contiguous dims)
         # Temporarily ignore the -1s
         output_contiguity_count = self.calculate_contiguity(output_features)
         input_contiguity_count = self.calculate_contiguity(input_features)
         kernel_contiguity_count = self.calculate_contiguity(kernel_features)
+
+        # is square
+        output_is_square = (output_features[:, :, 0] == output_features[:, :, 1]) & (
+            output_features[:, :, 0] != -1
+        )
+        input_is_square = (input_features[:, :, 0] == input_features[:, :, 1]) & (
+            input_features[:, :, 0] != -1
+        )
+        kernel_is_square = (kernel_features[:, :, 0] == kernel_features[:, :, 1]) & (
+            kernel_features[:, :, 0] != -1
+        )
+
+        # output_is_sequential_until_neg = np.all(
+        #     output_features[:, :, :-1] == output_features[:, :, 1:], axis=-1
+        # )
+        # Calculate dimension variance
+        output_dim_variance = self.calculate_variance(output_features)
+        input_dim_variance = self.calculate_variance(input_features)
+        kernel_dim_variance = self.calculate_variance(kernel_features)
+
+        # Calculate dimension permutation
+        output_dim_permutation = self.calculate_permutations(output_features)
+        input_dim_permutation = self.calculate_permutations(input_features)
+        kernel_dim_permutation = self.calculate_permutations(kernel_features)
+
+        # Calculate layout similarity
+        output_input_layout_similarity = self.calculate_layout_similarity(
+            output_features, input_features
+        )
+        output_kernel_layout_similarity = self.calculate_layout_similarity(
+            output_features, kernel_features
+        )
+        input_kernel_layout_similarity = self.calculate_layout_similarity(
+            input_features, kernel_features
+        )
 
         # Get contiguity rank (contiguity / active_dims)
         output_contiguity_rank = output_contiguity_count / (output_active_dims + 1e-4)
@@ -58,18 +88,10 @@ class ConfigFeatureGenerator:
         input_max_order = input_max_order / 6
         kernel_max_order = kernel_max_order / 6
 
-        output_min_order = output_min_order / 6
-        input_min_order = input_min_order / 6
-        kernel_min_order = kernel_min_order / 6
-
         # normalize contiguity
         output_contiguity_count = output_contiguity_count / 5
         input_contiguity_count = input_contiguity_count / 5
         kernel_contiguity_count = kernel_contiguity_count / 5
-
-        output_input_match = np.all(output_features == input_features, axis=-1)
-        output_kernel_match = np.all(output_features == kernel_features, axis=-1)
-        input_kernel_match = np.all(input_features == kernel_features, axis=-1)
 
         # combine all features
         new_config_features = np.stack(
@@ -83,18 +105,24 @@ class ConfigFeatureGenerator:
                 output_max_order,
                 input_max_order,
                 kernel_max_order,
-                output_min_order,
-                input_min_order,
-                kernel_min_order,
                 output_contiguity_count,
                 input_contiguity_count,
                 kernel_contiguity_count,
                 output_contiguity_rank,
                 input_contiguity_rank,
                 kernel_contiguity_rank,
-                output_input_match,
-                output_kernel_match,
-                input_kernel_match,
+                output_is_square,
+                input_is_square,
+                kernel_is_square,
+                output_dim_variance,
+                input_dim_variance,
+                kernel_dim_variance,
+                output_dim_permutation,
+                input_dim_permutation,
+                kernel_dim_permutation,
+                output_input_layout_similarity,
+                output_kernel_layout_similarity,
+                input_kernel_layout_similarity,
             ],
             axis=-1,
         )
@@ -121,3 +149,32 @@ class ConfigFeatureGenerator:
         contiguity_count = np.nansum(contiguity_mask, axis=-1)
 
         return contiguity_count
+
+    def calculate_variance(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Calculates variance along the last axis, ignoring -1s"""
+        valid_features = features[features != -1]
+        variance = np.var(valid_features, axis=-1)
+        return variance
+
+    def calculate_permutations(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Calculates the number of permutations along the last axis, ignoring -1s"""
+
+        def count_permutations(layout: npt.NDArray[Any]):
+            layout = layout[layout != -1]  # remove padding
+            return sum(
+                1
+                for i in range(len(layout))
+                for j in range(i + 1, len(layout))
+                if layout[i] > layout[j]
+            )
+
+        permutations = np.apply_along_axis(count_permutations, -1, features)
+        return permutations
+
+    def calculate_layout_similarity(
+        self, features1: npt.NDArray[Any], features2: npt.NDArray[Any]
+    ) -> npt.NDArray[Any]:
+        """Calculates the similarity between two layouts along the last axis, ignoring -1s"""
+        # For simplicity, define layout similarity as the count of matching dimension indices
+        similarity = np.sum(features1 == features2, axis=-1)
+        return similarity

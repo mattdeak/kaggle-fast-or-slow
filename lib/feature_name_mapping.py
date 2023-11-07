@@ -155,6 +155,9 @@ NODE_FEATURE_MAP = {
     139: "layout_minor_to_major_5",
 }
 
+
+NODE_FEATURE_IX_LOOKUP = {k: v for v, k in NODE_FEATURE_MAP.items()}
+
 CONFIG_FEATURE_MAP = {
     # 0–7: Tile sizes of the convolution kernel, only for a convolution operation.,
     0: "kernel_bounds_0",
