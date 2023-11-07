@@ -361,7 +361,7 @@ class LayoutDataset(Dataset):
         )
 
         processed_config_features = np.zeros(
-            (node_features.shape[0], config_features.shape[1])
+            (node_features.shape[0], config_features.shape[-1])
         )
         processed_config_features[node_config_ids] = config_features
 
