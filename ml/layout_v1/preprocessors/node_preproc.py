@@ -81,13 +81,13 @@ class NodePreprocessor:
         product = x[:, NODE_FEATURE_IX_LOOKUP["shape_dimensions_product"]]
         sum_dims = x[:, NODE_FEATURE_IX_LOOKUP["shape_dimensions_sum"]]
 
-        return sum_dims / product
+        return (sum_dims / product).reshape(-1, 1)
 
     def dimensionality(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate dimensionality of node features shape"""
         # dimensionality is the number of non-default features
         # divided by the total number of features
-        return np.sum(x[:, self.SHAPE_DIM_FEATURES] != -1, axis=-1) / 6
+        return (np.sum(x[:, self.SHAPE_DIM_FEATURES] != -1, axis=-1) / 6).reshape(-1, 1)
 
     def stride_interactions(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate stride interactions of node features shape"""
@@ -103,7 +103,7 @@ class NodePreprocessor:
 
     def reversal_ratio(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate reversal ratio of node features shape"""
-        return x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)
+        return (x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)).reshape(-1, 1)
 
 
 def _log_transform_specific_features(
