@@ -54,9 +54,8 @@ class NodePreprocessor:
 
         # Engineered features
         if self.use_engineered_features:
-            x = np.hstack(
+            engineered = np.hstack(
                 (
-                    x,
                     self.calculate_shape_sparsity(x),
                     self.dimensionality(x),
                     self.stride_interactions(x),
@@ -65,9 +64,12 @@ class NodePreprocessor:
                     self.reversal_ratio(x),
                 )
             )
+            x = x[:, ~self.drop_mask]
+            x = np.hstack((x, engineered))
 
         # drop features if they have zero stdev on the train set and are numeric
-        x = x[:, ~self.drop_mask]
+        else:
+            x = x[:, ~self.drop_mask]
 
         return x, edge_index, node_config_ids
 
