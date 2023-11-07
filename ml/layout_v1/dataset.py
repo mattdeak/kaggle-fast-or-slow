@@ -343,7 +343,7 @@ class LayoutDataset(Dataset):
             opcode_embeds,
             edge_index,
             node_config_ids,
-            node_config_feat,
+            config_features,
             config_runtime,
             global_features,
         ) = self.apply_transforms(
@@ -351,12 +351,12 @@ class LayoutDataset(Dataset):
             opcodes=opcode_embeds,
             edge_index=edge_index,
             node_config_ids=node_config_ids,
-            config_features=node_config_feat,
+            config_features=config_features,
             config_runtime=config_runtime,
             transforms=self.posttransforms,
         )
 
-        processed_config_features = torch.zeros(
+        processed_config_features = np.zeros(
             (node_features.shape[0], config_features.shape[1])
         )
         processed_config_features[node_config_ids] = config_features
@@ -364,7 +364,6 @@ class LayoutDataset(Dataset):
         all_features = np.concatenate(
             [node_features, opcode_embeds, processed_config_features], axis=1
         )
-        all_features = cast(torch.Tensor, all_features)
 
         return Data(
             x=torch.from_numpy(all_features),  # type: ignore
