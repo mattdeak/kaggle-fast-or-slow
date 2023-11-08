@@ -20,10 +20,10 @@ class ConfigNodeCommunityPreprocessor:
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
         """Reduce the graph to only the nodes that are in the same neighborhood as at least one configurable node.
         Args:
-            node_features: The node features (nc x f)
-            opcodes: The opcodes (nc)
+            node_features: The node features (n x f)
+            opcodes: The opcodes (n) (not used)
             edge_index: The edge index in COO (e x 2)
-            node_config_ids: The node config ids (nc)
+            node_config_ids: The node config ids (nc). Each node config corresponds to a node in the graph where the id is the index of the node.
         Returns:
             The reduced node features, opcodes, edge index, and node config ids.
         """

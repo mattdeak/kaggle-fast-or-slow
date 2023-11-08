@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -162,6 +163,7 @@ class LayoutDataset(Dataset):
         self.limit = limit
         self.mode = mode
         self.force_reload = force_reload
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         self.pretransforms = pretransforms or LayoutTransforms()
         self.posttransforms = posttransforms or LayoutTransforms()
@@ -293,12 +295,22 @@ class LayoutDataset(Dataset):
 
     def get(self, idx: int) -> Data:
         if self.mode == "memmapped":
+            self.logger.debug(
+                "Loading graph data from memmapped files.",
+            )
             graph_data = self.extract_from_npy(idx)
         else:
+            self.logger.debug(
+                "Loading graph data from npz files.",
+            )
             graph_data = self.extract_from_npz(idx)
 
         if graph_data.config_features.ndim == 2:
             graph_data.config_features = graph_data.config_features[np.newaxis, :, :]
+
+        self.logger.debug(
+            "Applying post-transforms to graph data.",
+        )
 
         graph_data = self.apply_transforms(
             graph_data=graph_data,
@@ -321,13 +333,15 @@ class LayoutDataset(Dataset):
             axis=1,
         )
 
+        global_features = None
+        if graph_data.global_features is not None:
+            global_features = torch.from_numpy(graph_data.global_features)
+
         return Data(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
             y=torch.tensor(graph_data.config_runtime),
-            global_features=torch.from_numpy(graph_data.global_features)
-            if graph_data.global_features is not None
-            else None,
+            global_features=global_features,
         )
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
@@ -488,7 +502,6 @@ class LayoutDataset(Dataset):
         if transforms.config_transform:
             config_features = transforms.config_transform(config_features)
 
-        global_features = None
         if transforms.global_transform:
             global_features = transforms.global_transform(
                 node_features, edge_index, node_config_ids
