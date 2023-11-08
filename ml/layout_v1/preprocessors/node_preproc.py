@@ -107,14 +107,14 @@ class NodeProcessor:
         return (x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)).reshape(-1, 1)
 
 
-class NodeStandardizer:
-    def __init__(
-        self,
-        run_log_transform: bool = True,
-        drop_strategy: Literal["none", "auto"] = "auto",
-    ):
-        self.log_transform = log_transform
-        self.drop_strategy = drop_strategy
+# class NodeStandardizer:
+#     def __init__(
+#         self,
+#         run_log_transform: bool = True,
+#         drop_strategy: Literal["none", "auto"] = "auto",
+#     ):
+#         self.log_transform = log_transform
+#         self.drop_strategy = drop_strategy
 
 
 def _log_transform_specific_features(
