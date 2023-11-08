@@ -83,6 +83,9 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     train_dataset = ConcatenatedDataset(train_datasets)
     train_dataset.load()
 
+    # Debug
+    print("IDX Groups len: ", len(train_dataset.idx_groups))
+
     train_sampler = ConfigCrossoverBatchSampler(
         groups=train_dataset.idx_groups,
         batch_size=spec.batch_size,
@@ -109,6 +112,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                 preprocessors,
                 postprocessors,
             )
+            ds.load()
+
             sampler = ConfigCrossoverBatchSampler(
                 groups=ds.idx_groups,
                 batch_size=spec.batch_size,
