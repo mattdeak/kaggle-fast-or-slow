@@ -81,7 +81,6 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         for d in train_data_directories
     ]
     train_dataset = ConcatenatedDataset(train_datasets)
-    train_dataset.load()
 
     # Debug
     print("IDX Groups len: ", len(train_dataset.idx_groups))

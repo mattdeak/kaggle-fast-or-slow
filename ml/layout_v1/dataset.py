@@ -191,6 +191,8 @@ class LayoutDataset(Dataset):
         self._length = 0
         self._groups = 0
 
+        self.load()
+
         super().__init__()
 
     def len(self):
@@ -238,7 +240,6 @@ class LayoutDataset(Dataset):
             for f in tqdm(files, disable=not self.progress):
                 results.append(self.process_file(raw_dir, os.path.join(raw_dir, f)))
 
-        print("Processed", len(results), "files")
         for result in results:
             if result.num_configs == 0:
                 continue
@@ -527,10 +528,6 @@ class ConcatenatedDataset(Dataset):
         self.datasets = layout_datasets
         self.idx_groups = self.get_idx_groups()
         super().__init__()
-
-    def load(self):
-        for ds in self.datasets:
-            ds.load()
 
     def get_idx_groups(self):
         groups: list[list[int]] = []
