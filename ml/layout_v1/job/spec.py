@@ -44,7 +44,7 @@ class ProcessorSpec(BaseModel):
     global_: GlobalProcessorName | None = "global-processor"
     global_kwargs: dict[str, Any] = {}
 
-    target: TargetProcessorName | None = "log"
+    target: TargetProcessorName | None = None
     target_kwargs: dict[str, Any] = {}
 
 
