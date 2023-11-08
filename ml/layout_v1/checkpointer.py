@@ -75,7 +75,7 @@ class Checkpointer:
 
         # negation is used because heapq is a min heap
         iter_count = _ComparableIter(-iteration, neg_epoch)
-        heapq.heappush(self._heap, (iter_count, checkpoint_filename))  # type: ignore
+        heapq.heappush(self._heap, (iter_count, checkpoint_name))
 
     def load_checkpoint(self, state_dict: dict[str, Any]) -> dict[str, Any] | None:
         """Loads the most recent checkpoint.
