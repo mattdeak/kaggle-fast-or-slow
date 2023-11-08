@@ -147,7 +147,7 @@ class LayoutDataset(Dataset):
         posttransforms: LayoutTransforms | None = None,
         progress: bool = True,
         multiprocess: bool = True,
-        max_workers: int = 4,
+        max_workers: int = 8,
     ):
         """Directories should be a list of directories to load from.
 
