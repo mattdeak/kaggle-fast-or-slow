@@ -221,17 +221,21 @@ class LayoutDataset(Dataset):
         """Process all files in a directory."""
         files = os.listdir(raw_dir)
         with ProcessPoolExecutor() as executor:
-            results = list(
-                tqdm(
-                    executor.map(
-                        self.process_file,
-                        [raw_dir] * len(files),
-                        [os.path.join(raw_dir, f) for f in files],
-                    ),
-                    total=len(files),
-                    disable=not self.progress,
+            try:
+                results = list(
+                    tqdm(
+                        executor.map(
+                            self.process_file,
+                            [raw_dir] * len(files),
+                            [os.path.join(raw_dir, f) for f in files],
+                        ),
+                        total=len(files),
+                        disable=not self.progress,
+                    )
                 )
-            )
+            except Exception as e:
+                print("Error processing files in directory", raw_dir)
+                raise e
 
         for result in results:
             if result.num_configs == 0:
