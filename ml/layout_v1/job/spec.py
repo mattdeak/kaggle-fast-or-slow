@@ -98,7 +98,7 @@ class JobSpec(BaseModel):
 
     # scheduler
     scheduler: SchedulerName | None = "onecycle"
-    scheduler_kwargs: dict[str, Any] = {"max_lr": 0.01}
+    scheduler_kwargs: dict[str, Any] = {"max_lr": 0.01, "pct_start": 0.1}
 
     # processors
     preprocessors: ProcessorSpec = ProcessorSpec()

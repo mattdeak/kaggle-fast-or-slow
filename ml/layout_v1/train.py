@@ -49,6 +49,8 @@ DEFAULT_CONFIG = JobSpec(
     optimizer_kwargs={"lr": 3e-4, "weight_decay": 0.01},
     criterion="margin-loss",
     criterion_kwargs={"margin": 1.0},
+    scheduler="onecycle",
+    scheduler_kwargs={"max_lr": 0.01, "pct_start": 0.1},
     # processors
     preprocessors=ProcessorSpec(
         graph="config-communities",
