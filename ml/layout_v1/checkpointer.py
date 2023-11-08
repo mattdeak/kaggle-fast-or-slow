@@ -67,7 +67,7 @@ class Checkpointer:
         checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_name)
         torch.save(checkpoint, checkpoint_path)  # type: ignore
 
-        if len(self._heap) < self.max_checkpoints:
+        if len(self._heap) > self.max_checkpoints:
             _, oldest_checkpoint = heapq.heappop(self._heap)
             os.remove(os.path.join(self.checkpoint_dir, oldest_checkpoint))
 
