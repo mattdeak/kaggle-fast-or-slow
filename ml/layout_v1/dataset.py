@@ -333,6 +333,7 @@ class LayoutDataset(Dataset):
                 processed_config_features,
             ],
             axis=1,
+            dtype=np.float32,
         )
 
         global_features = None
