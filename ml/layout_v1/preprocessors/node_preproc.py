@@ -96,27 +96,26 @@ class NodeStandardizer:
         if x.ndim == 3:
             x = x.reshape(-1, x.shape[-1])
 
-        # Detect features with zero variance
+        # Step 1: Detect features with zero variance and one-hot features
         drop_mask = np.var(x, axis=0) == 0
-
-        # Also features where they are clearly one-hot, but the ratio of the
-        # positive class is less than the threshold
         ohe_mask = np.all(np.isin(x, [0, 1]), axis=0)
+
+        # Step 2: Detect ohes that are under the threshold
         ohe_under_threshold = ohe_mask & (
             np.mean(x, axis=0) < self.ohe_present_threshold
         )
 
+        # Step 3: Update drop mask with ohe under threshold
         drop_mask = ohe_under_threshold | drop_mask
 
         self._drop_mask = drop_mask
         self._ohe_mask = ohe_mask  # tells us which features are one-hot
 
-        # We need to re-map the log-transformed indices to the ones that are actually
-        # present after we drop
+        # Step 4: Log transform specific features as determined by analysis
         x = _log_transform_specific_features(x)
 
-        # fit standardizer on non-dropped features and non-one-hot features
-        self.standardizer.fit(x[:, (~drop_mask) & (~ohe_mask)])
+        # Step 5: Fit standardizer on non-drop and non-ohe features
+        self.standardizer.fit(x[:, (~drop_mask) | (~ohe_mask)])
         self._fitted = True
 
     def __call__(
