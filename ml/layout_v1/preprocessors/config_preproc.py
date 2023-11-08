@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 import numpy as np
@@ -159,7 +160,13 @@ class ConfigFeatureGenerator:
         mask = features != -1
         valid_features = np.where(mask, features, np.nan)
 
-        variance = np.nanvar(valid_features, axis=-1)
+        # Calculate variance along the last axis, ignoring NaNs. Can be
+        # a runtime warning if all values are NaN, so we ignore it.
+        # We explicitly fix this case in the following line.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            variance = np.nanvar(valid_features, axis=-1)
+
         variance = np.nan_to_num(variance)
 
         return variance
