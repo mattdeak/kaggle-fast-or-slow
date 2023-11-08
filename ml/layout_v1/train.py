@@ -308,6 +308,7 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
     if isinstance(config, dict):
         config = JobSpec(**config)
 
+    run_data = instantiate_from_spec(config)
     with wandb.init(
         project="kaggle-fast-or-slow",
         id=id,
@@ -316,8 +317,6 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
         resume="allow",
     ) as run:
         assert run is not None, "Wandb run is None"
-
-        run_data = instantiate_from_spec(config)
 
         model = run_data.model
         optim = run_data.optimizer

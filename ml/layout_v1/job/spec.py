@@ -33,7 +33,7 @@ class ProcessorSpec(BaseModel):
     graph_kwargs: dict[str, Any] = {"hops": 2}
 
     node: NodeProcessorName | None = "node-processor"
-    node_kwargs: dict[str, Any] = {"use_engineered_features": True}
+    node_kwargs: dict[str, Any] = {}
 
     config: ConfigProcessorName | None = "config-feature-generator"
     config_kwargs: dict[str, Any] = {}
