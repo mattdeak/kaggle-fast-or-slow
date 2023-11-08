@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 from sklearn.preprocessing import StandardScaler  # type: ignore
@@ -10,6 +12,14 @@ EPSILON = 1e-4
 class NodeProcessor:
     NODE_FEAT_INDEX = np.arange(140)
     SHAPE_DIM_FEATURES = np.arange(21, 27)
+
+    def __init__(self, standardize: bool = True):
+        self.standardize = standardize
+        self._standardizer = NodeStandardizer()
+
+    def fit(self, x: npt.NDArray[Any]) -> None:
+        if self.standardize:
+            self._standardizer.fit(x)
 
     def __call__(
         self,
@@ -29,6 +39,11 @@ class NodeProcessor:
                 self.reversal_ratio(x),
             )
         )
+
+        if self.standardize:
+            x, edge_index, node_config_ids = self._standardizer(
+                x, edge_index, node_config_ids
+            )
 
         # log transform specific features
         x = np.hstack((x, engineered))
