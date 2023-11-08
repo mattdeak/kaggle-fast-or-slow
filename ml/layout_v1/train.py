@@ -311,9 +311,7 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
     with wandb.init(
         project="kaggle-fast-or-slow",
         id=id,
-        config={
-            **asdict(config),
-        },
+        config=config.dict(),
         mode="online" if config.wandb else "disabled",
         resume="allow",
     ) as run:
