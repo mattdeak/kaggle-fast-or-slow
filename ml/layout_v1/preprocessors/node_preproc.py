@@ -101,23 +101,22 @@ class NodeStandardizer:
 
         # Also features where they are clearly one-hot, but the ratio of the
         # positive class is less than the threshold
-        ohe_threshold = np.all(np.isin(x, [0, 1]), axis=0) & (
-            x.mean(axis=0) < self.ohe_present_threshold
+        ohe_mask = np.all(np.isin(x, [0, 1]), axis=0)
+        ohe_under_threshold = (
+            np.mean(x[:, ohe_mask], axis=0) < self.ohe_present_threshold
         )
 
-        drop_mask = np.logical_or(
-            ohe_threshold,
-            drop_mask,
-        )
+        drop_mask = ohe_under_threshold | drop_mask
+
         self._drop_mask = drop_mask
-        self._ohe_mask = ohe_threshold
+        self._ohe_mask = ohe_mask  # tells us which features are one-hot
 
         # We need to re-map the log-transformed indices to the ones that are actually
         # present after we drop
         x = _log_transform_specific_features(x)
 
         # fit standardizer on non-dropped features and non-one-hot features
-        self.standardizer.fit(x[:, (~drop_mask) & (~ohe_threshold)])
+        self.standardizer.fit(x[:, (~drop_mask) & (~ohe_mask)])
         self._fitted = True
 
     def __call__(
@@ -134,6 +133,7 @@ class NodeStandardizer:
             x[:, (~self._drop_mask) & (~self._ohe_mask)]
         )
         x[:, (~self._drop_mask) & (~self._ohe_mask)] = standardized
+        x = x[:, ~self._drop_mask]
 
         return (
             x,
