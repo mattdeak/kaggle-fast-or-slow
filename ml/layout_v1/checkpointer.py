@@ -1,6 +1,6 @@
 import heapq
 import os
-from typing import Any
+from typing import Any, Self
 
 import torch
 
@@ -20,7 +20,7 @@ class Checkpointer:
             os.makedirs(self.checkpoint_dir)
 
         self.max_checkpoints = max_checkpoints
-        self._heap: list[tuple[int, str]] = []
+        self._heap: list[tuple[_ComparableIter, str]] = []
 
         self._model = model
         self._optimizer = optimizer
@@ -71,9 +71,11 @@ class Checkpointer:
             _, oldest_checkpoint = heapq.heappop(self._heap)
             os.remove(os.path.join(self.checkpoint_dir, oldest_checkpoint))
 
-        heapq.heappush(
-            checkpoint_heap, (-iter_count, checkpoint_filename)  # type: ignore
-        )
+        neg_epoch = -epoch if epoch is not None else epoch
+
+        # negation is used because heapq is a min heap
+        iter_count = _ComparableIter(-iteration, neg_epoch)
+        heapq.heappush(self._heap, (iter_count, checkpoint_filename))  # type: ignore
 
     def load_checkpoint(self, state_dict: dict[str, Any]) -> dict[str, Any] | None:
         """Loads the most recent checkpoint.
@@ -87,3 +89,23 @@ class Checkpointer:
             self._scheduler.load_state_dict(state_dict["scheduler_state_dict"])
 
         return state_dict
+
+
+class _ComparableIter:
+    def __init__(self, iteration: int, epoch: int | None = None):
+        self.iteration = iteration
+        self.epoch = epoch
+
+    def __eq__(self, other: Self) -> bool:
+        return self.iteration == other.iteration and self.epoch == other.epoch
+
+    def __lt__(self, other: Self) -> bool:
+        if self.epoch is None or other.epoch is None:
+            return self.iteration < other.iteration
+        else:
+            if self.epoch == other.epoch:
+                return self.iteration < other.iteration
+            return self.epoch < other.epoch
+
+    def __gt__(self, other: Self) -> bool:
+        return not self.__lt__(other)
