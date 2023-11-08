@@ -58,6 +58,7 @@ DEFAULT_CONFIG = JobSpec(
         node="node-processor",
         config="config-feature-generator",
         opcode="group-ohe-embedder",
+        target=None,
     ),
     postprocessors=ProcessorSpec(
         graph=None,
