@@ -110,7 +110,7 @@ class NodeStandardizer:
 
         self._drop_mask = drop_mask
         self._ohe_mask = ohe_mask  # tells us which features are one-hot
-        self._norm_mask = ~drop_mask | ~ohe_mask  # tells us which features to normalize
+        self._norm_mask = ~drop_mask & ~ohe_mask  # tells us which features to normalize
 
         # Step 4: Log transform specific features as determined by analysis
         x = _log_transform_specific_features(x)

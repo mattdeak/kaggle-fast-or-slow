@@ -112,8 +112,6 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                 preprocessors,
                 postprocessors,
             )
-            ds.load()
-
             sampler = ConfigCrossoverBatchSampler(
                 groups=ds.idx_groups,
                 batch_size=spec.batch_size,
@@ -154,8 +152,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     model = torch_geometric.compile(model)  # type: ignore
     model = cast(GraphMLP, model)  # technically no, but it's fine
 
-    criterion = CRITERIONS[spec.criterion](**spec.criterion_kwargs)
     optimizer = OPTIMIZERS[spec.optimizer](model.parameters(), **spec.optimizer_kwargs)
+    criterion = CRITERIONS[spec.criterion](**spec.criterion_kwargs)
 
     steps_per_epoch = len(train_loader)
     scheduler = (
@@ -185,8 +183,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         model=model,
         criterion=criterion,
         optimizer=optimizer,
-        run_config=run_config,
         scheduler=scheduler,
+        run_config=run_config,
     )
 
 
