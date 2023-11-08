@@ -121,10 +121,6 @@ class ProcessResult:
 
 
 class LayoutDataset(Dataset):
-    """I actually hate the base class for this, but
-    the dataloader that requires this has some nice utilities for
-    batching graphs."""
-
     FILES_TO_IGNORE = [
         "pre_filter.pt",
         "pre_transform.pt",
