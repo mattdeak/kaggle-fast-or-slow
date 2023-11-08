@@ -261,7 +261,8 @@ def build_dataset(
         processed_dir=processed_directory,
         pretransforms=preprocessors,
         posttransforms=postprocessors,
-        multiprocess=False,
+        multiprocess=True,
+        max_workers=8,
     )
 
 
