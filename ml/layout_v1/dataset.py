@@ -236,11 +236,9 @@ class LayoutDataset(Dataset):
                     )
                 )
         else:
-            results = tqdm(
-                [self.process_file(raw_dir, os.path.join(raw_dir, f)) for f in files],
-                total=len(files),
-                disable=not self.progress,
-            )
+            results: list[ProcessResult] = []
+            for f in tqdm(files, disable=not self.progress):
+                results.append(self.process_file(raw_dir, os.path.join(raw_dir, f)))
 
         for result in results:
             if result.num_configs == 0:

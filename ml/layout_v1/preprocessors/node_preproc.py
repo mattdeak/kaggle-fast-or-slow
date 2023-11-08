@@ -110,13 +110,14 @@ class NodeStandardizer:
             drop_mask,
         )
         self._drop_mask = drop_mask
+        self._ohe_mask = ohe_threshold
 
         # We need to re-map the log-transformed indices to the ones that are actually
         # present after we drop
         x = _log_transform_specific_features(x)
 
-        # log transform specific features
-        self.standardizer.fit(x[:, ~drop_mask])
+        # fit standardizer on non-dropped features and non-one-hot features
+        self.standardizer.fit(x[:, (~drop_mask) & (~ohe_threshold)])
         self._fitted = True
 
     def __call__(
@@ -129,8 +130,10 @@ class NodeStandardizer:
             raise RuntimeError("Standardizer not fitted")
 
         x = _log_transform_specific_features(x)
-        x = x[:, ~self._drop_mask]
-        x = self.standardizer.transform(x)
+        standardized = self.standardizer.transform(  #
+            x[:, (~self._drop_mask) & (~self._ohe_mask)]
+        )
+        x[:, (~self._drop_mask) & (~self._ohe_mask)] = standardized
 
         return (
             x,
