@@ -333,7 +333,7 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
         model.to(device)
         wandb.watch(model)  # type: ignore
 
-        scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
+        scaler = torch.cuda.amp.GradScaler(enabled=run_config.use_amp)  # type: ignore
         checkpointer = Checkpointer(
             checkpoint_dir=f"models/{run.id}",  # type: ignore
             model=model,

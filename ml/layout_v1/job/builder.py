@@ -31,6 +31,7 @@ class RunConfig:
     epochs: int = 6
     save_checkpoints: bool = True
     max_checkpoints: int = 5
+    use_amp: bool = False
 
 
 @dataclass
@@ -175,6 +176,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         eval_iterations=spec.eval_iterations,
         epochs=spec.epochs,
         save_checkpoints=spec.save_checkpoints,
+        use_amp=spec.use_amp,
     )
 
     return RunData(
