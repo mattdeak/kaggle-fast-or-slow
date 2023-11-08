@@ -26,7 +26,7 @@ print("Using device:", device)
 
 DEFAULT_CONFIG = JobSpec(
     dataset_types=["xla"],
-    dataset_subtypes=["default", "random"],
+    dataset_subtypes=["random"],
     processed_directory="data/processed",
     log_interval=1000,
     log_table_interval=20000,
