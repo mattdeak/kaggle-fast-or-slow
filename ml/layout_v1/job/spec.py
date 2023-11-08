@@ -27,7 +27,7 @@ from ml.layout_v1.preprocessors.target_preproc import LogTargetTransform
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProcessorSpec:
     graph: GraphProcessorName | None = "config-communities"
     graph_kwargs: dict[str, Any] = {"hops": 2}
@@ -48,7 +48,7 @@ class ProcessorSpec:
     target_kwargs: dict[str, Any] = {}
 
 
-@dataclass
+@dataclass(frozen=True)
 class JobSpec:
     """Configuration for a training/evaluation job.
 
