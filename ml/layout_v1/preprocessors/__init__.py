@@ -5,5 +5,5 @@ from ml.layout_v1.preprocessors.graph_preproc import \
 from ml.layout_v1.preprocessors.node_preproc import (NodeProcessor,
                                                      NodeStandardizer)
 from ml.layout_v1.preprocessors.opcode_preproc import (OpcodeGroupOHEEmbedder,
-                                                       ohe_opcodes)
+                                                       OpcodeOHEEmbedder)
 from ml.layout_v1.preprocessors.target_preproc import LogTargetTransform
