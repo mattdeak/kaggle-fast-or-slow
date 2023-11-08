@@ -81,6 +81,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         for d in train_data_directories
     ]
     train_dataset = ConcatenatedDataset(train_datasets)
+    train_dataset.load()
 
     train_sampler = ConfigCrossoverBatchSampler(
         groups=train_dataset.idx_groups,
@@ -260,6 +261,7 @@ def build_dataset(
         processed_dir=processed_directory,
         pretransforms=preprocessors,
         posttransforms=postprocessors,
+        multiprocess=False,
     )
 
 
