@@ -150,6 +150,7 @@ class LayoutDataset(Dataset):
         pretransforms: LayoutTransforms | None = None,
         posttransforms: LayoutTransforms | None = None,
         progress: bool = True,
+        multiprocess: bool = True,
     ):
         """Directories should be a list of directories to load from.
 
@@ -168,6 +169,7 @@ class LayoutDataset(Dataset):
         self.posttransforms = posttransforms or LayoutTransforms()
 
         self.progress = progress
+        self.multiprocess = multiprocess
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -220,8 +222,8 @@ class LayoutDataset(Dataset):
     def _load_dir(self, raw_dir: str):
         """Process all files in a directory."""
         files = os.listdir(raw_dir)
-        with ProcessPoolExecutor() as executor:
-            try:
+        if self.multiprocess:
+            with ProcessPoolExecutor() as executor:
                 results = list(
                     tqdm(
                         executor.map(
@@ -233,9 +235,12 @@ class LayoutDataset(Dataset):
                         disable=not self.progress,
                     )
                 )
-            except Exception as e:
-                print("Error processing files in directory", raw_dir)
-                raise e
+        else:
+            results = tqdm(
+                [self.process_file(raw_dir, os.path.join(raw_dir, f)) for f in files],
+                total=len(files),
+                disable=not self.progress,
+            )
 
         for result in results:
             if result.num_configs == 0:
