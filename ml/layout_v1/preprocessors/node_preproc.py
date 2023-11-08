@@ -110,12 +110,13 @@ class NodeStandardizer:
 
         self._drop_mask = drop_mask
         self._ohe_mask = ohe_mask  # tells us which features are one-hot
+        self._norm_mask = ~drop_mask | ~ohe_mask  # tells us which features to normalize
 
         # Step 4: Log transform specific features as determined by analysis
         x = _log_transform_specific_features(x)
 
         # Step 5: Fit standardizer on non-drop and non-ohe features
-        self.standardizer.fit(x[:, (~drop_mask) | (~ohe_mask)])
+        self.standardizer.fit(x[:, self._norm_mask])
         self._fitted = True
 
     def __call__(
@@ -128,10 +129,8 @@ class NodeStandardizer:
             raise RuntimeError("Standardizer not fitted")
 
         x = _log_transform_specific_features(x)
-        standardized = self.standardizer.transform(  #
-            x[:, (~self._drop_mask) & (~self._ohe_mask)]
-        )
-        x[:, (~self._drop_mask) & (~self._ohe_mask)] = standardized
+        standardized = self.standardizer.transform(x[:, self._norm_mask])  #
+        x[:, self._norm_mask] = standardized
         x = x[:, ~self._drop_mask]
 
         return (
