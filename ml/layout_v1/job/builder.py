@@ -105,7 +105,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     eval_loaders = {}
     for ds_type in spec.dataset_types:
         for ds_subtype in spec.dataset_subtypes:
-            val_dir = get_dataset_dir(ds_type, ds_subtype, split="val")
+            val_dir = get_dataset_dir(ds_type, ds_subtype, split="valid")
             ds = build_dataset(
                 val_dir,
                 spec.processed_directory,
@@ -199,7 +199,7 @@ def get_dataset_dir(
 def generate_dataset_dirs(
     dataset_types: list[DatasetType],
     dataset_subtypes: list[DatasetSubtype],
-    split: Literal["train", "val", "test"] = "train",
+    split: Literal["train", "valid", "test"] = "train",
 ) -> list[str]:
     """Return a list of dataset directories for training and validation."""
     datasets: list[str] = []
