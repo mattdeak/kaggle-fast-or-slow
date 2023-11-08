@@ -62,32 +62,13 @@ def composite_margin_loss_with_huber(
     return margin_loss
 
 
-def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
-    # Ensure the predictions and targets have the same shape
-    assert y_pred.shape == y_true.shape
+class ListMLELoss(torch.nn.Module):
+    def __init__(self, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
 
-    # Sort true labels to get the correct permutation for predicted labels
-    _, indices = torch.sort(y_true, descending=True, dim=-1)
-    sorted_y_pred = torch.gather(y_pred, dim=-1, index=indices)
-
-    # Prevent overflow by normalization (Log-Sum-Exp trick)
-    max_pred = sorted_y_pred.max(dim=-1, keepdim=True)[0]
-    sorted_y_pred -= max_pred
-
-    # Compute the cumsum of log for numerical stability
-    log_cumsum = torch.cumsum(
-        torch.log(
-            torch.arange(
-                1, sorted_y_pred.size(-1) + 1, device=sorted_y_pred.device
-            ).float()
-        ),
-        dim=0,
-    )
-
-    # Calculate the ListMLE loss
-    listmle_loss = torch.sum(log_cumsum + torch.logsumexp(-sorted_y_pred, dim=-1))
-
-    return listmle_loss
+    def __call__(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        return listMLEalt(y_pred, y_true, self.eps)
 
 
 @torch.jit.script

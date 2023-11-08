@@ -14,7 +14,7 @@ from ml.layout_v1.dataset import (ConcatenatedDataset, ConfigTransform,
                                   GraphTransform, LayoutDataset,
                                   LayoutTransforms, OpcodeEmbedder,
                                   TargetTransform)
-from ml.layout_v1.losses import MarginLoss, listMLEalt
+from ml.layout_v1.losses import ListMLELoss, MarginLoss, listMLEalt
 from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors.config_preproc import ConfigFeatureGenerator
 from ml.layout_v1.preprocessors.global_preproc import GlobalFeatureGenerator
@@ -66,8 +66,8 @@ TARGET_PROCESSORS: dict[TargetProcessorName, type[TargetTransform]] = {
     "log": LogTargetTransform,
 }
 
-CRITERIONS: dict[CriterionName, nn.Module] = {
-    "listMLE": listMLEalt,  # type: ignore this is a module but mypy doesn't like it
+CRITERIONS: dict[CriterionName, type[nn.Module]] = {
+    "listMLE": ListMLELoss,
     "margin-loss": MarginLoss,
 }
 
