@@ -102,9 +102,7 @@ class NodeStandardizer:
         # Also features where they are clearly one-hot, but the ratio of the
         # positive class is less than the threshold
         ohe_mask = np.all(np.isin(x, [0, 1]), axis=0)
-        ohe_under_threshold = (
-            np.mean(x[:, ohe_mask], axis=0) < self.ohe_present_threshold
-        )
+        ohe_under_threshold = ohe_mask & np.mean(x, axis=0) < self.ohe_present_threshold
 
         drop_mask = ohe_under_threshold | drop_mask
 
