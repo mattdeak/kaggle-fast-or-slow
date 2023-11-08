@@ -31,7 +31,7 @@ class NodeProcessor:
         # Engineered features
         engineered = np.hstack(
             (
-                self.calculate_shape_sparsity(x),
+                np.log(self.calculate_shape_sparsity(x)),
                 self.dimensionality(x),
                 self.stride_interactions(x),
                 self.padding_proportions(x),
