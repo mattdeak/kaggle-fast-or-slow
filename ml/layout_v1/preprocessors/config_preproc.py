@@ -14,6 +14,13 @@ class ConfigFeatureGenerator:
         self,
         config_features: npt.NDArray[Any],  # config is nc x c x 18
     ) -> npt.NDArray[Any]:
+        """Compute additional features from the config features.
+        Args:
+            config_features: The config features (nc x c x 18)
+            where nc is the number of configs and c are the configurable nodes.
+            The first 6 features are the output features, the next 6 are the input features, and the last 6 are the kernel features.
+        """
+
         output_features = config_features[:, :, self.OUTPUT_MASK]
         input_features = config_features[:, :, self.INPUT_MASK]
         kernel_features = config_features[:, :, self.KERNEL_MASK]
@@ -57,11 +64,6 @@ class ConfigFeatureGenerator:
         output_dim_variance = self.calculate_variance(output_features)
         input_dim_variance = self.calculate_variance(input_features)
         kernel_dim_variance = self.calculate_variance(kernel_features)
-
-        # Calculate dimension permutation
-        output_dim_permutation = self.calculate_permutations(output_features)
-        input_dim_permutation = self.calculate_permutations(input_features)
-        kernel_dim_permutation = self.calculate_permutations(kernel_features)
 
         # Calculate layout similarity
         output_input_layout_similarity = self.calculate_layout_similarity(
@@ -118,9 +120,6 @@ class ConfigFeatureGenerator:
                 output_dim_variance,
                 input_dim_variance,
                 kernel_dim_variance,
-                output_dim_permutation,
-                input_dim_permutation,
-                kernel_dim_permutation,
                 output_input_layout_similarity,
                 output_kernel_layout_similarity,
                 input_kernel_layout_similarity,
@@ -170,21 +169,6 @@ class ConfigFeatureGenerator:
         variance = np.nan_to_num(variance)
 
         return variance
-
-    def calculate_permutations(self, features: npt.NDArray[Any]) -> npt.NDArray[Any]:
-        """Calculates the number of permutations along the last axis, ignoring -1s"""
-
-        def count_permutations(layout: npt.NDArray[Any]):
-            layout = layout[layout != -1]  # remove padding
-            return sum(
-                1
-                for i in range(len(layout))
-                for j in range(i + 1, len(layout))
-                if layout[i] > layout[j]
-            )
-
-        permutations = np.apply_along_axis(count_permutations, -1, features)
-        return permutations
 
     def calculate_layout_similarity(
         self, features1: npt.NDArray[Any], features2: npt.NDArray[Any]
