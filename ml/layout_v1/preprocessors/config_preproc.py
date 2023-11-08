@@ -158,6 +158,7 @@ class ConfigFeatureGenerator:
         """
         mask = features != -1
         valid_features = np.where(mask, features, np.nan)
+
         variance = np.nanvar(valid_features, axis=-1)
         variance = np.nan_to_num(variance)
 

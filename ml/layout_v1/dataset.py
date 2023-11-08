@@ -147,6 +147,7 @@ class LayoutDataset(Dataset):
         posttransforms: LayoutTransforms | None = None,
         progress: bool = True,
         multiprocess: bool = True,
+        max_workers: int = 4,
     ):
         """Directories should be a list of directories to load from.
 
@@ -166,6 +167,7 @@ class LayoutDataset(Dataset):
 
         self.progress = progress
         self.multiprocess = multiprocess
+        self.max_workers = max_workers
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -219,7 +221,7 @@ class LayoutDataset(Dataset):
         """Process all files in a directory."""
         files = os.listdir(raw_dir)
         if self.multiprocess:
-            with ProcessPoolExecutor() as executor:
+            with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
                 results = list(
                     tqdm(
                         executor.map(
