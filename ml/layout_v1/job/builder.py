@@ -151,11 +151,13 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
 
     criterion = CRITERIONS[spec.criterion](**spec.criterion_kwargs)
     optimizer = OPTIMIZERS[spec.optimizer](model.parameters(), **spec.optimizer_kwargs)
+
+    steps_per_epoch = len(train_loader)
     scheduler = (
         SCHEDULERS[spec.scheduler](
             optimizer,
             epochs=spec.epochs,  # type: ignore
-            steps_per_epoch=len(train_loader),  # type: ignore
+            steps_per_epoch=steps_per_epoch,
             **spec.scheduler_kwargs,
         )
         if spec.scheduler
