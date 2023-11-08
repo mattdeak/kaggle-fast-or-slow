@@ -262,7 +262,6 @@ def build_dataset(
         pretransforms=preprocessors,
         posttransforms=postprocessors,
         multiprocess=True,
-        max_workers=8,
     )
 
 

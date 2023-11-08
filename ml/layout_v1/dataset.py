@@ -228,6 +228,7 @@ class LayoutDataset(Dataset):
                             self.process_file,
                             [raw_dir] * len(files),
                             [os.path.join(raw_dir, f) for f in files],
+                            chunksize=len(files) // self.max_workers,
                         ),
                         total=len(files),
                         disable=not self.progress,
