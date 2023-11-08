@@ -149,7 +149,6 @@ def train_batch(
             output.squeeze(),
             y.squeeze(),  # type: ignore
         )
-        # loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 

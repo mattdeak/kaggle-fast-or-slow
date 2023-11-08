@@ -14,7 +14,7 @@ from ml.layout_v1.dataset import (ConcatenatedDataset, ConfigTransform,
                                   GraphTransform, LayoutDataset,
                                   LayoutTransforms, OpcodeEmbedder,
                                   TargetTransform)
-from ml.layout_v1.losses import listMLEalt
+from ml.layout_v1.losses import MarginLoss, listMLEalt
 from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors.config_preproc import ConfigFeatureGenerator
 from ml.layout_v1.preprocessors.global_preproc import GlobalFeatureGenerator
@@ -68,7 +68,7 @@ TARGET_PROCESSORS: dict[TargetProcessorName, type[TargetTransform]] = {
 
 CRITERIONS: dict[CriterionName, nn.Module] = {
     "listMLE": listMLEalt,  # type: ignore this is a module but mypy doesn't like it
-    "margin-loss": nn.MarginRankingLoss,
+    "margin-loss": MarginLoss,
 }
 
 OPTIMIZERS: dict[OptimizerName, type[torch.optim.Optimizer]] = {
