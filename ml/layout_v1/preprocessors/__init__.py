@@ -5,3 +5,4 @@ from ml.layout_v1.preprocessors.graph_preproc import \
 from ml.layout_v1.preprocessors.node_preproc import NodeFeatureMaker
 from ml.layout_v1.preprocessors.opcode_preproc import (OpcodeGroupOHEEmbedder,
                                                        ohe_opcodes)
+from ml.layout_v1.preprocessors.target_preproc import LogTargetTransform

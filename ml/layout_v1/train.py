@@ -1,32 +1,22 @@
 import argparse
 import heapq
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import Any, cast
 
 import numpy as np
 import scipy.stats as ss
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch_geometric
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
 from tqdm.auto import tqdm
 
 import wandb
-from ml.layout_v1.dataset import ConcatenatedDataset, LayoutDataset
-from ml.layout_v1.losses import listMLEalt, margin_loss
-from ml.layout_v1.model import GraphMLP
-from ml.layout_v1.pooling import multi_agg
-from ml.layout_v1.preprocessors import (ConfigFeatureGenerator,
-                                        ConfigNodeCommunityPreprocessor,
-                                        GlobalFeatureGenerator,
-                                        NodePreprocessor,
-                                        OpcodeGroupOHEEmbedder)
-from ml.layout_v1.preprocessors.node_preproc import NodeProcessor
-from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
+from ml.layout_v1.checkpointer import Checkpointer
+from ml.layout_v1.job.builder import RunConfig, instantiate_from_spec
+from ml.layout_v1.job.spec import JobSpec, ProcessorSpec
 from ml.layout_v1.utils import get_rank
 
 # ---- Config ---- #
@@ -34,202 +24,50 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 torch.set_float32_matmul_precision("high")
 print("Using device:", device)
 
-# Logging/Metrics
-LOG_INTERVAL = 1000
-LOG_TABLE_INTERVAL = 20000
-# MAX_ITERS = 2000000
-EVAL_ITERS = 512  # per loader
-EVAL_INTERVAL = 10000
-EPOCHS = 10
-
-# Model hyperparameters
-SAGE_LAYERS = 3
-SAGE_CHANNELS = 128
-LINEAR_LAYERS = 3
-LINEAR_CHANNELS = 128
-DROPOUT = 0.0
-CONV_TYPE = "gat"
-GAT_HEADS = 4
-
-# Optimizer
-# LR = 3e-4
-WEIGHT_DECAY = 1e-2
-LR = 3e-4
-MARGIN = 1  # effectively hinge
-
-# Custom Optimization
-POOLING_RATIO = None  # trying with torch geometric compilation
-CROSSOVER_PROB = 0.0  # seems to help get out of initial local minima
-ITERS_WITH_NOISE = 20000
-EASE_RATE = 1.0
-EASE_DECAY = 0.99999
-
-
-# Training Details
-BATCH_SIZE = 16  # pretty low cause memory is hard
-NUM_WORKERS = 4
-XLA_DATA_DIR = "data/layout/xla"
-NLP_DATA_DIR = "data/layout/nlp"
-DATA_DIRS = [
-    NLP_DATA_DIR,
-]  # only xla this run. I think it may be nonsense to train on both
-CATEGORIES = ["default", "random"]  # I think this is fine though?
-
-# Deterministic
-GRAPH_DIM = 190
-GLOBAL_FEATURES = 6
-
-
-# WARNING: If preprocessing changes, this will need to be updated
-XLA_AVG_LOG_DEGREE = 0.601
-
-
-# Training Mods
-USE_AMP = False  # seems broken?
-PROFILE = False
-WANDB_LOG = True
-SAVE_CHECKPOINTS = True
-DATASET_MODE = "memmapped"  # memmapped or in-memory
-
-
-# ---- Data ---- #
-directories = [
-    os.path.join(data_dir, category, "train")
-    for data_dir in DATA_DIRS
-    for category in CATEGORIES
-]
-
-val_directories = [
-    os.path.join(data_dir, category, "valid")
-    for data_dir in DATA_DIRS
-    for category in CATEGORIES
-]
-
-graph_preprocessor = ConfigNodeCommunityPreprocessor(hops=2)
-node_preprocessor = NodeProcessor("xla")
-config_preprocessor = ConfigFeatureGenerator()
-opcode_preprocessor = OpcodeGroupOHEEmbedder()
-
-
-pooling = multi_agg
-
-
-default_global_preprocessor = GlobalFeatureGenerator("xla", "default")
-random_global_preprocessor = GlobalFeatureGenerator("xla", "random")
-
-default_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "default", "train")],
-    mode=DATASET_MODE,
-    processed_dir="data/processed_layout",
-    graph_pre_transform=graph_preprocessor,
-    opcode_pre_transform=opcode_preprocessor,
-    node_pre_transform=node_preprocessor,
-    config_pre_transform=config_preprocessor,
-    global_pre_transform=default_global_preprocessor,
+DEFAULT_CONFIG = JobSpec(
+    dataset_types=["xla"],
+    dataset_subtypes=["default", "random"],
+    processed_directory="data/processed",
+    log_interval=1000,
+    log_table_interval=20000,
+    eval_interval=10000,
+    eval_iterations=512,
+    epochs=6,
+    graph_layers=3,
+    graph_channels=128,
+    linear_layers=3,
+    linear_channels=128,
+    dropout=0.0,
+    graph_convolution_type="gat",
+    graph_convolution_kwargs={"heads": 4},
+    batch_size=16,
+    num_workers=4,
+    use_amp=False,
+    wandb=True,
+    save_checkpoints=True,
+    optimizer="adamw",
+    optimizer_kwargs={"lr": 3e-4, "weight_decay": 0.01},
+    criterion="margin-loss",
+    criterion_kwargs={"margin": 1.0},
+    # processors
+    preprocessors=ProcessorSpec(
+        graph="config-communities",
+        graph_kwargs={"hops": 2},
+        node="node-processor",
+        config="config-feature-generator",
+        opcode="group-ohe-embedder",
+    ),
+    postprocessors=ProcessorSpec(
+        graph=None,
+        node=None,
+        config=None,
+        opcode=None,
+        global_=None,
+        target=None,
+    ),
+    # crossover
+    crossover=0.0,
 )
-default_dataset.load()
-
-random_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "random", "train")],
-    mode=DATASET_MODE,
-    processed_dir="data/processed_layout",
-    graph_pre_transform=graph_preprocessor,
-    opcode_pre_transform=opcode_preprocessor,
-    node_pre_transform=node_preprocessor,
-    config_pre_transform=config_preprocessor,
-    global_pre_transform=random_global_preprocessor,
-)
-random_dataset.load()
-
-dataset = ConcatenatedDataset(default_dataset, random_dataset)
-# We break these up because the distributions are different,
-# so we may want to analyze the metrics separately
-default_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "default", "valid")],
-    mode=DATASET_MODE,
-    processed_dir="data/processed_layout",
-    graph_pre_transform=graph_preprocessor,
-    opcode_pre_transform=opcode_preprocessor,
-    node_pre_transform=node_preprocessor,
-    config_pre_transform=ConfigFeatureGenerator(),
-    global_pre_transform=default_global_preprocessor,
-    # force_reload=True,
-)
-
-random_val_nlp_dataset = LayoutDataset(
-    directories=[os.path.join(XLA_DATA_DIR, "random", "valid")],
-    mode=DATASET_MODE,
-    processed_dir="data/processed_layout",
-    graph_pre_transform=graph_preprocessor,
-    opcode_pre_transform=opcode_preprocessor,
-    node_pre_transform=node_preprocessor,
-    config_pre_transform=ConfigFeatureGenerator(),
-    global_pre_transform=random_global_preprocessor,
-    # force_reload=True,
-)
-
-
-default_val_nlp_dataset.load()
-random_val_nlp_dataset.load()
-
-idx_groups = dataset.idx_groups
-
-train_sampler = ConfigCrossoverBatchSampler(
-    groups=idx_groups,
-    batch_size=BATCH_SIZE,
-    shuffle_groups=True,
-    shuffle_within_groups=True,
-    out_of_config_crossover_prob=CROSSOVER_PROB,
-)
-default_val_sampler = ConfigCrossoverBatchSampler(
-    groups=default_val_nlp_dataset.idx_groups,
-    batch_size=BATCH_SIZE,
-    shuffle_groups=True,
-    shuffle_within_groups=True,
-    out_of_config_crossover_prob=0.0,
-)
-random_val_sampler = ConfigCrossoverBatchSampler(
-    groups=random_val_nlp_dataset.idx_groups,
-    batch_size=BATCH_SIZE,
-    shuffle_groups=True,
-    shuffle_within_groups=True,
-    out_of_config_crossover_prob=0.0,
-)
-
-
-def make_dataloader(
-    dataset: LayoutDataset | ConcatenatedDataset, sampler: ConfigCrossoverBatchSampler
-) -> DataLoader:
-    return DataLoader(
-        dataset,
-        batch_size=1,  # this type errors but it's fine, it's cause torch geometric dataloader is dumb
-        shuffle=False,
-        batch_sampler=sampler,
-        pin_memory=True,
-        num_workers=NUM_WORKERS,
-    )
-
-
-loader = make_dataloader(dataset, train_sampler)
-MAX_ITERS = len(train_sampler) * EPOCHS
-
-eval_loaders = {
-    "default": make_dataloader(default_val_nlp_dataset, default_val_sampler),
-    "random": make_dataloader(random_val_nlp_dataset, random_val_sampler),
-}
-
-
-def cycle(loader: DataLoader):
-    while True:
-        for x in loader:
-            yield x
-
-        loader.batch_sampler.reset()
-
-
-loader = cycle(loader)
-
-# |%%--%%| <4MlM0FfI0e|0uhA8hyj2Z>
 
 
 @dataclass
@@ -243,9 +81,10 @@ class EvalMetrics:
 def evaluate(
     model: nn.Module,
     loader: DataLoader,
+    criterion: nn.Module,
     num_batches: int,
     device: str,
-) -> tuple[float, float, float]:
+) -> EvalMetrics:
     total_loss = 0
     num_iters = 0
 
@@ -257,22 +96,25 @@ def evaluate(
 
         eval_batch = eval_batch.to(device)
         try:
-            with torch.autocast(device_type=device, enabled=USE_AMP):
+            with torch.autocast(device_type=device, enabled=run_config.use_amp):  # type: ignore
                 output = model(eval_batch)
                 y = eval_batch.y
                 # generate pairs for margin ranking loss
-                loss = margin_loss(
+                loss = criterion(
                     output.squeeze(),
                     y.squeeze(),
-                    margin=MARGIN,
-                    n_permutations=BATCH_SIZE * 2,
                 )
                 # loss = listMLEalt(output.squeeze(), y.squeeze())
 
                 predicted_rank = get_rank(output.flatten()).cpu().numpy()
                 true_rank = get_rank(y.flatten()).cpu().numpy()
 
-                kendall_tau = ss.kendalltau(predicted_rank, true_rank).correlation
+                kendall_tau: float = cast(
+                    float,
+                    ss.kendalltau(  # type: ignore
+                        predicted_rank, true_rank
+                    ).correlation,
+                )
                 kendall_taus.append(kendall_tau)
         except:
             print("Failed to evaluate batch. Batch: ", eval_batch)
@@ -282,260 +124,268 @@ def evaluate(
         num_iters += 1
 
     avg_loss = total_loss / num_iters
-    return avg_loss, np.mean(kendall_taus), np.std(kendall_taus)
+    return EvalMetrics(
+        avg_loss, float(np.mean(kendall_taus)), float(np.std(kendall_taus))
+    )
 
 
 def train_batch(
     model: torch.nn.Module,
     batch: Batch,
+    criterion: nn.Module,
     optim: torch.optim.Optimizer,
     scaler: GradScaler,
+    use_amp: bool = False,
 ) -> tuple[float, torch.Tensor, torch.Tensor]:
     optim.zero_grad()
 
     # Forward Pass
-    with torch.autocast(device_type=device, enabled=USE_AMP):
+    with torch.autocast(device_type=device, enabled=use_amp):  # type: ignore
         output = model(batch)
 
-        y = batch.y
+        y = batch.y  # type: ignore
         # generate pairs for margin ranking loss
-        loss = margin_loss(
+        loss: torch.Tensor = criterion(
             output.squeeze(),
-            y.squeeze(),
-            margin=MARGIN,
-            n_permutations=BATCH_SIZE * 2,
+            y.squeeze(),  # type: ignore
         )
         # loss = listMLEalt(output.squeeze(), y.squeeze())
 
     train_loss = loss.item()
 
-    scaler.scale(loss).backward()
-    scaler.step(optim)
-    scaler.update()
+    # The type stubs suck
+    scaler.scale(loss).backward()  # type: ignore
+    scaler.step(optim)  # type: ignore
+    scaler.update()  # type: ignore
 
     output = output.flatten().detach()
-    y = y.detach()
+    y = y.detach()  # type: ignore
 
-    return train_loss, output, y
+    return train_loss, output, y  # type: ignore
 
 
-def run(id: str | None = None):
+@torch.no_grad()
+def log_train_metrics(
+    *,
+    output: torch.Tensor,
+    y: torch.Tensor,
+    train_loss: float,
+    log_table: bool = False,
+) -> None:
+    cpu_output = output.cpu().flatten().numpy()
+    cpu_y = y.cpu().flatten().numpy()
+    ranked = get_rank(cpu_output)
+    true_ranked = get_rank(cpu_y)
+
+    data = [
+        (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
+        for i in range(len(cpu_output))
+    ]
+    kendall_tau: float = ss.kendalltau(ranked, true_ranked).correlation  # type: ignore
+    if log_table:
+        wandb.log(  # type: ignore
+            {
+                "train_example": wandb.Table(
+                    columns=["output", "y", "predicted_rank", "true_rank"],
+                    data=data,
+                ),
+                "train/kendall_tau": kendall_tau,
+                "train/loss": train_loss,
+            }
+        )
+    else:
+        wandb.log(  # type: ignore
+            {"train/kendall_tau": kendall_tau, "train/loss": train_loss}
+        )
+
+
+@torch.no_grad()
+def log_eval_metrics(
+    *,
+    results: dict[str, EvalMetrics],
+    is_full: bool = False,
+):
+    """Log the evaluation metrics. Each separately and then all averages."""
+    if is_full:
+        prefix = "full"
+    else:
+        prefix = "eval"
+
+    for eval_type, eval_metrics in results.items():
+        wandb.log(  # type: ignore
+            {
+                f"{prefix}/{eval_type}/loss": eval_metrics.avg_loss,
+                f"{prefix}/{eval_type}/kendall_tau": eval_metrics.avg_kendall_tau,
+                f"{prefix}/{eval_type}/kendall_tau_std": eval_metrics.std_kendall_tau,
+            }
+        )
+
+    avg_loss = np.mean([m.avg_loss for m in results.values()])
+    avg_kendall_tau = np.mean([m.avg_kendall_tau for m in results.values()])
+    avg_kendall_tau_std = np.mean([m.std_kendall_tau for m in results.values()])
+
+    wandb.log(  # type: ignore
+        {
+            f"{prefix}/avg/loss": avg_loss,
+            f"{prefix}/avg/kendall_tau": avg_kendall_tau,
+            f"{prefix}/avg/kendall_tau_std": avg_kendall_tau_std,
+        }
+    )
+
+
+def run_full_epoch(
+    *,
+    model: torch.nn.Module,
+    criterion: nn.Module,
+    optim: torch.optim.Optimizer,
+    scaler: GradScaler,
+    train_loader: DataLoader,
+    eval_loaders: dict[str, DataLoader],
+    run_config: RunConfig,
+    epoch: int,
+    checkpointer: Checkpointer,
+    start_iter: int = 0,
+    scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+) -> None:
+    print(f"Starting: {epoch}")
+    model.train()
+    train_loader.batch_sampler.reset()  # type: ignore
+
+    avg_loss = 0
+
+    for iter_count, batch in tqdm(
+        enumerate(train_loader, start=start_iter),
+        total=len(train_loader),
+    ):
+        batch = batch.to(device)
+
+        batch_loss, output, y = train_batch(
+            model,
+            batch,
+            criterion,
+            optim,
+            scaler,
+        )
+
+        if scheduler is not None:
+            scheduler.step()
+
+        # scheduler.step()
+        avg_loss += batch_loss
+
+        if iter_count % run_config.log_interval == 0 and iter_count > 0:
+            avg_loss /= run_config.log_interval
+            print(f"Epoch {epoch+1} | Iteration {iter_count} | Avg Loss: {avg_loss}")
+            # also record the most recent outputs for examination
+            log_train_metrics(
+                output=output,
+                y=y,
+                train_loss=avg_loss,
+                log_table=iter_count % run_config.log_table_interval == 0,
+            )
+            avg_loss = 0
+
+        # Evaluation Loop and Checkpointing
+        if iter_count % run_config.eval_interval == 0 and iter_count > 0:
+            model.eval()
+            metrics = {}
+            for eval_type, eval_loader in eval_loaders.items():
+                metrics[eval_type] = evaluate(
+                    model,
+                    eval_loader,
+                    criterion,
+                    run_config.eval_iterations,
+                    device,
+                )
+            log_eval_metrics(results=metrics)
+            model.train()
+
+        if run_config.save_checkpoints:
+            checkpointer.save_checkpoint(iteration=iter_count, epoch=epoch)
+
+
+def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None):
+    if isinstance(config, dict):
+        config = JobSpec(**config)
+
     with wandb.init(
         project="kaggle-fast-or-slow",
         id=id,
         config={
-            "model": "SAGEMLP",
-            "resume": "allow",
-            "preprocessors": {
-                "graph": repr(graph_preprocessor),
-                "node": repr(node_preprocessor),
-                "config": repr(config_preprocessor),
-            },
-            "sage_layers": SAGE_LAYERS,
-            "sage_channels": SAGE_CHANNELS,
-            "linear_layers": LINEAR_LAYERS,
-            "linear_channels": LINEAR_CHANNELS,
-            "pooling": str(pooling),
-            "dropout": DROPOUT,
-            "global_features": GLOBAL_FEATURES,
-            "lr": LR,
-            "weight_decay": WEIGHT_DECAY,
-            "batch_size": BATCH_SIZE,
-            "num_workers": NUM_WORKERS,
-            "data_dir": DATA_DIRS,
-            "categories": CATEGORIES,
-            "amp": USE_AMP,
-            "loss": "margin_loss(actually)",
-            "job_type": "layout",
-            "subtype": "train",
-            "conv_type": CONV_TYPE,
+            **asdict(config),
         },
-        mode="online" if WANDB_LOG else "disabled",
-    ):
-        if CONV_TYPE == "gat":
-            kwargs = {"heads": GAT_HEADS}
-        else:
-            kwargs = None
+        mode="online" if config.wandb else "disabled",
+        resume="allow",
+    ) as run:
+        assert run is not None, "Wandb run is None"
 
-        model = GraphMLP(
-            graph_input_dim=GRAPH_DIM,
-            graph_layers=SAGE_LAYERS,
-            graph_channels=SAGE_CHANNELS,
-            linear_channels=LINEAR_CHANNELS,
-            linear_layers=LINEAR_LAYERS,
-            global_features_dim=GLOBAL_FEATURES,
-            dropout=DROPOUT,
-            pooling_fn=pooling,
-            pooling_feature_multiplier=4,  # 4 aggregators * 3 scales
-            graph_conv=CONV_TYPE,
-            graph_conv_kwargs=kwargs,
-        )
+        run_data = instantiate_from_spec(config)
 
-        model = model.to(device)
-        model = torch_geometric.compile(model)
-        optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-        # optim = torch.optim.SGD(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        #     optim,
-        #     max_lr=0.01,
-        #     total_steps=MAX_ITERS + 1,
-        #     pct_start=0.1,
-        # )
-        wandb.watch(model)
+        model = run_data.model
+        optim = run_data.optimizer
+        scheduler = run_data.scheduler
+        criterion = run_data.criterion
+
+        train_loader = run_data.train_loader
+        eval_loaders = run_data.eval_loaders
+
+        run_config = run_data.run_config
+
+        del run_data
+
+        model.to(device)
+        wandb.watch(model)  # type: ignore
 
         scaler = torch.cuda.amp.GradScaler(enabled=USE_AMP)  # type: ignore
-        avg_loss = 0
+        checkpointer = Checkpointer(
+            checkpoint_dir=f"models/{run.id}",  # type: ignore
+            model=model,
+            optimizer=optim,
+            scheduler=scheduler,
+            max_checkpoints=run_config.max_checkpoints,
+        )
 
-        heap: list[tuple[int, str]] = []
-        N = 5  # Number of recent checkpoints to keep
-        start_iter = 0
+        latest = checkpointer.get_most_recent_checkpoint()
 
-        checkpoint_dir = f"models/{wandb.run.id}"
-        os.makedirs(checkpoint_dir, exist_ok=True)
-
-        # Load Checkpoint
-        checkpoints = os.listdir(checkpoint_dir)
-        # Extract latest
-        if checkpoints:
-            sorted_checkpoints = sorted(
-                checkpoints, key=lambda x: int(x.split("_")[-1].split(".")[0])
-            )
-
-            most_recent_checkpoint = sorted_checkpoints[-1]
-            print("Loading checkpoint:", most_recent_checkpoint)
-
-            checkpoint = torch.load(
-                os.path.join(checkpoint_dir, most_recent_checkpoint)
-            )
-            model.load_state_dict(checkpoint["model_state_dict"])
-            optim.load_state_dict(checkpoint["optimizer_state_dict"])
-
-            start_iter = checkpoint["iteration"]
-            print("Resuming from iteration:", start_iter)
+        if latest is not None:
+            checkpointer.load_checkpoint(latest)
+            start_iter = latest["iteration"]
+            start_epoch = latest["epoch"]
         else:
-            print("No Checkpoint Found in:", checkpoint_dir)
-
-            # TODO: this is technically wrong, but it's fine for now
+            start_iter, start_epoch = 0, 0
 
         model.train()
-        for iter_count, batch in tqdm(
-            enumerate(loader, start=start_iter),
-            total=MAX_ITERS - start_iter,
-        ):
-            batch = batch.to(device)
-            if iter_count > MAX_ITERS:
-                break
+        for epoch in range(start_epoch, run_config.epochs):
+            run_full_epoch(
+                model=model,
+                criterion=criterion,
+                optim=optim,
+                scaler=scaler,
+                train_loader=train_loader,
+                eval_loaders=eval_loaders,
+                checkpointer=checkpointer,
+                run_config=run_config,
+                epoch=epoch,
+                start_iter=start_iter,
+                scheduler=scheduler,
+            )
 
-            # Zero Gradients, Perform a Backward Pass, Update Weights
-            with record_function("train_batch"):
-                batch_loss, output, y = train_batch(
+            # Run full validation at the end of each epoch
+            model.eval()
+            metrics = {}
+            for eval_type, eval_loader in eval_loaders.items():
+                metrics[eval_type] = evaluate(
                     model,
-                    batch,
-                    optim,
-                    scaler,
+                    eval_loader,
+                    criterion,
+                    len(eval_loader),
+                    device,
                 )
-
-                # scheduler.step()
-                avg_loss += batch_loss
-
-            if iter_count % LOG_INTERVAL == 0 and iter_count > 0:
-                avg_loss /= LOG_INTERVAL
-                print(f"Iteration {iter_count} | Avg Loss: {avg_loss}")
-                # also record the most recent outputs for examination
-                with torch.no_grad():
-                    cpu_output = output.cpu().flatten().numpy()
-                    cpu_y = y.cpu().flatten().numpy()
-                    ranked = get_rank(cpu_output)
-                    true_ranked = get_rank(cpu_y)
-
-                data = [
-                    (cpu_output[i], cpu_y[i], ranked[i], true_ranked[i])
-                    for i in range(len(cpu_output))
-                ]
-
-                kendall_tau = ss.kendalltau(ranked, true_ranked).correlation
-                if iter_count % LOG_TABLE_INTERVAL == 0:
-                    wandb.log(
-                        {
-                            "train_example": wandb.Table(
-                                columns=["output", "y", "predicted_rank", "true_rank"],
-                                data=data,
-                            ),
-                            "train_kendall_tau": kendall_tau,
-                            "train_loss": avg_loss,
-                        }
-                    )
-                else:
-                    wandb.log(
-                        {"train_kendall_tau": kendall_tau, "train_loss": avg_loss}
-                    )
-
-                avg_loss = 0
-
-            # Evaluation Loop and Checkpointing
-            if iter_count % EVAL_INTERVAL == 0 and iter_count > 0:
-                model.eval()
-                with record_function("evaluate"):
-                    random_eval_loss, random_kt, random_kt_std = evaluate(
-                        model, eval_loaders["random"], EVAL_ITERS, device
-                    )
-
-                    default_eval_loss, default_kt, default_kt_std = evaluate(
-                        model,
-                        eval_loaders["default"],
-                        EVAL_ITERS,
-                        device,
-                    )
-
-                wandb.log(
-                    {
-                        "random_val_loss": random_eval_loss,
-                        "default_val_loss": default_eval_loss,
-                        "random_kendall_tau": default_kt,
-                        "default_kendall_tau": random_kt,
-                        "avg_kendall_tau": (random_kt + default_kt) / 2,
-                        "avg_kendall_tau_std": (random_kt_std + default_kt_std) / 2,
-                        "avg_val_loss": (random_eval_loss + default_eval_loss) / 2,
-                    }
-                )
-
-                model.train()
-
-                if not SAVE_CHECKPOINTS:
-                    continue
-
-                checkpoint = {
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optim.state_dict(),
-                    "iteration": iter_count,
-                }
-
-                torch.save(
-                    checkpoint,
-                    os.path.join(checkpoint_dir, f"checkpoint_{iter_count}.pth"),
-                )
-
-                # Manage heap for N most recent checkpoints
-                if len(heap) < N:
-                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
-                else:
-                    _, oldest_checkpoint = heapq.heappop(heap)
-                    os.remove(os.path.join(checkpoint_dir, oldest_checkpoint))
-                    heapq.heappush(heap, (-iter_count, f"checkpoint_{iter_count}.pth"))
+            log_eval_metrics(results=metrics, is_full=True)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--id", type=str, default=None)
     args = parser.parse_args()
-    if PROFILE:
-        with profile(
-            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-            record_shapes=True,
-            profile_memory=True,
-        ) as prof:
-            run(id=args.id)
-
-        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-    else:
-        run(id=args.id)
+    run(id=args.id)

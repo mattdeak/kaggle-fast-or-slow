@@ -61,7 +61,8 @@ class OpcodeGroupOHEEmbedder:
         return group_opcodes
 
 
-def ohe_opcodes(opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
-    ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
-    ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
-    return ohe_opcodes
+class OpcodeOHEEmbedder:
+    def __call__(self, opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
+        ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
+        return ohe_opcodes

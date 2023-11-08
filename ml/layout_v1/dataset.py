@@ -70,7 +70,7 @@ class DataPostTransform(Protocol):
 
 
 class TargetTransform(Protocol):
-    def __call__(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
+    def __call__(self, y: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Perform a transform on the target. Return the transformed target."""
         ...
 
@@ -104,7 +104,7 @@ class GraphNumpyData:
 
 
 @dataclass
-class Transforms:
+class LayoutTransforms:
     node_transform: DataTransform | None = None
     opcode_transform: OpcodeEmbedder | None = None
     graph_transform: GraphTransform | None = None
@@ -147,18 +147,8 @@ class LayoutDataset(Dataset):
         mode: Literal["lazy", "memmapped"] = "memmapped",
         processed_dir: str | None = None,
         force_reload: bool = False,
-        node_pre_transform: DataTransform | None = None,
-        node_post_transform: DataTransform | None = None,
-        opcode_pre_transform: OpcodeEmbedder | None = None,
-        opcode_post_transform: OpcodeEmbedder | None = None,
-        graph_pre_transform: GraphTransform | None = None,
-        graph_post_transform: GraphTransform | None = None,
-        config_pre_transform: ConfigTransform | None = None,
-        config_post_transform: ConfigTransform | None = None,
-        global_pre_transform: GlobalTransform | None = None,
-        global_post_transform: GlobalTransform | None = None,
-        target_pre_transform: TargetTransform | None = None,
-        target_post_transform: TargetTransform | None = None,
+        pretransforms: LayoutTransforms | None = None,
+        posttransforms: LayoutTransforms | None = None,
         progress: bool = True,
     ):
         """Directories should be a list of directories to load from.
@@ -174,23 +164,8 @@ class LayoutDataset(Dataset):
         self.mode = mode
         self.force_reload = force_reload
 
-        self.pretransforms = Transforms(
-            node_transform=node_pre_transform,
-            opcode_transform=opcode_pre_transform,
-            graph_transform=graph_pre_transform,
-            config_transform=config_pre_transform,
-            global_transform=global_pre_transform,
-            target_transform=target_pre_transform,
-        )
-
-        self.posttransforms = Transforms(
-            node_transform=node_post_transform,
-            opcode_transform=opcode_post_transform,
-            graph_transform=graph_post_transform,
-            config_transform=config_post_transform,
-            global_transform=global_post_transform,
-            target_transform=target_post_transform,
-        )
+        self.pretransforms = pretransforms or LayoutTransforms()
+        self.posttransforms = posttransforms or LayoutTransforms()
 
         self.progress = progress
 
@@ -478,7 +453,7 @@ class LayoutDataset(Dataset):
         self,
         *,
         graph_data: GraphNumpyData,
-        transforms: Transforms,
+        transforms: LayoutTransforms,
     ) -> GraphNumpyData:
         # aliasing. unpacking is annoying cause type hints
         node_features = graph_data.node_features

@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 
@@ -89,6 +90,7 @@ def listMLE(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     return listmle_loss
 
 
+@torch.jit.script
 def listMLEalt(y_pred: torch.Tensor, y_true: torch.Tensor, eps: float = 1e-6):
     """
     ListMLE loss introduced in "Listwise Approach to Learning to Rank - Theory and Algorithm".
@@ -148,6 +150,16 @@ def get_combinations(
         ]
 
     return combinations
+
+
+class MarginLoss(torch.nn.Module):
+    def __init__(self, margin: float, n_permutations: int = 8):
+        super().__init__()
+        self.margin = margin
+        self.n_permutations = n_permutations
+
+    def __call__(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        return margin_loss(y_pred, y_true, self.margin, self.n_permutations)
 
 
 @torch.jit.script
