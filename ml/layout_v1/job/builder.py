@@ -261,7 +261,7 @@ def build_dataset(
         processed_dir=processed_directory,
         pretransforms=preprocessors,
         posttransforms=postprocessors,
-        multiprocess=True,
+        multiprocess=False,
     )
 
 
