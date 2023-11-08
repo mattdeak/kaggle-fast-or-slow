@@ -9,6 +9,7 @@ import numpy.typing as npt
 import torch
 from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
+from tqdm.contrib.concurrent import process_map
 
 
 class DataTransform(Protocol):
@@ -221,19 +222,15 @@ class LayoutDataset(Dataset):
         """Process all files in a directory."""
         files = os.listdir(raw_dir)
         if self.multiprocess:
-            with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
-                results = list(
-                    tqdm(
-                        executor.map(
-                            self.process_file,
-                            [raw_dir] * len(files),
-                            [os.path.join(raw_dir, f) for f in files],
-                            chunksize=len(files) // self.max_workers,
-                        ),
-                        total=len(files),
-                        disable=not self.progress,
-                    )
-                )
+            results = list(
+                process_map(
+                    self.process_file,
+                    [raw_dir] * len(files),
+                    [os.path.join(raw_dir, f) for f in files],
+                    chunksize=len(files) // self.max_workers,
+                    disable=not self.progress,
+                ),
+            )
         else:
             results: list[ProcessResult] = []
             for f in tqdm(files, disable=not self.progress):
