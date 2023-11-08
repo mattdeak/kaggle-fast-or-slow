@@ -514,6 +514,10 @@ class ConcatenatedDataset(Dataset):
         self.idx_groups = self.get_idx_groups()
         super().__init__()
 
+    def load(self):
+        for ds in self.datasets:
+            ds.load()
+
     def get_idx_groups(self):
         groups: list[list[int]] = []
         total_processed = 0
