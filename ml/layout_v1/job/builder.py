@@ -2,13 +2,15 @@ import os
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+import numpy as np
+import numpy.typing as npt
 import torch
 import torch.nn as nn
 from torch_geometric import torch_geometric
 from torch_geometric.loader import DataLoader
 
-from ml.layout_v1.dataset import (ConcatenatedDataset, LayoutDataset,
-                                  LayoutTransforms)
+from ml.layout_v1.dataset import (ConcatenatedDataset, DataTransform,
+                                  LayoutDataset, LayoutTransforms)
 from ml.layout_v1.job.constants import (CONFIG_PROCESSORS, CRITERIONS,
                                         GLOBAL_POOLINGS, GLOBAL_PROCESSORS,
                                         GRAPH_PROCESSORS, NODE_PROCESSORS,
@@ -60,11 +62,26 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         split="train",
     )
 
+    # Fit the preprocessors on the training data
+    # before they can be used on the validation data
+    if preprocessors.node_transform:
+        if hasattr(preprocessors.node_transform, "fit"):
+            preprocessors.node_transform = fit_node_processor(
+                train_data_directories, preprocessors.node_transform
+            )
+
+    if postprocessors.node_transform:
+        if hasattr(postprocessors.node_transform, "fit"):
+            postprocessors.node_transform = fit_node_processor(
+                train_data_directories, postprocessors.node_transform
+            )
+
     train_datasets = [
         build_dataset(d, spec.processed_directory, preprocessors, postprocessors)
         for d in train_data_directories
     ]
     train_dataset = ConcatenatedDataset(train_datasets)
+
     train_sampler = ConfigCrossoverBatchSampler(
         groups=train_dataset.idx_groups,
         batch_size=spec.batch_size,
@@ -244,3 +261,34 @@ def build_dataset(
         pretransforms=preprocessors,
         posttransforms=postprocessors,
     )
+
+
+def fit_node_processor(
+    directories: list[str], processor: DataTransform
+) -> DataTransform:
+    """This isn't the smartest way to do this, but whatever who knows
+    how long it'll even last.
+
+
+    We're just going to manually read and stack all node features,
+    then fit the processor on that.
+    """
+    assert hasattr(processor, "fit"), "Processor does not have a fit method"
+    print("Fitting node processor")
+
+    node_features: list[npt.NDArray[np.float_]] = []
+
+    for directory in directories:
+        files = os.listdir(directory)
+
+        # load npz
+        for f in files:
+            if f.endswith(".npz"):
+                d = np.load(os.path.join(directory, f))
+                nf = d["node_feat"]
+                node_features.append(nf)
+
+    node_features = np.vstack(node_features)  # type: ignore
+
+    processor.fit(node_features)
+    return processor

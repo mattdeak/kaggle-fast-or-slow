@@ -1,12 +1,8 @@
-from typing import Any, Literal
-
 import numpy as np
 import numpy.typing as npt
+from sklearn.preprocessing import StandardScaler  # type: ignore
 
 from lib.feature_name_mapping import NODE_FEATURE_IX_LOOKUP
-from ml.layout_v1.stats import (NLP_TRAIN_NODE_MEANS, NLP_TRAIN_NODE_STDEVS,
-                                NUMERIC_FEATURE_MASK, XLA_TRAIN_NODE_MEANS,
-                                XLA_TRAIN_NODE_STDEVS)
 
 EPSILON = 1e-4
 
@@ -14,30 +10,6 @@ EPSILON = 1e-4
 class NodeProcessor:
     NODE_FEAT_INDEX = np.arange(140)
     SHAPE_DIM_FEATURES = np.arange(21, 27)
-
-    def __init__(
-        self, dataset: Literal["xla", "nlp"], use_engineered_features: bool = True
-    ):
-        if dataset == "xla":
-            means, stdevs = (
-                XLA_TRAIN_NODE_MEANS[self.NODE_FEAT_INDEX],
-                XLA_TRAIN_NODE_STDEVS[self.NODE_FEAT_INDEX],
-            )
-        else:
-            means, stdevs = (
-                NLP_TRAIN_NODE_MEANS[self.NODE_FEAT_INDEX],
-                NLP_TRAIN_NODE_STDEVS[self.NODE_FEAT_INDEX],
-            )
-
-        self.use_engineered_features = use_engineered_features
-        self.dataset = dataset
-        self.drop_mask = stdevs == 0
-        self.norm_mask = np.logical_and(
-            ~self.drop_mask, NUMERIC_FEATURE_MASK[self.NODE_FEAT_INDEX]
-        )
-
-        self.mean = means[self.norm_mask]
-        self.std = stdevs[self.norm_mask]
 
     def __call__(
         self,
@@ -47,33 +19,20 @@ class NodeProcessor:
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
         # normalize node features. intersection of ~DROP_MASK and NUMERIC_FEATURE_MASK
         # Engineered features
-        if self.use_engineered_features:
-            engineered = np.hstack(
-                (
-                    self.calculate_shape_sparsity(x),
-                    self.dimensionality(x),
-                    self.stride_interactions(x),
-                    self.padding_proportions(x),
-                    self.effective_window(x),
-                    self.reversal_ratio(x),
-                )
+        engineered = np.hstack(
+            (
+                self.calculate_shape_sparsity(x),
+                self.dimensionality(x),
+                self.stride_interactions(x),
+                self.padding_proportions(x),
+                self.effective_window(x),
+                self.reversal_ratio(x),
             )
+        )
 
-            # log transform specific features
-            x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
-            x = x[:, ~self.drop_mask]
-            x = np.hstack((x, engineered))
-
-        # drop features if they have zero stdev on the train set and are numeric
-        else:
-            x = _log_transform_specific_features(x)
-            x[:, self.norm_mask] = (x[:, self.norm_mask] - self.mean) / self.std
-            x = x[:, ~self.drop_mask]
-
+        # log transform specific features
+        x = np.hstack((x, engineered))
         return x, edge_index, node_config_ids
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(dataset={self.dataset})"
 
     def calculate_shape_sparsity(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate shape sparsity of node features. This is the ratio of the"""
@@ -107,19 +66,63 @@ class NodeProcessor:
         return (x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)).reshape(-1, 1)
 
 
-# class NodeStandardizer:
-#     def __init__(
-#         self,
-#         run_log_transform: bool = True,
-#         drop_strategy: Literal["none", "auto"] = "auto",
-#     ):
-#         self.log_transform = log_transform
-#         self.drop_strategy = drop_strategy
+class NodeStandardizer:
+    def __init__(
+        self,
+        ohe_present_threshold: float = 0.1,
+    ):
+        self.ohe_present_threshold = ohe_present_threshold
+        self.standardizer = StandardScaler()
+        self._fitted = False
+
+    def fit(self, x: npt.NDArray[Any]) -> None:
+        """X is a nc x n x f array"""
+        # fit standardizer
+        if x.ndim == 3:
+            x = x.reshape(-1, x.shape[-1])
+
+        # Detect features with zero variance
+        drop_mask = np.var(x, axis=0) == 0
+
+        # Also features where they are clearly one-hot, but the ratio of the
+        # positive class is less than the threshold
+        features_are_only_zeros_or_ones = np.all(np.isin(x, [0, 1]), axis=0)
+        drop_mask = np.logical_or(
+            x[:, features_are_only_zeros_or_ones].mean(axis=0)
+            > self.ohe_present_threshold,
+            drop_mask,
+        )
+        self._drop_mask = drop_mask
+
+        # We need to re-map the log-transformed indices to the ones that are actually
+        # present after we drop
+        x = _log_transform_specific_features(x)
+
+        # log transform specific features
+        self.standardizer.fit(x[:, ~drop_mask])
+        self._fitted = True
+
+    def __call__(
+        self,
+        x: npt.NDArray[Any],
+        edge_index: npt.NDArray[Any],
+        node_config_ids: npt.NDArray[Any],
+    ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
+        if not self._fitted:
+            raise RuntimeError("Standardizer not fitted")
+
+        x = _log_transform_specific_features(x)
+        x = x[:, ~self._drop_mask]
+        x = self.standardizer.transform(x)
+
+        return (
+            x,
+            edge_index,
+            node_config_ids,
+        )
 
 
-def _log_transform_specific_features(
-    x: npt.NDArray[Any],
-) -> npt.NDArray[Any]:
+def _log_transform_specific_features(x: npt.NDArray[Any]) -> npt.NDArray[Any]:
     """These features are highly skewed"""
     # log transform feature 28, 120 (shape product, slice_dims_limit_product). this feature is highly skewed.
     x[:, [21, 22, 24, 27, 28, 44, 115, 120, 124, 127]] = np.log(
