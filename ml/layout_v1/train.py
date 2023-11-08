@@ -84,6 +84,7 @@ def evaluate(
     criterion: nn.Module,
     num_batches: int,
     device: str,
+    use_amp: bool = False,
 ) -> EvalMetrics:
     total_loss = 0
     num_iters = 0
@@ -96,7 +97,7 @@ def evaluate(
 
         eval_batch = eval_batch.to(device)
         try:
-            with torch.autocast(device_type=device, enabled=run_config.use_amp):  # type: ignore
+            with torch.autocast(device_type=device, enabled=use_amp):  # type: ignore
                 output = model(eval_batch)
                 y = eval_batch.y
                 # generate pairs for margin ranking loss
@@ -295,6 +296,7 @@ def run_full_epoch(
                     criterion,
                     run_config.eval_iterations,
                     device,
+                    use_amp=run_config.use_amp,
                 )
             log_eval_metrics(results=metrics)
             model.train()
@@ -376,6 +378,7 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
                     criterion,
                     len(eval_loader),
                     device,
+                    use_amp=run_config.use_amp,
                 )
             log_eval_metrics(results=metrics, is_full=True)
 
