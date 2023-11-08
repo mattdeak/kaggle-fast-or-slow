@@ -101,10 +101,12 @@ class NodeStandardizer:
 
         # Also features where they are clearly one-hot, but the ratio of the
         # positive class is less than the threshold
-        features_are_only_zeros_or_ones = np.all(np.isin(x, [0, 1]), axis=0)
+        ohe_threshold = np.all(np.isin(x, [0, 1]), axis=0) & (
+            x.mean(axis=0) < self.ohe_present_threshold
+        )
+
         drop_mask = np.logical_or(
-            x[:, features_are_only_zeros_or_ones].mean(axis=0)
-            > self.ohe_present_threshold,
+            ohe_threshold,
             drop_mask,
         )
         self._drop_mask = drop_mask
