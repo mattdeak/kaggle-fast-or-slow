@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import torch.nn as nn
+from pydantic import BaseModel
 from torch_geometric.loader import DataLoader
 
 from ml.layout_v1.dataset import (ConcatenatedDataset, ConfigTransform,
@@ -27,8 +28,7 @@ from ml.layout_v1.preprocessors.target_preproc import LogTargetTransform
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
 
-@dataclass(frozen=True)
-class ProcessorSpec:
+class ProcessorSpec(BaseModel):
     graph: GraphProcessorName | None = "config-communities"
     graph_kwargs: dict[str, Any] = {"hops": 2}
 
@@ -48,8 +48,7 @@ class ProcessorSpec:
     target_kwargs: dict[str, Any] = {}
 
 
-@dataclass(frozen=True)
-class JobSpec:
+class JobSpec(BaseModel):
     """Configuration for a training/evaluation job.
 
 
