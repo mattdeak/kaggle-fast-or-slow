@@ -147,6 +147,7 @@ class ConfigFeatureGenerator:
 
         # Sum over the last axis to get the count of contiguous elements, ignoring NaNs
         contiguity_count = np.nansum(contiguity_mask, axis=-1)
+        contiguity_count = np.nan_to_num(contiguity_count)
 
         return contiguity_count
 
