@@ -326,6 +326,10 @@ class LayoutDataset(Dataset):
             graph_data.node_config_ids
         ] = graph_data.config_features
 
+        # we need opcode embeds to be 2d, can sometimes be 1d
+        if graph_data.opcode_embeds.ndim == 1:
+            graph_data.opcode_embeds = graph_data.opcode_embeds[np.newaxis, :]
+
         all_features = np.concatenate(
             [
                 graph_data.node_features,
