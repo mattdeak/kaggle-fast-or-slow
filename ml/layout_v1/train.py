@@ -64,7 +64,7 @@ DEFAULT_CONFIG = JobSpec(
         graph=None,
         node=None,
         config=None,
-        opcode="group-ohe-embedder",
+        opcode="ohe",
         global_=None,
         target=None,
     ),
