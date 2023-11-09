@@ -377,7 +377,7 @@ class LayoutDataset(Dataset):
 
         np.save(
             os.path.join(target_file_path, self.OPCODE_EMBEDDINGS_FILE),
-            graph_data.opcode_embeds.astype(np.float32),
+            graph_data.opcode_embeds,
         )
 
         np.save(
