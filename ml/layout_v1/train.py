@@ -1,7 +1,6 @@
 import argparse
-import heapq
-import os
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
+from pprint import pprint
 from typing import Any, cast
 
 import numpy as np
@@ -311,6 +310,8 @@ def run_full_epoch(
 def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None):
     if isinstance(config, dict):
         config = JobSpec(**config)
+
+    pprint(config.model_dump())
 
     run_data = instantiate_from_spec(config)
     with wandb.init(
