@@ -329,8 +329,8 @@ class LayoutDataset(Dataset):
         all_features = np.concatenate(
             [
                 graph_data.node_features,
-                graph_data.opcode_embeds,
                 processed_config_features,
+                graph_data.opcode_embeds,
             ],
             axis=1,
             dtype=np.float32,
