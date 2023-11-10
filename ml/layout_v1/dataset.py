@@ -12,6 +12,8 @@ from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
 from tqdm.contrib.concurrent import process_map
 
+from ml.layout_v1.preprocessors.graph_preproc import GraphTransform
+
 
 class DataTransform(Protocol):
     def __call__(
@@ -20,18 +22,6 @@ class DataTransform(Protocol):
         edge_index: npt.NDArray[Any],
         node_config_ids: npt.NDArray[Any],
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
-        """Perform a transform on the data (features or edges or both). Return the transformed data."""
-        ...
-
-
-class GraphTransform(Protocol):
-    def __call__(
-        self,
-        node_features: npt.NDArray[Any],
-        opcodes: npt.NDArray[Any],
-        edge_index: npt.NDArray[Any],
-        node_config_ids: npt.NDArray[Any],
-    ) -> tuple[npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any], npt.NDArray[Any]]:
         """Perform a transform on the data (features or edges or both). Return the transformed data."""
         ...
 
@@ -63,14 +53,6 @@ class GlobalTransform(Protocol):
         ...
 
 
-class DataPostTransform(Protocol):
-    def __call__(
-        self, x: torch.Tensor, edge_index: torch.Tensor, node_config_ids: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Perform a transform on the data (features or edges or both). Return the transformed data."""
-        ...
-
-
 class TargetTransform(Protocol):
     def __call__(self, y: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Perform a transform on the target. Return the transformed target."""
@@ -90,6 +72,9 @@ class GraphNumpyData:
     config_features: npt.NDArray[Any]
     config_runtime: npt.NDArray[Any]
     global_features: npt.NDArray[Any] | None = None
+    edge_index_alt: npt.NDArray[Any] | None = None
+    edge_index_attr: npt.NDArray[Any] | None = None
+    edge_index_alt_attr: npt.NDArray[Any] | None = None
 
     def __iter__(self):
         return iter(
@@ -131,6 +116,9 @@ class LayoutDataset(Dataset):
     NODE_FEATURES_FILE = "node_feat.npy"
     OPCODE_EMBEDDINGS_FILE = "node_opcode.npy"
     EDGE_INDEX_FILE = "edge_index.npy"
+    EDGE_INDEX_ALT_FILE = "edge_index_alt.npy"
+    EDGE_INDEX_ATTR_FILE = "edge_index_attr.npy"
+    EDGE_INDEX_ALT_ATTR_FILE = "edge_index_alt_attr.npy"
     CONFIG_FEATURES_FILE = "node_config_feat.npy"
     NODE_IDS_FILE = "node_config_ids.npy"
     CONFIG_RUNTIME_FILE = "config_runtime.npy"
@@ -341,14 +329,34 @@ class LayoutDataset(Dataset):
         )
 
         global_features = None
+        edge_index_attr = None
+        edge_index_alt = None
+        edge_index_alt_attr = None
+
         if graph_data.global_features is not None:
             global_features = torch.from_numpy(graph_data.global_features)
+
+        if graph_data.edge_index_attr is not None:
+            edge_index_attr = torch.from_numpy(
+                graph_data.edge_index_attr
+            ).T.contiguous()
+
+        if graph_data.edge_index_alt is not None:
+            edge_index_alt = torch.from_numpy(graph_data.edge_index_alt).T.contiguous()
+
+        if graph_data.edge_index_alt_attr is not None:
+            edge_index_alt_attr = torch.from_numpy(
+                graph_data.edge_index_alt_attr,
+            ).T.contiguous()
 
         return Data(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
+            edge_index_alt=edge_index_alt,
+            edge_index_attr=edge_index_attr,
+            edge_index_alt_attr=edge_index_alt_attr,
         )
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
@@ -400,10 +408,26 @@ class LayoutDataset(Dataset):
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
             graph_data.config_runtime.astype(np.int64),
         )
+
         if graph_data.global_features is not None:
             np.save(
                 os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
                 graph_data.global_features.astype(np.float32),
+            )
+        if graph_data.edge_index_alt is not None:
+            np.save(
+                os.path.join(target_file_path, self.EDGE_INDEX_ALT_FILE),
+                graph_data.edge_index_alt.astype(np.int64),
+            )
+        if graph_data.edge_index_attr is not None:
+            np.save(
+                os.path.join(target_file_path, self.EDGE_INDEX_ATTR_FILE),
+                graph_data.edge_index_attr.astype(np.int64),
+            )
+        if graph_data.edge_index_alt_attr is not None:
+            np.save(
+                os.path.join(target_file_path, self.EDGE_INDEX_ALT_ATTR_FILE),
+                graph_data.edge_index_alt_attr.astype(np.int64),
             )
 
     def extract_from_npz(self, idx: int) -> GraphNumpyData:
@@ -439,6 +463,14 @@ class LayoutDataset(Dataset):
             os.path.join(file_path, self.EDGE_INDEX_FILE),
         )
 
+        alternate_edge_index = np.load(
+            os.path.join(file_path, self.EDGE_INDEX_ALT_FILE),
+        )
+
+        alternate_edge_index_attr = np.load(
+            os.path.join(file_path, self.EDGE_INDEX_ALT_ATTR_FILE),
+        )
+
         node_config_ids = np.load(
             os.path.join(file_path, self.NODE_IDS_FILE),
         )
@@ -471,6 +503,8 @@ class LayoutDataset(Dataset):
             config_features=config_features,
             config_runtime=config_runtime,
             global_features=global_features,
+            edge_index_alt=alternate_edge_index,
+            edge_index_alt_attr=alternate_edge_index_attr,
         )
 
     def apply_transforms(
@@ -487,16 +521,23 @@ class LayoutDataset(Dataset):
         config_features = graph_data.config_features
         config_runtime = graph_data.config_runtime
         global_features = graph_data.global_features
+        edge_index_alt = graph_data.edge_index_alt
+        edge_index_attr = graph_data.edge_index_attr
+        edge_index_alt_attr = graph_data.edge_index_alt_attr
 
         if transforms.graph_transform:
-            (
-                node_features,
-                opcodes,
-                edge_index,
-                node_config_ids,
-            ) = transforms.graph_transform(
+            gt = transforms.graph_transform(
                 node_features, opcodes, edge_index, node_config_ids
             )
+
+            node_features = gt.node_features
+            opcodes = gt.opcodes
+            edge_index = gt.edge_index
+            node_config_ids = gt.node_config_ids
+
+            edge_index_alt = gt.alternate_edge_index
+            edge_index_attr = gt.edge_index_attr
+            edge_index_alt_attr = gt.alternate_edge_index_attr
 
         if transforms.node_transform:
             node_features, edge_index, node_config_ids = transforms.node_transform(
@@ -521,10 +562,13 @@ class LayoutDataset(Dataset):
             node_features=node_features,
             opcode_embeds=opcodes,
             edge_index=edge_index,
+            edge_index_alt=edge_index_alt,
+            edge_index_attr=edge_index_attr,
             node_config_ids=node_config_ids,
             config_features=config_features,
             config_runtime=config_runtime,
             global_features=global_features,
+            edge_index_alt_attr=edge_index_alt_attr,
         )
 
 

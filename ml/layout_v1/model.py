@@ -80,6 +80,70 @@ class GATBlock(nn.Module):
         return d.update(new_data)
 
 
+class MultiEdgeGATBlock(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        heads: int = 4,
+        with_residual: bool = True,
+        dropout: float = 0.5,
+        alternate_edge_index_key: str = "edge_index_2",
+    ):
+        super().__init__()
+
+        self.alternate_edge_index_key = alternate_edge_index_key
+        output_dim_per_block = output_dim // 2
+
+        self.main_edge_block = GATBlock(
+            input_dim,
+            output_dim_per_block,
+            heads=heads,
+            with_residual=with_residual,
+            dropout=dropout,
+        )
+
+        self.alternate_edge_block = GATBlock(
+            input_dim,
+            output_dim_per_block,
+            heads=heads,
+            with_residual=with_residual,
+            dropout=dropout,
+        )
+
+        self.norm = nn.LayerNorm(output_dim)
+
+    def forward(self, data: Data):
+        main_edge_index = data.edge_index
+        alternate_edge_index = data[self.alternate_edge_index_key]
+
+        main_edge_data = Data(
+            x=data.x,
+            edge_index=main_edge_index,
+            batch=data.batch,
+        )
+
+        alternate_edge_data = Data(
+            x=data.x,
+            edge_index=alternate_edge_index,
+            batch=data.batch,
+        )
+
+        main_edge_data = self.main_edge_block(main_edge_data)
+        alternate_edge_data = self.alternate_edge_block(alternate_edge_data)
+
+        f = torch.cat([main_edge_data.x, alternate_edge_data.x], dim=1)
+        f = self.norm(f)
+
+        new_data = Data(
+            x=f,
+            edge_index=main_edge_index,
+            batch=data.batch,
+        )
+
+        return data.update(new_data)
+
+
 class LinearBlock(nn.Module):
     def __init__(
         self,
@@ -120,13 +184,20 @@ class GraphMLP(nn.Module):
         pooling_feature_multiplier: int = 1,
         graph_conv: Literal["sage", "gat"] = "sage",
         graph_conv_kwargs: dict[str, Any] | None = None,
+        use_multi_edge: bool = False,
     ):
         super().__init__()
 
         self.pooling_fn = pooling_fn
         self.gcns = nn.ModuleList()
 
-        conv = SAGEBlock if graph_conv == "sage" else GATBlock
+        if use_multi_edge:
+            if graph_conv == "sage":
+                raise ValueError("Multi-edge SAGE is not supported yet")
+
+            conv = MultiEdgeGATBlock
+        else:
+            conv = SAGEBlock if graph_conv == "sage" else GATBlock
         block = conv(
             graph_input_dim,
             dropout=dropout,

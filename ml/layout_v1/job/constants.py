@@ -1,25 +1,19 @@
-import os
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 import torch
 import torch.nn as nn
-from torch_geometric.loader import DataLoader
 from torch_geometric.nn import (global_add_pool, global_max_pool,
-                                global_mean_pool, global_sort_pool)
+                                global_mean_pool)
 
-from ml.layout_v1.dataset import (ConcatenatedDataset, ConfigTransform,
-                                  DataTransform, GlobalTransform,
-                                  GraphTransform, LayoutDataset,
-                                  LayoutTransforms, OpcodeEmbedder,
-                                  TargetTransform)
-from ml.layout_v1.losses import ListMLELoss, MarginLoss, listMLEalt
+from ml.layout_v1.dataset import (ConfigTransform, DataTransform,
+                                  GlobalTransform, GraphTransform,
+                                  OpcodeEmbedder, TargetTransform)
+from ml.layout_v1.losses import ListMLELoss, MarginLoss
 from ml.layout_v1.pooling import multi_agg
 from ml.layout_v1.preprocessors.config_preproc import ConfigFeatureGenerator
 from ml.layout_v1.preprocessors.global_preproc import GlobalFeatureGenerator
-from ml.layout_v1.preprocessors.graph_preproc import \
-    ConfigNodeCommunityPreprocessor
+from ml.layout_v1.preprocessors.graph_preproc import GraphProcessor
 from ml.layout_v1.preprocessors.node_preproc import NodeProcessor
 from ml.layout_v1.preprocessors.opcode_preproc import (OpcodeGroupOHEEmbedder,
                                                        OpcodeOHEEmbedder)
@@ -44,7 +38,7 @@ CriterionName = Literal["listMLE", "margin-loss"]
 GlobalPoolingName = Literal["mean", "max", "sum", "multi"]
 
 GRAPH_PROCESSORS: dict[GraphProcessorName, type[GraphTransform]] = {
-    "config-communities": ConfigNodeCommunityPreprocessor,
+    "config-communities": GraphProcessor,
 }
 
 NODE_PROCESSORS: dict[NodeProcessorName, type[DataTransform]] = {
