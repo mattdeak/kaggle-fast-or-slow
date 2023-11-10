@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -135,30 +135,25 @@ class ConfigMetaGraph:
         g.add_edges_from(edge_index)
 
         # Get the shortest path lengths between all pairs of nodes.
-        shortest_path_lengths = dict(nx.all_pairs_shortest_path_length(g))
 
         # Construct the additional edge index.
         new_edge_index: list[tuple[int, int]] = []
-        new_edge_weights: list[int] = []
-        for i, n1 in enumerate(node_config_ids):
-            for j, n2 in enumerate(node_config_ids):
-                if i == j:
+        new_edge_weights: list[float] = []
+        for n in node_config_ids:
+            for m in node_config_ids:
+                #  get the shortest path length between the two nodes
+                try:
+                    path_length: int = cast(int, nx.shortest_path_length(g, n, m))
+                    if path_length == 0:
+                        continue
+
+                    new_edge_index.append((n, m))
+                    new_edge_weights.append(
+                        1 / path_length
+                    ) if self.normalize_by_hops else new_edge_weights.append(1)
+
+                except nx.NetworkXNoPath:
                     continue
-
-                if n1 == n2:
-                    new_edge_index.append((i, j))
-                    continue
-
-                if n2 not in shortest_path_lengths[n1]:
-                    continue
-
-                if self.normalize_by_hops:
-                    weight = 1 / shortest_path_lengths[n1][n2]
-                else:
-                    weight = 1
-
-                new_edge_index.append((i, j))
-                new_edge_weights.append(weight)
 
         return np.array(new_edge_index), np.array(new_edge_weights)
 
@@ -189,11 +184,18 @@ def remap_edges(
     """Remaps the edge index to the new node ids.
     Args:
         edge_index: The edge index in COO (e x 2)
-        node_mapping: The mapping from old node ids to new node ids (n)
+        node_mapping: The mapping from old node ids to new node ids (n). Not all nodes in the edge index are guaranteed to be in the node mapping.
+                        In this case, we remove the edge from the edge index.
     Returns:
         The remapped edge index in COO (e x 2)
     """
-    new_edge_index = edge_index.copy()
+    # We can only remap the edge index if both nodes are in the node mapping.
+    # Otherwise, we remove the edge.
+    new_edge_index = edge_index[
+        np.isin(edge_index[:, 0], node_mapping)
+        & np.isin(edge_index[:, 1], node_mapping),
+        :,
+    ]
 
     for i, n in enumerate(node_mapping):
         new_edge_index[new_edge_index == n] = i
