@@ -203,7 +203,7 @@ def remap_edges(
 
     new_edge_index_attr = None
     if edge_index_attr is not None:
-        new_edge_index_attr = edge_index_attr[ix:,]
+        new_edge_index_attr = edge_index_attr[ix]
 
     for i, n in enumerate(node_mapping):
         new_edge_index[new_edge_index == n] = i

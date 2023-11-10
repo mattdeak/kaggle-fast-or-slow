@@ -1,7 +1,6 @@
 import hashlib
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
@@ -328,6 +327,7 @@ class LayoutDataset(Dataset):
             dtype=np.float32,
         )
 
+        # Load optional features
         global_features = None
         edge_index_attr = None
         edge_index_alt = None
