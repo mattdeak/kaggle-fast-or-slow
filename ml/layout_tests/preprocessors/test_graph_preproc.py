@@ -30,6 +30,36 @@ def test_config_meta_graph():
     np.testing.assert_array_equal(weights, expected_weights)
 
 
+def test_config_meta_graph_interrupted_path():
+    edge_index = np.array(
+        [
+            [0, 1],
+            [0, 2],
+            [1, 2],
+            [2, 3],
+            [2, 4],
+            [1, 5],
+            [3, 7],
+            [4, 6],
+            [5, 6],
+            [6, 7],
+            [7, 8],
+            [5, 8],
+            [8, 9],
+        ]
+    )
+    node_config_ids = np.array([0, 3, 6, 8])
+    config_graph = ConfigMetaGraph()
+    new_edge_index, weights = config_graph(edge_index, node_config_ids)
+    expected_edge_index = np.array(
+        [[0, 3], [0, 6], [0, 8], [3, 8], [6, 8]]
+    )  # Expected output
+    expected_weights = np.array([1 / 2, 1 / 3, 1 / 3, 1 / 2, 1 / 2])  # Expected output
+
+    np.testing.assert_array_equal(new_edge_index, expected_edge_index)
+    np.testing.assert_array_equal(weights, expected_weights)
+
+
 def test_remap_nodes():
     node_features = np.array(
         [[0, 1], [1, 2], [1, 3], [2, 4], [2, 5], [3, 6], [5, 7], [6, 8]]

@@ -88,11 +88,9 @@ class MultiEdgeGATBlock(nn.Module):
         heads: int = 4,
         with_residual: bool = True,
         dropout: float = 0.5,
-        alternate_edge_index_key: str = "edge_index_2",
     ):
         super().__init__()
 
-        self.alternate_edge_index_key = alternate_edge_index_key
         output_dim_per_block = output_dim // 2
 
         self.main_edge_block = GATBlock(
@@ -114,8 +112,9 @@ class MultiEdgeGATBlock(nn.Module):
         self.norm = nn.LayerNorm(output_dim)
 
     def forward(self, data: Data):
-        main_edge_index = data.edge_index
-        alternate_edge_index = data[self.alternate_edge_index_key]
+        alternate_edge_mask = data[self.alternate_edge_mask_key]
+        main_edge_index = data.edge_index[:, ~alternate_edge_mask]
+        alternate_edge_index = data.edge_index[:, alternate_edge_mask]
 
         main_edge_data = Data(
             x=data.x,

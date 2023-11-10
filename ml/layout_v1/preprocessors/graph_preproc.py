@@ -12,9 +12,8 @@ class GraphTransformReturnType:
     opcodes: npt.NDArray[Any]
     edge_index: npt.NDArray[Any]
     node_config_ids: npt.NDArray[Any]
-    alternate_edge_index: npt.NDArray[Any]
     edge_index_attr: npt.NDArray[Any] | None = None
-    alternate_edge_index_attr: npt.NDArray[Any] | None = None
+    edge_index_alt_mask: npt.NDArray[Any] | None = None
 
 
 # Node Features, Opcodes, Edge Index, Node Config Ids, Alternate Edge Index
@@ -72,14 +71,20 @@ class GraphProcessor:
         )
         node_features, opcodes = remap_nodes(node_features, opcodes, node_mapping)
 
+        total_edge_index = np.concatenate(
+            [new_edge_index, alternate_edge_index], axis=0
+        )
+
+        alt_edge_mask = np.zeros(total_edge_index.shape[0], dtype=np.bool_)
+        alt_edge_mask[new_edge_index.shape[0] :] = True
+
         return GraphTransformReturnType(
             node_features=node_features,
             opcodes=opcodes,
             edge_index=new_edge_index,
             node_config_ids=node_config_ids,
-            alternate_edge_index=alternate_edge_index,
             edge_index_attr=None,
-            alternate_edge_index_attr=alternate_edge_index_attr,
+            edge_index_alt_mask=alt_edge_mask,
         )
 
     def __repr__(self) -> str:
@@ -124,8 +129,12 @@ class ConfigMetaGraph:
     def __call__(
         self, edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
     ) -> tuple[npt.NDArray[Any], npt.NDArray[Any]]:
-        """Create an additional edge index that connects configurable nodes weighted by the reciprocal of the number of
-        hops between them.
+        """Create an additional edge index that connects configurable nodes weighted, optionally weighted by the reciprocal of the number of
+        hops between them. Only nodes that have an uninterrupted path between them are connected.
+
+        Interruption is defined as a node in the path that is configurable.
+
+
         Args:
             edge_index: The edge index in COO (e x 2)
             node_config_ids: The node config ids (nc). Each node config corresponds to a node in the graph where the id is the index of the node.
@@ -136,23 +145,28 @@ class ConfigMetaGraph:
         g = nx.DiGraph()
         g.add_edges_from(edge_index)
 
-        # Get the shortest path lengths between all pairs of nodes.
+        # Convert node_config_ids to a set for efficient lookups
+        configurable_nodes = set(node_config_ids)
 
-        # Construct the additional edge index.
         new_edge_index: list[tuple[int, int]] = []
         new_edge_weights: list[float] = []
+
         for n in node_config_ids:
             for m in node_config_ids:
-                #  get the shortest path length between the two nodes
-                try:
-                    path_length: int = cast(int, nx.shortest_path_length(g, n, m))
-                    if path_length == 0:
-                        continue
+                if n == m:
+                    continue  # Skip self-loops
 
+                try:
+                    path = nx.shortest_path(g, n, m)
+                    # Check if path has any configurable nodes as interruptions
+                    if any(node in configurable_nodes for node in path[1:-1]):
+                        continue  # Skip path with interruptions
+
+                    path_length = len(path) - 1
                     new_edge_index.append((n, m))
                     new_edge_weights.append(
-                        1 / path_length
-                    ) if self.normalize_by_hops else new_edge_weights.append(1)
+                        1 / path_length if self.normalize_by_hops else 1
+                    )
 
                 except nx.NetworkXNoPath:
                     continue
