@@ -148,6 +148,8 @@ class ConfigMetaGraph:
         # Convert node_config_ids to a set for efficient lookups
         configurable_nodes = set(node_config_ids)
 
+        all_shortest_paths = dict(nx.all_pairs_shortest_path(g))
+
         new_edge_index: list[tuple[int, int]] = []
         new_edge_weights: list[float] = []
 
@@ -157,7 +159,9 @@ class ConfigMetaGraph:
                     continue  # Skip self-loops
 
                 try:
-                    path = nx.shortest_path(g, n, m)
+                    path = all_shortest_paths[n].get(m, None)
+                    if not path:
+                        continue
                     # Check if path has any configurable nodes as interruptions
                     if any(node in configurable_nodes for node in path[1:-1]):
                         continue  # Skip path with interruptions
