@@ -2,9 +2,7 @@ import numpy as np
 import pytest
 
 from ml.layout_v1.preprocessors import (CommunityNodeRemapper, ConfigMetaGraph,
-                                        GraphProcessor,
-                                        GraphTransformReturnType, remap_edges,
-                                        remap_nodes)
+                                        remap_edges, remap_nodes)
 
 
 def test_community_node_remapper_1hop():
