@@ -340,7 +340,7 @@ class LayoutDataset(Dataset):
 
         if graph_data.edge_index_alt_mask is not None:
             edge_index_alt_mask = torch.from_numpy(graph_data.edge_index_alt_mask).to(
-                torch.bool
+                torch.uint8
             )
 
         data = Data(
@@ -349,10 +349,10 @@ class LayoutDataset(Dataset):
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
             edge_index_attr=edge_index_attr,
+            edge_index_alt_mask=edge_index_alt_mask,
         )
 
         # I think this is a bug in torch_geometric, but it's not a big deal
-        data.edge_index_alt_mask = edge_index_alt_mask.reshape(1, -1)
 
         return data
 
