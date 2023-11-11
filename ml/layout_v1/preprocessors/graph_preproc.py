@@ -149,10 +149,8 @@ class ConfigMetaGraph:
                 for pred in predecessors:
                     for succ in successors:
                         if pred != succ and not g.has_edge(pred, succ):
-                            print("Adding edge", pred, succ)
                             g.add_edge(pred, succ)
                 # Remove the non-configurable node
-                print("Removing node", node)
                 g.remove_node(node)
 
         # Lookup distances between neighbors
