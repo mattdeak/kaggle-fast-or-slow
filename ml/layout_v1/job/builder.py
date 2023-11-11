@@ -103,6 +103,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     # This is obviously bad, but who cares this code lasts for another week.
     train_datasets: list[LayoutDataset] = []
     valid_datasets: dict[str, LayoutDataset] = {}
+
+    # Set up the global preprocessors
     for ds_type, ds_subtypes in train_data_directories.items():
         for ds_subtype, ds_dir in ds_subtypes.items():
             global_preprocessor = (
@@ -157,6 +159,16 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                 ds_preprocessors,
                 ds_postprocessors,
             )
+
+    # Check to make sure that the x dimensions are the same
+    # for all datasets
+    x_dims = set()
+    for ds in train_datasets:
+        x_dims.add(ds.get(0).x.shape[1])
+
+    assert (
+        len(x_dims) == 1
+    ), f"X dimensions are not the same for all datasets. Found {x_dims}"
 
     train_dataset = ConcatenatedDataset(train_datasets)
 
