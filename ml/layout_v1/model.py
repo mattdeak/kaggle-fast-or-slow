@@ -137,7 +137,6 @@ class MultiEdgeGATBlock(nn.Module):
 
         new_data = Data(
             x=f,
-            edge_index=main_edge_index,
             batch=data.batch,
         )
 
