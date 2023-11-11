@@ -64,13 +64,15 @@ def get_file_id(file_path: str) -> str:
 
 class EdgeMaskData(Data):
     def __inc__(self, key, value, *args, **kwargs):  # type: ignore
-        if "edge_mask" in key:
+        if key == "edge_mask":
             return 0
+
         return super().__inc__(key, value, *args, **kwargs)  # type: ignore
 
     def __cat_dim__(self, key, value, *args, **kwargs):  # type: ignore
-        if "edge_mask" in key:
+        if key == "edge_mask":
             return 1
+
         return super().__inc__(key, value, *args, **kwargs)  # type: ignore
 
 
