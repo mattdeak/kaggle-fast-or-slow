@@ -71,7 +71,7 @@ class EdgeMaskData(Data):
 
     def __cat_dim__(self, key, value, *args, **kwargs):  # type: ignore
         if key == "edge_mask":
-            return 1
+            return 0
 
         return super().__cat_dim__(key, value, *args, **kwargs)  # type: ignore
 
