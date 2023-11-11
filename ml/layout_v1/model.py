@@ -96,6 +96,7 @@ class GATBlock(nn.Module):
 class MultiEdgeGATBlock(nn.Module):
     def __init__(
         self,
+        *,
         input_dim: int,
         output_dim: int,
         heads: int = 4,
@@ -322,8 +323,8 @@ class GraphMLP(nn.Module):
         ) -> MultiEdgeGATBlock | SAGEBlock | GATBlock:
             if use_multi_edge:
                 return MultiEdgeGATBlock(
-                    input_dim,
-                    graph_channels,
+                    input_dim=input_dim,
+                    output_dim=graph_channels,
                     dropout=dropout,
                     with_residual=with_residual,
                     main_block=main_block,

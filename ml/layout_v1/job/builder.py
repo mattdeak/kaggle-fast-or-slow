@@ -202,6 +202,9 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     num_features = train_dataset.get(0).x.shape[1]
     num_global_features = train_dataset.get(0).global_features.shape[0]
 
+    print("Num Features: ", num_features)
+    print("Num Global Features: ", num_global_features)
+
     model = GraphMLP(
         graph_input_dim=num_features,
         global_features_dim=num_global_features,
