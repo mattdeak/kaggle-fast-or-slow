@@ -174,6 +174,9 @@ class MultiEdgeGATBlock(nn.Module):
         print(f"Main edge index head: {main_edge_data.edge_index[:, :5]}")
         print(f"Alt edge index head: {alternate_edge_data.edge_index[:, :5]}")
 
+        print(f"Main edge index tail: {main_edge_data.edge_index[:, -5:]}")
+        print(f"Alt edge index tail: {alternate_edge_data.edge_index[:, -5:]}")
+
         main_edge_data = self.main_edge_block(main_edge_data)
         alternate_edge_data = self.alternate_edge_block(alternate_edge_data)
 
