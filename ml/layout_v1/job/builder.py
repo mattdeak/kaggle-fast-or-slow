@@ -221,6 +221,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         alt_block=spec.alt_block,
     )
     # model = torch_geometric.compile(model)  # type: ignore
+    print(model)
     model = cast(GraphMLP, model)  # technically no, but it's fine
 
     optimizer = OPTIMIZERS[spec.optimizer](model.parameters(), **spec.optimizer_kwargs)
