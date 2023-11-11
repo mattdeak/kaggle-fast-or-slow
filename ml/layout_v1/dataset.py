@@ -352,7 +352,7 @@ class LayoutDataset(Dataset):
         )
 
         # I think this is a bug in torch_geometric, but it's not a big deal
-        data.edge_index_alt_mask = edge_index_alt_mask
+        data.edge_index_alt_mask = edge_index_alt_mask.reshape(1, -1)
 
         return data
 
