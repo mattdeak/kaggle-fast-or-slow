@@ -113,7 +113,7 @@ class MultiEdgeGATBlock(nn.Module):
         self.output_dim = output_dim
 
     def forward(self, data: Data):
-        alternate_edge_mask = data.edge_index_alt_mask.to(torch.bool)
+        alternate_edge_mask = data.edge_index_alt_mask
         main_edge_index = data.edge_index[:, ~alternate_edge_mask]
         alternate_edge_index = data.edge_index[:, alternate_edge_mask]
 
