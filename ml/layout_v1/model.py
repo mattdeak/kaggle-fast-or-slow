@@ -105,6 +105,11 @@ class MultiEdgeGATBlock(nn.Module):
         main_block: Literal["gat", "sage"] = "gat",
         alt_block: Literal["gat", "sage"] = "sage",
     ):
+        """A block that applies two different edge convolutions to the graph, and then
+        concatenates the results together. Uses an edge mask to determine which edges
+        to apply the main block to, and which to apply the alternate block to.
+        """
+
         super().__init__()
 
         output_dim_per_block = output_dim // 2
@@ -224,7 +229,7 @@ class GraphMLP(nn.Module):
         pooling_feature_multiplier: int = 1,
         graph_conv: Literal["sage", "gat"] = "sage",
         graph_conv_kwargs: dict[str, Any] | None = None,
-        use_multi_edge: bool = False,
+        use_multi_edge: bool = True,
         graph_norm: Literal["graph", "layer"] = "graph",
         linear_norm: Literal["layer", "batch"] = "layer",
         main_block: Literal["gat", "sage"] = "gat",
