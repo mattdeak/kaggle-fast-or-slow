@@ -342,7 +342,7 @@ class LayoutDataset(Dataset):
             edge_index_alt_mask = (
                 torch.from_numpy(graph_data.edge_index_alt_mask)
                 .contiguous()
-                .reshape(-1, 1)
+                .reshape(1, -1)
             )
 
         return Data(
