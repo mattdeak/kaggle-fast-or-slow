@@ -23,11 +23,9 @@ def test_config_meta_graph():
     )
     node_config_ids = np.array([1, 4, 8])
     config_graph = ConfigMetaGraph()
-    new_edge_index, weights = config_graph(edge_index, node_config_ids)
+    new_edge_index = config_graph(edge_index, node_config_ids)
     expected_edge_index = np.array([[1, 4], [1, 8]])  # Expected output
-    expected_weights = np.array([1 / 2, 1 / 3])  # Assuming each hop has weight 1
     np.testing.assert_array_equal(new_edge_index, expected_edge_index)
-    np.testing.assert_array_equal(weights, expected_weights)
 
 
 def test_config_meta_graph_interrupted_path():
@@ -50,14 +48,11 @@ def test_config_meta_graph_interrupted_path():
     )
     node_config_ids = np.array([0, 3, 6, 8])
     config_graph = ConfigMetaGraph()
-    new_edge_index, weights = config_graph(edge_index, node_config_ids)
+    new_edge_index = config_graph(edge_index, node_config_ids)
     expected_edge_index = np.array(
         [[0, 3], [0, 6], [0, 8], [3, 8], [6, 8]]
     )  # Expected output
-    expected_weights = np.array([1 / 2, 1 / 3, 1 / 3, 1 / 2, 1 / 2])  # Expected output
-
     np.testing.assert_array_equal(new_edge_index, expected_edge_index)
-    np.testing.assert_array_equal(weights, expected_weights)
 
 
 def test_remap_nodes():

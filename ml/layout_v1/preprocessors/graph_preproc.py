@@ -1,3 +1,4 @@
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -38,10 +39,10 @@ class GraphProcessor:
     2. Provide an additional edge index that connects configurable nodes weighted by the reciprocal of the number of hops between them.
     """
 
-    def __init__(self, hops: int = 1, normalize_by_hops: bool = True):
+    def __init__(self, hops: int = 1):
         self.hops = hops
         self.remapper = CommunityNodeRemapper(number_of_hops=hops)
-        self.alt_graph_transform = ConfigMetaGraph(normalize_by_hops=normalize_by_hops)
+        self.alt_graph_transform = ConfigMetaGraph()
 
     def __call__(
         self,
@@ -59,16 +60,12 @@ class GraphProcessor:
         Returns:
             The reduced node features, opcodes, edge index, and node config ids.
         """
-        alternate_edge_index, alternate_edge_index_attr = self.alt_graph_transform(
-            edge_index, node_config_ids
-        )
+        alternate_edge_index = self.alt_graph_transform(edge_index, node_config_ids)
 
         # Remap the nodes in the edge index.
         node_mapping = self.remapper(edge_index, node_config_ids)
         new_edge_index, _ = remap_edges(edge_index, node_mapping)
-        alternate_edge_index, alternate_edge_index_attr = remap_edges(
-            alternate_edge_index, node_mapping, alternate_edge_index_attr
-        )
+        alternate_edge_index, _ = remap_edges(alternate_edge_index, node_mapping)
         node_features, opcodes = remap_nodes(node_features, opcodes, node_mapping)
 
         total_edge_index = np.concatenate(
@@ -123,14 +120,12 @@ class ConfigMetaGraph:
     """This class creates an additional edge index that connects configurable nodes weighted by the reciprocal of the number of
     hops between them."""
 
-    def __init__(self, normalize_by_hops: bool = True):
-        self.normalize_by_hops = normalize_by_hops
-
     def __call__(
         self, edge_index: npt.NDArray[Any], node_config_ids: npt.NDArray[Any]
-    ) -> tuple[npt.NDArray[Any], npt.NDArray[Any]]:
-        """Create an additional edge index that connects configurable nodes weighted, optionally weighted by the reciprocal of the number of
-        hops between them. Only nodes that have an uninterrupted path between them are connected.
+    ) -> npt.NDArray[Any]:
+        """Create an additional edge index that connects configurable nodes.
+        This creates a subgraph where all configurable nodes are in the same graph, directly connected to their
+        downstream and upstream neighbors.
 
         Interruption is defined as a node in the path that is configurable.
 
@@ -141,41 +136,35 @@ class ConfigMetaGraph:
         Returns:
             The additional edge index in COO (e x 2)
         """
-        # Create a graph from the edge index.
+
         g = nx.DiGraph()
         g.add_edges_from(edge_index)
 
-        # Convert node_config_ids to a set for efficient lookups
-        configurable_nodes = set(node_config_ids)
+        # ITeratively merge nodes that are not configurable
+        for node in list(g.nodes()):
+            if node not in node_config_ids:
+                # Connect each predecessor to each successor
+                predecessors = list(g.predecessors(node))
+                successors = list(g.successors(node))
+                for pred in predecessors:
+                    for succ in successors:
+                        if pred != succ and not g.has_edge(pred, succ):
+                            print("Adding edge", pred, succ)
+                            g.add_edge(pred, succ)
+                # Remove the non-configurable node
+                print("Removing node", node)
+                g.remove_node(node)
 
-        all_shortest_paths = dict(nx.all_pairs_shortest_path(g))
+        # Lookup distances between neighbors
 
-        new_edge_index: list[tuple[int, int]] = []
-        new_edge_weights: list[float] = []
+        # Reconvert to edge index
+        new_edge_index = []
 
-        for n in node_config_ids:
-            for m in node_config_ids:
-                if n == m:
-                    continue  # Skip self-loops
+        for node in g.nodes:
+            for neighbor in g.neighbors(node):
+                new_edge_index.append((node, neighbor))
 
-                try:
-                    path = all_shortest_paths[n].get(m, None)
-                    if not path:
-                        continue
-                    # Check if path has any configurable nodes as interruptions
-                    if any(node in configurable_nodes for node in path[1:-1]):
-                        continue  # Skip path with interruptions
-
-                    path_length = len(path) - 1
-                    new_edge_index.append((n, m))
-                    new_edge_weights.append(
-                        1 / path_length if self.normalize_by_hops else 1
-                    )
-
-                except nx.NetworkXNoPath:
-                    continue
-
-        return np.array(new_edge_index), np.array(new_edge_weights)
+        return np.array(new_edge_index)
 
 
 def remap_nodes(
