@@ -73,4 +73,4 @@ class GlobalFeatureGenerator:
         return final
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(dataset={self.dataset_type}, subtype={self.subtype})"
+        return f"{self.__class__.__name__}(dataset={self.dataset_type}, subtype={self.dataset_subtype})"
