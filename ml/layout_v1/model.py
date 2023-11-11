@@ -166,11 +166,19 @@ class MultiEdgeGATBlock(nn.Module):
             edge_index=alternate_edge_index,
             batch=data.batch,
         )
+        print(main_edge_data.x.shape)
+        print(alternate_edge_data.x.shape)
+
+        print(main_edge_data.edge_index.shape)
+        print(alternate_edge_data.edge_index.shape)
 
         main_edge_data = self.main_edge_block(main_edge_data)
         alternate_edge_data = self.alternate_edge_block(alternate_edge_data)
 
         f = torch.cat([main_edge_data.x, alternate_edge_data.x], dim=1)
+
+        print(f.shape)
+
         f = self.norm(f)
 
         new_data = Data(
@@ -259,9 +267,8 @@ class GraphMLP(nn.Module):
         self.gcns.append(block)
 
         for _ in range(graph_layers):
-            graph_input_dim = block.output_dim
             block = build_conv(
-                input_dim=graph_input_dim,
+                input_dim=block.output_dim,
                 with_residual=True,
             )
             self.gcns.append(block)
