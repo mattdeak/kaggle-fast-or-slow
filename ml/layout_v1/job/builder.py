@@ -392,6 +392,6 @@ def fit_opcode_processor(
                 of = d["node_opcode"]
                 opcode_features.append(of)
 
-    opcode_features = np.vstack(opcode_features)  # type: ignore
+    opcode_features = np.hstack(opcode_features)  # type: ignore
     processor.fit(opcode_features)
     return processor
