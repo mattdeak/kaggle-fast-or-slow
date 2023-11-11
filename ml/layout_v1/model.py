@@ -5,13 +5,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import GATConv, GATv2Conv, SAGEConv
+from torch_geometric.nn import GATConv, GATv2Conv, GraphNorm, SAGEConv
 from torch_geometric.nn.pool import global_mean_pool
 
 INPUT_DIM = 261
 GLOBAL_INPUT_DIM = 24
 
 GlobalPoolingFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+
+
+def build_norm(norm: Literal["graph", "layer", "batch"], channels: int) -> nn.Module:
+    if norm == "graph":
+        return GraphNorm(channels)
+    elif norm == "layer":
+        return nn.LayerNorm(channels)
+    elif norm == "batch":
+        return nn.BatchNorm1d(channels)
+    else:
+        raise ValueError(f"Unknown norm {norm}")
 
 
 class SAGEBlock(nn.Module):
@@ -21,10 +32,11 @@ class SAGEBlock(nn.Module):
         output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
+        graph_norm: Literal["graph", "layer"] = "graph",
     ):
         super().__init__()
         self.conv = SAGEConv(input_dim, output_dim)
-        self.norm = nn.LayerNorm(output_dim)
+        self.norm = build_norm(graph_norm, output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
@@ -53,13 +65,14 @@ class GATBlock(nn.Module):
         heads: int = 4,
         with_residual: bool = True,
         dropout: float = 0.5,
+        graph_norm: Literal["graph", "layer"] = "graph",
     ):
         super().__init__()
 
         gat_output_dim = output_dim // heads
 
         self.conv = GATConv(input_dim, gat_output_dim, heads=heads)
-        self.norm = nn.LayerNorm(output_dim)
+        self.norm = build_norm(graph_norm, output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
 
@@ -88,6 +101,7 @@ class MultiEdgeGATBlock(nn.Module):
         heads: int = 4,
         with_residual: bool = True,
         dropout: float = 0.5,
+        graph_norm: Literal["graph", "layer"] = "graph",
     ):
         super().__init__()
 
@@ -109,7 +123,7 @@ class MultiEdgeGATBlock(nn.Module):
             dropout=dropout,
         )
 
-        self.norm = nn.LayerNorm(output_dim)
+        self.norm = build_norm(graph_norm, output_dim)
         self.output_dim = output_dim
 
     def forward(self, data: Data):
@@ -150,11 +164,12 @@ class LinearBlock(nn.Module):
         output_dim: int,
         with_residual: bool = True,
         dropout: float = 0.5,
+        linear_norm: Literal["layer", "batch"] = "layer",
     ):
         super().__init__()
         self.linear = nn.Linear(input_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
-        self.norm = nn.LayerNorm(output_dim)
+        self.norm = build_norm(linear_norm, output_dim)
         self.with_residual = with_residual
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -184,6 +199,8 @@ class GraphMLP(nn.Module):
         graph_conv: Literal["sage", "gat"] = "sage",
         graph_conv_kwargs: dict[str, Any] | None = None,
         use_multi_edge: bool = False,
+        graph_norm: Literal["graph", "layer"] = "graph",
+        linear_norm: Literal["layer", "batch"] = "layer",
     ):
         super().__init__()
 
@@ -202,6 +219,7 @@ class GraphMLP(nn.Module):
             dropout=dropout,
             with_residual=False,
             output_dim=graph_channels,
+            graph_norm=graph_norm,
             **(graph_conv_kwargs or {}),
         )
         self.gcns.append(block)
@@ -212,6 +230,7 @@ class GraphMLP(nn.Module):
                 graph_input_dim,
                 output_dim=graph_channels,
                 dropout=dropout,
+                graph_norm=graph_norm,
                 with_residual=False,  # doesn't play well with pooling
             )
             self.gcns.append(block)
@@ -229,9 +248,15 @@ class GraphMLP(nn.Module):
                 linear_channels,
                 with_residual=False,
                 dropout=dropout,
+                linear_norm=linear_norm,
             ),
             *[
-                LinearBlock(linear_channels, linear_channels, dropout=dropout)
+                LinearBlock(
+                    linear_channels,
+                    linear_channels,
+                    dropout=dropout,
+                    linear_norm=linear_norm,
+                )
                 for _ in range(linear_layers)
             ],
             nn.Linear(linear_channels, 1),

@@ -62,6 +62,9 @@ class JobSpec(BaseModel):
     graph_convolution_type: Literal["sage", "gat"] = "gat"
     graph_convolution_kwargs: dict[str, Any] = {"heads": 4}
 
+    graph_norm: Literal["graph", "layer"] = "graph"
+    linear_norm: Literal["layer", "batch"] = "layer"
+
     # Multiple Edge Indices
     use_multi_edge: bool = False
 

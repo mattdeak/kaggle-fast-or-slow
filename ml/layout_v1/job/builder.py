@@ -149,6 +149,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         graph_conv=spec.graph_convolution_type,
         graph_conv_kwargs=spec.graph_convolution_kwargs,
         use_multi_edge=spec.use_multi_edge,
+        graph_norm=spec.graph_norm,
+        linear_norm=spec.linear_norm,
     )
     model = torch_geometric.compile(model)  # type: ignore
     model = cast(GraphMLP, model)  # technically no, but it's fine
