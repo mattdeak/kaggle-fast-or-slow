@@ -181,7 +181,7 @@ def remap_node_config_ids(
     # node config ids are indexed by node id
     new_node_config_ids = node_config_ids.copy()
     for i, n in enumerate(node_mapping):
-        node_config_ids[node_config_ids == n] = i
+        new_node_config_ids[node_config_ids == n] = i
 
     return new_node_config_ids
 
