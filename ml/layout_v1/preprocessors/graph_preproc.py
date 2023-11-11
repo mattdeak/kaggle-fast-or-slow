@@ -1,6 +1,5 @@
-from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 import networkx as nx
 import numpy as np
@@ -64,8 +63,8 @@ class GraphProcessor:
 
         # Remap the nodes in the edge index.
         node_mapping = self.remapper(edge_index, node_config_ids)
-        new_edge_index, _ = remap_edges(edge_index, node_mapping)
-        alternate_edge_index, _ = remap_edges(alternate_edge_index, node_mapping)
+        new_edge_index = remap_edges(edge_index, node_mapping)
+        alternate_edge_index = remap_edges(alternate_edge_index, node_mapping)
         node_features, opcodes = remap_nodes(node_features, opcodes, node_mapping)
 
         total_edge_index = np.vstack([new_edge_index, alternate_edge_index])
@@ -207,8 +206,7 @@ def remap_nodes(
 def remap_edges(
     edge_index: npt.NDArray[np.int_],
     node_mapping: npt.NDArray[np.int_],
-    edge_index_attr: npt.NDArray[np.float_] | None = None,
-) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.float_] | None]:
+) -> npt.NDArray[np.int_]:
     """Remaps the edge index to the new node ids.
     Args:
         edge_index: The edge index in COO (e x 2)
@@ -225,11 +223,7 @@ def remap_edges(
 
     new_edge_index = edge_index[ix, :]
 
-    new_edge_index_attr = None
-    if edge_index_attr is not None:
-        new_edge_index_attr = edge_index_attr[ix]
-
     for i, n in enumerate(node_mapping):
         new_edge_index[new_edge_index == n] = i
 
-    return new_edge_index, new_edge_index_attr
+    return new_edge_index

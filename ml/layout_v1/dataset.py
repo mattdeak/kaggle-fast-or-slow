@@ -410,7 +410,7 @@ class LayoutDataset(Dataset):
         if graph_data.edge_index_alt_mask is not None:
             np.save(
                 os.path.join(target_file_path, self.EDGE_INDEX_ALT_MASK_FILE),
-                graph_data.edge_index_alt_mask.astype(np.int64),
+                graph_data.edge_index_alt_mask.astype(np.bool_),
             )
         if graph_data.edge_index_attr is not None:
             np.save(
