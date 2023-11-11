@@ -48,7 +48,7 @@ DEFAULT_CONFIG = JobSpec(
     optimizer="adamw",
     optimizer_kwargs={"lr": 3e-4, "weight_decay": 0.01},
     criterion="margin-loss",
-    criterion_kwargs={"margin": 1.0},
+    criterion_kwargs={"margin": 1.0, "n_permutations": 32},
     scheduler=None,
     scheduler_kwargs={"max_lr": 0.005, "pct_start": 0.2},
     # processors
