@@ -110,6 +110,7 @@ class MultiEdgeGATBlock(nn.Module):
         )
 
         self.norm = nn.LayerNorm(output_dim)
+        self.output_dim = output_dim
 
     def forward(self, data: Data):
         alternate_edge_mask = data[self.alternate_edge_mask_key]
