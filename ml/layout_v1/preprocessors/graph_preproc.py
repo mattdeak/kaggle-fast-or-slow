@@ -80,7 +80,7 @@ class GraphProcessor:
         return GraphTransformReturnType(
             node_features=node_features,
             opcodes=opcodes,
-            edge_index=new_edge_index,
+            edge_index=total_edge_index,
             node_config_ids=new_config_ids,
             edge_index_attr=None,
             edge_index_alt_mask=alt_edge_mask,
