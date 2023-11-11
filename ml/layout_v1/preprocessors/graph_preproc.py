@@ -75,11 +75,13 @@ class GraphProcessor:
         alt_edge_mask = np.zeros(total_edge_index.shape[0], dtype=np.bool_)
         alt_edge_mask[new_edge_index.shape[0] :] = True
 
+        new_config_ids = remap_node_config_ids(node_config_ids, node_mapping)
+
         return GraphTransformReturnType(
             node_features=node_features,
             opcodes=opcodes,
             edge_index=new_edge_index,
-            node_config_ids=node_mapping,
+            node_config_ids=new_config_ids,
             edge_index_attr=None,
             edge_index_alt_mask=alt_edge_mask,
         )
@@ -163,6 +165,25 @@ class ConfigMetaGraph:
                 new_edge_index.append((node, neighbor))
 
         return np.array(new_edge_index)
+
+
+def remap_node_config_ids(
+    node_config_ids: npt.NDArray[np.int_],
+    node_mapping: npt.NDArray[np.int_],
+) -> npt.NDArray[np.int_]:
+    """Remaps the node config ids to the new node ids.
+
+    Args:
+        node_config_ids: The node config ids (nc). Each node config corresponds to a node in the graph where the id is the index of the node.
+        node_mapping: The mapping from old node ids to new node ids (n) (node at ix becomes node at node_mapping[ix])
+    """
+
+    # node config ids are indexed by node id
+    new_node_config_ids = node_config_ids.copy()
+    for i, n in enumerate(node_mapping):
+        node_config_ids[node_config_ids == n] = i
+
+    return new_node_config_ids
 
 
 def remap_nodes(
