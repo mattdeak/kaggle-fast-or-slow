@@ -3,7 +3,7 @@ import wandb
 # from ml.layout_v1.train import DEFAULT_CONFIG, run
 
 SWEEP_CONFIG_XLA_ONLY = {
-    "method": "bayes",
+    "method": "random",
     "name": "hp-sweep",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
     "parameters": {
@@ -27,17 +27,19 @@ SWEEP_CONFIG_XLA_ONLY = {
         "optimizer_kwargs": {
             "parameters": {
                 "lr": {"max": 5e-3, "min": 1e-4},
-                "weight_decay": {"max": 0.01, "min": 0.0, "scale": "uniform"},
+                "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
         "epochs": {"values": [6]},
         "batch_size": {"values": [8, 16]},
         "preprocessors": {
-            "global_kwargs": {
-                "parameters": {
-                    "subtype_indicator": {"values": [True, False]},
+            "parameters": {
+                "global_kwargs": {
+                    "parameters": {
+                        "subtype_indicator": {"values": [True, False]},
+                    },
                 },
-            },
+            }
         },
         "crossover": {"min": 0.0, "max": 0.2},
         "use_distribution_flag": {"values": [True, False]},
