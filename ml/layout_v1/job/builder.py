@@ -1,4 +1,6 @@
 import os
+from collections import defaultdict
+from copy import copy, deepcopy
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -62,25 +64,76 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         dataset_subtypes=spec.dataset_subtypes,
         split="train",
     )
+    train_data_dirs_list = [
+        d
+        for ds_subtypes in train_data_directories.values()
+        for d in ds_subtypes.values()
+    ]
 
     # Fit the preprocessors on the training data
     # before they can be used on the validation data
     if preprocessors.node_transform:
         if hasattr(preprocessors.node_transform, "fit"):
             preprocessors.node_transform = fit_node_processor(
-                train_data_directories, preprocessors.node_transform
+                train_data_dirs_list, preprocessors.node_transform
             )
 
     if postprocessors.node_transform:
         if hasattr(postprocessors.node_transform, "fit"):
             postprocessors.node_transform = fit_node_processor(
-                train_data_directories, postprocessors.node_transform
+                train_data_dirs_list, postprocessors.node_transform
             )
 
-    train_datasets = [
-        build_dataset(d, spec.processed_directory, preprocessors, postprocessors)
-        for d in train_data_directories
-    ]
+    # we have to readjust the global processors because they can depend
+    # on the dataset type and subtype. We'll make copies of the processors
+    # and then set the dataset type and subtype on them.
+    # This is obviously bad, but who cares this code lasts for another week.
+    train_datasets: list[LayoutDataset] = []
+    for ds_type, ds_subtypes in train_data_directories.items():
+        for ds_subtype, ds_dir in ds_subtypes.items():
+            global_preprocessor = (
+                GLOBAL_PROCESSORS[spec.preprocessors.global_](
+                    **spec.preprocessors.global_kwargs,
+                    dataset_type=ds_type,
+                    dataset_subtype=ds_subtype,
+                )
+                if spec.preprocessors.global_
+                else None
+            )
+            global_postprocessor = (
+                GLOBAL_PROCESSORS[spec.postprocessors.global_](
+                    **spec.postprocessors.global_kwargs,
+                    dataset_type=ds_type,
+                    dataset_subtype=ds_subtype,
+                )
+                if spec.postprocessors.global_
+                else None
+            )
+
+            ds_preprocessors = None
+            ds_postprocessors = None
+
+            if spec.preprocessors.global_ is not None and global_preprocessor:
+                ds_preprocessors = deepcopy(preprocessors)
+                ds_preprocessors.global_transform = global_preprocessor
+
+            if spec.postprocessors.global_ is not None and global_postprocessor:
+                ds_postprocessors = deepcopy(postprocessors)
+                ds_postprocessors.global_transform = global_postprocessor
+
+            if ds_preprocessors is None:
+                ds_preprocessors = preprocessors
+            if ds_postprocessors is None:
+                ds_postprocessors = postprocessors
+
+            train_datasets.append(
+                build_dataset(
+                    ds_dir,
+                    spec.processed_directory,
+                    ds_preprocessors,
+                    ds_postprocessors,
+                )
+            )
     train_dataset = ConcatenatedDataset(train_datasets)
 
     # Debug
@@ -202,12 +255,15 @@ def generate_dataset_dirs(
     dataset_types: list[DatasetType],
     dataset_subtypes: list[DatasetSubtype],
     split: Literal["train", "valid", "test"] = "train",
-) -> list[str]:
+) -> dict[str, dict[str, str]]:
     """Return a list of dataset directories for training and validation."""
-    datasets: list[str] = []
+    datasets: dict[str, dict[str, str]] = defaultdict(dict)
     for dataset_type in dataset_types:
         for dataset_subtype in dataset_subtypes:
-            datasets.append(get_dataset_dir(dataset_type, dataset_subtype, split=split))
+            datasets[dataset_type][dataset_subtype] = get_dataset_dir(
+                dataset_type, dataset_subtype, split=split
+            )
+
     return datasets
 
 
@@ -236,12 +292,6 @@ def build_processors(processor_spec: ProcessorSpec) -> LayoutTransforms:
         else None
     )
 
-    global_processor = (
-        GLOBAL_PROCESSORS[processor_spec.global_](**processor_spec.global_kwargs)
-        if processor_spec.global_ is not None
-        else None
-    )
-
     target_prepocessor = (
         TARGET_PROCESSORS[processor_spec.target](**processor_spec.target_kwargs)
         if processor_spec.target is not None
@@ -253,7 +303,7 @@ def build_processors(processor_spec: ProcessorSpec) -> LayoutTransforms:
         graph_transform=graph_processor,
         config_transform=config_processor,
         opcode_transform=opcode_processor,
-        global_transform=global_processor,
+        global_transform=None,  # handled elsewhere
         target_transform=target_prepocessor,
     )
 

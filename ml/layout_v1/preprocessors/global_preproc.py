@@ -6,8 +6,15 @@ import numpy.typing as npt
 
 
 class GlobalFeatureGenerator:
-    def __init__(self, subtype: Literal["default", "random"]) -> None:
+    def __init__(
+        self,
+        dataset_type: Literal["nlp", "xla"],
+        subtype: Literal["default", "random"],
+        subtype_indicator: bool = False,
+    ) -> None:
+        self.dataset = dataset_type
         self.subtype = subtype
+        self.subtype_indicator = subtype_indicator
 
     def __call__(
         self,
@@ -26,7 +33,10 @@ class GlobalFeatureGenerator:
         # 4. Is nlp/xla
         # 5. Is default/random
         # is_nlp = self.dataset == "nlp" # maybe not this one, since we're training on both individually currently
-        is_default = self.subtype == "default"
+        is_default = None
+        if self.subtype_indicator:
+            is_default = self.subtype == "default"
+
         longest_path_count = nx.dag_longest_path_length(digraph)  # type: ignore
         longest_path_count = cast(float, longest_path_count)
         longest_path_normalized = longest_path_count / x.shape[0]
@@ -47,9 +57,8 @@ class GlobalFeatureGenerator:
 
         log_num_nodes = np.log(x.shape[0])
 
-        return np.array(
+        final = np.array(
             [
-                is_default,
                 log_num_nodes,
                 longest_path_normalized,
                 community_rate,
@@ -57,6 +66,11 @@ class GlobalFeatureGenerator:
                 component_shortest_paths_std,
             ]
         )
+
+        if is_default is not None:
+            final = np.append(final, is_default)
+
+        return final
 
     def __repr__(self) -> str:
         return (

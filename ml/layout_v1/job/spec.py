@@ -93,6 +93,8 @@ class JobSpec(BaseModel):
         graph=None, node=None, config=None, opcode=None, global_=None, target=None
     )
 
+    use_distribution_flag: bool = True
+
     # crossover
     crossover: float = 0.0
 

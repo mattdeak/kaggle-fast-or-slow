@@ -57,6 +57,8 @@ DEFAULT_CONFIG = JobSpec(
         graph_kwargs={"hops": 1},
         node="node-processor",
         config="config-feature-generator",
+        global_="global-processor",
+        global_kwargs={"subtype_indicator": True},
         opcode="ohe",
         target=None,
     ),
