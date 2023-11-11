@@ -451,7 +451,7 @@ class LayoutDataset(Dataset):
             os.path.join(file_path, self.EDGE_INDEX_FILE),
         )
 
-        alternate_edge_index = np.load(
+        alternate_edge_index_mask = np.load(
             os.path.join(file_path, self.EDGE_INDEX_ALT_MASK_FILE),
         )
 
@@ -487,8 +487,7 @@ class LayoutDataset(Dataset):
             config_features=config_features,
             config_runtime=config_runtime,
             global_features=global_features,
-            edge_index_alt=alternate_edge_index,
-            edge_index_alt_attr=alternate_edge_index_attr,
+            edge_index_alt_mask=alternate_edge_index_mask,
         )
 
     def apply_transforms(
