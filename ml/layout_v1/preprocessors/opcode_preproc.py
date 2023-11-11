@@ -62,7 +62,7 @@ class OpcodeGroupOHEEmbedder:
 
 
 class OpcodeOHEEmbedder:
-    def __init__(self, ohe_drop_threshold: float = 0.1) -> None:
+    def __init__(self, ohe_drop_threshold: float = 0.05) -> None:
         self._fitted = False
         self.ohe_drop_threshold = ohe_drop_threshold
 
