@@ -102,6 +102,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     # and then set the dataset type and subtype on them.
     # This is obviously bad, but who cares this code lasts for another week.
     train_datasets: list[LayoutDataset] = []
+    valid_datasets: dict[str, LayoutDataset] = {}
     for ds_type, ds_subtypes in train_data_directories.items():
         for ds_subtype, ds_dir in ds_subtypes.items():
             global_preprocessor = (
@@ -147,6 +148,16 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                     ds_postprocessors,
                 )
             )
+
+            valid_dir = get_dataset_dir(ds_type, ds_subtype, split="valid")
+            valid_identifier = f"{ds_type}-{ds_subtype}"
+            valid_datasets[valid_identifier] = build_dataset(
+                valid_dir,
+                spec.processed_directory,
+                ds_preprocessors,
+                ds_postprocessors,
+            )
+
     train_dataset = ConcatenatedDataset(train_datasets)
 
     # Debug
@@ -169,32 +180,23 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     )
 
     eval_loaders = {}
-    for ds_type in spec.dataset_types:
-        for ds_subtype in spec.dataset_subtypes:
-            val_dir = get_dataset_dir(ds_type, ds_subtype, split="valid")
-            ds = build_dataset(
-                val_dir,
-                spec.processed_directory,
-                preprocessors,
-                postprocessors,
-            )
-            sampler = ConfigCrossoverBatchSampler(
-                groups=ds.idx_groups,
-                batch_size=spec.batch_size,
-                shuffle_groups=False,
-                shuffle_within_groups=False,
-                out_of_config_crossover_prob=0.0,
-            )
-            loader = DataLoader(
-                ds,
-                batch_size=1,
-                shuffle=False,
-                pin_memory=True,
-                num_workers=spec.num_workers,
-                batch_sampler=sampler,
-            )
-            identifier = f"{ds_type}-{ds_subtype}"
-            eval_loaders[identifier] = loader
+    for key, ds in valid_datasets.items():
+        sampler = ConfigCrossoverBatchSampler(
+            groups=ds.idx_groups,
+            batch_size=spec.batch_size,
+            shuffle_groups=False,
+            shuffle_within_groups=False,
+            out_of_config_crossover_prob=0.0,
+        )
+        loader = DataLoader(
+            ds,
+            batch_size=1,
+            shuffle=False,
+            pin_memory=True,
+            num_workers=spec.num_workers,
+            batch_sampler=sampler,
+        )
+        eval_loaders[key] = loader
 
     pooling = GLOBAL_POOLINGS[spec.pooling]
 
@@ -274,9 +276,9 @@ def generate_dataset_dirs(
     dataset_types: list[DatasetType],
     dataset_subtypes: list[DatasetSubtype],
     split: Literal["train", "valid", "test"] = "train",
-) -> dict[str, dict[str, str]]:
+) -> dict[DatasetType, dict[DatasetSubtype, str]]:
     """Return a list of dataset directories for training and validation."""
-    datasets: dict[str, dict[str, str]] = defaultdict(dict)
+    datasets: dict[DatasetType, dict[DatasetSubtype, str]] = defaultdict(dict)
     for dataset_type in dataset_types:
         for dataset_subtype in dataset_subtypes:
             datasets[dataset_type][dataset_subtype] = get_dataset_dir(
@@ -398,4 +400,5 @@ def fit_opcode_processor(
 
     opcode_features = np.hstack(opcode_features)  # type: ignore
     processor.fit(opcode_features)
+
     return processor
