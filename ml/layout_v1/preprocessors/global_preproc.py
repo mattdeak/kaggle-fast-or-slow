@@ -9,11 +9,11 @@ class GlobalFeatureGenerator:
     def __init__(
         self,
         dataset_type: Literal["nlp", "xla"],
-        subtype: Literal["default", "random"],
+        dataset_subtype: Literal["default", "random"],
         subtype_indicator: bool = False,
     ) -> None:
-        self.dataset = dataset_type
-        self.subtype = subtype
+        self.dataset_type = dataset_type
+        self.dataset_subtype = dataset_subtype
         self.subtype_indicator = subtype_indicator
 
     def __call__(
@@ -35,7 +35,7 @@ class GlobalFeatureGenerator:
         # is_nlp = self.dataset == "nlp" # maybe not this one, since we're training on both individually currently
         is_default = None
         if self.subtype_indicator:
-            is_default = self.subtype == "default"
+            is_default = self.dataset_subtype == "default"
 
         longest_path_count = nx.dag_longest_path_length(digraph)  # type: ignore
         longest_path_count = cast(float, longest_path_count)
@@ -73,6 +73,4 @@ class GlobalFeatureGenerator:
         return final
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(dataset={self.dataset}, subtype={self.subtype})"
-        )
+        return f"{self.__class__.__name__}(dataset={self.dataset_type}, subtype={self.subtype})"
