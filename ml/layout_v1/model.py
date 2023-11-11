@@ -101,7 +101,6 @@ class MultiEdgeGATBlock(nn.Module):
         heads: int = 4,
         with_residual: bool = True,
         dropout: float = 0.5,
-        graph_norm: Literal["graph", "layer"] = "graph",
         main_block: Literal["gat", "sage"] = "gat",
         alt_block: Literal["gat", "sage"] = "sage",
     ):
@@ -119,14 +118,14 @@ class MultiEdgeGATBlock(nn.Module):
                 input_dim,
                 output_dim_per_block,
                 heads=heads,
-                with_residual=with_residual,
+                with_residual=False,
                 dropout=dropout,
             )
         else:
             self.main_edge_block = SAGEBlock(
                 input_dim,
                 output_dim_per_block,
-                with_residual=with_residual,
+                with_residual=False,
                 dropout=dropout,
             )
 
@@ -135,7 +134,7 @@ class MultiEdgeGATBlock(nn.Module):
                 input_dim,
                 output_dim_per_block,
                 heads=heads,
-                with_residual=with_residual,
+                with_residual=False,
                 dropout=dropout,
             )
 
@@ -143,11 +142,11 @@ class MultiEdgeGATBlock(nn.Module):
             self.alternate_edge_block = SAGEBlock(
                 input_dim,
                 output_dim_per_block,
-                with_residual=with_residual,
+                with_residual=False,
                 dropout=dropout,
             )
 
-        self.norm = build_norm(graph_norm, output_dim)
+        self.with_residual = with_residual
         self.output_dim = output_dim
 
     def forward(self, data: Data):
@@ -166,20 +165,14 @@ class MultiEdgeGATBlock(nn.Module):
             edge_index=alternate_edge_index,
             batch=data.batch,
         )
-        print(main_edge_data.x.shape)
-        print(alternate_edge_data.x.shape)
-
-        print(main_edge_data.edge_index.shape)
-        print(alternate_edge_data.edge_index.shape)
 
         main_edge_data = self.main_edge_block(main_edge_data)
         alternate_edge_data = self.alternate_edge_block(alternate_edge_data)
 
         f = torch.cat([main_edge_data.x, alternate_edge_data.x], dim=1)
 
-        print(f.shape)
-
-        f = self.norm(f)
+        if self.with_residual:
+            f += data.x
 
         new_data = Data(
             x=f,
@@ -262,7 +255,7 @@ class GraphMLP(nn.Module):
 
         block = build_conv(
             input_dim=graph_input_dim,
-            with_residual=False,
+            with_residual=False,  # because the first dim is different
         )
         self.gcns.append(block)
 
@@ -320,7 +313,6 @@ class GraphMLP(nn.Module):
                     graph_channels,
                     dropout=dropout,
                     with_residual=with_residual,
-                    graph_norm=graph_norm,
                     main_block=main_block,
                     alt_block=alt_block,
                     **(graph_conv_kwargs or {}),
