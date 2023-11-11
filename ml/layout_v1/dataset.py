@@ -339,10 +339,8 @@ class LayoutDataset(Dataset):
             ).T.contiguous()
 
         if graph_data.edge_index_alt_mask is not None:
-            edge_index_alt_mask = (
-                torch.from_numpy(graph_data.edge_index_alt_mask)
-                .contiguous()
-                .to(torch.int64)
+            edge_index_alt_mask = torch.from_numpy(graph_data.edge_index_alt_mask).to(
+                torch.int64
             )
 
         return Data(
