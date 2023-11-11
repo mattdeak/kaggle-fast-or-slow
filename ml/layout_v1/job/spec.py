@@ -105,14 +105,14 @@ class JobSpec(BaseModel):
     def pooling_feature_multiplier(self) -> int:
         return 4 if self.pooling == "multi" else 1
 
-    @model_validator(pre=True)
+    @model_validator
     def if_not_gat_coerce_heads(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Coerce the graph convolution kwargs to be empty if not using GAT."""
         if values["graph_convolution_type"] != "gat":
             values["graph_convolution_kwargs"] = {}
         return values
 
-    @model_validator(pre=True)
+    @model_validator
     def if_not_margin_loss_then_del_criterion_kwargs(
         cls, values: dict[str, Any]
     ) -> dict[str, Any]:
