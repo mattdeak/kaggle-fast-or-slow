@@ -314,9 +314,6 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
     if isinstance(config, dict):
         config = JobSpec(**config)
 
-    pprint(config.model_dump())
-
-    run_data = instantiate_from_spec(config)
     with wandb.init(
         project="kaggle-fast-or-slow",
         id=id,
@@ -325,6 +322,11 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
         resume="allow",
     ) as run:
         assert run is not None, "Wandb run is None"
+        # For sweeps - we need to get the config from the run
+        config = run.config  # type: ignore
+        pprint(config)
+
+        run_data = instantiate_from_spec(JobSpec(**config))
 
         model = run_data.model
         optim = run_data.optimizer
@@ -388,6 +390,19 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
                     use_amp=run_config.use_amp,
                 )
             log_eval_metrics(results=metrics, is_full=True)
+
+
+def run_from_config(config: dict[str, Any]):
+    # Base on default
+    new_config = DEFAULT_CONFIG.model_dump()
+
+    for key, value in config.items():
+        if key not in new_config:
+            print(f"Key {key} not in default config")
+            continue
+
+        new_config[key] = value
+    run(JobSpec(**config))
 
 
 if __name__ == "__main__":

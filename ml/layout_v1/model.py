@@ -1,11 +1,11 @@
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn import GATConv, GATv2Conv, GraphNorm, SAGEConv
+from torch_geometric.nn import GATConv, GraphNorm, SAGEConv
 from torch_geometric.nn.pool import global_mean_pool
 
 INPUT_DIM = 261
@@ -102,26 +102,45 @@ class MultiEdgeGATBlock(nn.Module):
         with_residual: bool = True,
         dropout: float = 0.5,
         graph_norm: Literal["graph", "layer"] = "graph",
+        main_block: Literal["gat", "sage"] = "gat",
+        alt_block: Literal["gat", "sage"] = "sage",
     ):
         super().__init__()
 
         output_dim_per_block = output_dim // 2
 
-        self.main_edge_block = GATBlock(
-            input_dim,
-            output_dim_per_block,
-            heads=heads,
-            with_residual=with_residual,
-            dropout=dropout,
-        )
+        if main_block == "gat":
+            self.main_edge_block = GATBlock(
+                input_dim,
+                output_dim_per_block,
+                heads=heads,
+                with_residual=with_residual,
+                dropout=dropout,
+            )
+        else:
+            self.main_edge_block = SAGEBlock(
+                input_dim,
+                output_dim_per_block,
+                with_residual=with_residual,
+                dropout=dropout,
+            )
 
-        self.alternate_edge_block = GATBlock(
-            input_dim,
-            output_dim_per_block,
-            heads=heads,
-            with_residual=with_residual,
-            dropout=dropout,
-        )
+        if alt_block == "gat":
+            self.alternate_edge_block = GATBlock(
+                input_dim,
+                output_dim_per_block,
+                heads=heads,
+                with_residual=with_residual,
+                dropout=dropout,
+            )
+
+        else:
+            self.alternate_edge_block = SAGEBlock(
+                input_dim,
+                output_dim_per_block,
+                with_residual=with_residual,
+                dropout=dropout,
+            )
 
         self.norm = build_norm(graph_norm, output_dim)
         self.output_dim = output_dim
@@ -155,6 +174,13 @@ class MultiEdgeGATBlock(nn.Module):
         )
 
         return data.update(new_data)
+
+
+class ConvFactory(Protocol):
+    def __call__(
+        self, input_dim: int, with_residual: bool
+    ) -> SAGEBlock | GATBlock | MultiEdgeGATBlock:
+        ...
 
 
 class LinearBlock(nn.Module):
@@ -201,37 +227,37 @@ class GraphMLP(nn.Module):
         use_multi_edge: bool = False,
         graph_norm: Literal["graph", "layer"] = "graph",
         linear_norm: Literal["layer", "batch"] = "layer",
+        main_block: Literal["gat", "sage"] = "gat",
+        alt_block: Literal["gat", "sage"] = "sage",
     ):
         super().__init__()
 
+        self.use_multi_edge = use_multi_edge
         self.pooling_fn = pooling_fn
         self.gcns = nn.ModuleList()
 
-        if use_multi_edge:
-            if graph_conv == "sage":
-                raise ValueError("Multi-edge SAGE is not supported yet")
+        build_conv = self._create_conv_factory(
+            graph_channels,
+            graph_conv,
+            graph_conv_kwargs,
+            dropout,
+            use_multi_edge,
+            graph_norm,
+            main_block,
+            alt_block,
+        )
 
-            conv = MultiEdgeGATBlock
-        else:
-            conv = SAGEBlock if graph_conv == "sage" else GATBlock
-        block = conv(
-            graph_input_dim,
-            dropout=dropout,
+        block = build_conv(
+            input_dim=graph_input_dim,
             with_residual=False,
-            output_dim=graph_channels,
-            graph_norm=graph_norm,
-            **(graph_conv_kwargs or {}),
         )
         self.gcns.append(block)
 
         for _ in range(graph_layers):
             graph_input_dim = block.output_dim
-            block = conv(
-                graph_input_dim,
-                output_dim=graph_channels,
-                dropout=dropout,
-                graph_norm=graph_norm,
-                with_residual=False,  # doesn't play well with pooling
+            block = build_conv(
+                input_dim=graph_input_dim,
+                with_residual=True,
             )
             self.gcns.append(block)
 
@@ -262,7 +288,63 @@ class GraphMLP(nn.Module):
             nn.Linear(linear_channels, 1),
         )
 
+    def _create_conv_factory(
+        self,
+        graph_channels: int,
+        graph_conv: Literal["sage", "gat"],
+        graph_conv_kwargs: dict[str, Any] | None,
+        dropout: float,
+        use_multi_edge: bool,
+        graph_norm: Literal["graph", "layer"],
+        main_block: Literal["gat", "sage"],
+        alt_block: Literal["gat", "sage"],
+    ) -> ConvFactory:
+        def build_conv(
+            input_dim: int, with_residual: bool
+        ) -> MultiEdgeGATBlock | SAGEBlock | GATBlock:
+            if use_multi_edge:
+                return MultiEdgeGATBlock(
+                    input_dim,
+                    graph_channels,
+                    dropout=dropout,
+                    with_residual=with_residual,
+                    graph_norm=graph_norm,
+                    main_block=main_block,
+                    alt_block=alt_block,
+                    **(graph_conv_kwargs or {}),
+                )
+
+            if graph_conv == "sage":
+                return SAGEBlock(
+                    input_dim,
+                    graph_channels,
+                    dropout=dropout,
+                    with_residual=with_residual,
+                    graph_norm=graph_norm,
+                )
+            else:
+                return GATBlock(
+                    input_dim,
+                    graph_channels,
+                    dropout=dropout,
+                    with_residual=with_residual,
+                    graph_norm=graph_norm,
+                    **(graph_conv_kwargs or {}),
+                )
+
+        return build_conv
+
     def forward(self, data: Data) -> torch.Tensor:
+        if not self.use_multi_edge and hasattr(data, "edge_mask"):
+            # Then we need to remove the edge mask and the alt
+            # edge index from the data object
+            data = data.update(
+                Data(
+                    edge_index=data.edge_index[:, ~data.edge_mask],
+                    edge_mask=None,
+                )
+            )
+
         d = data
         for gcn_block in self.gcns:
             d = gcn_block(d)

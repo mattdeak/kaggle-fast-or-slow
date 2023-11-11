@@ -68,6 +68,9 @@ class JobSpec(BaseModel):
     # Multiple Edge Indices
     use_multi_edge: bool = False
 
+    main_block: Literal["gat", "sage"] = "gat"
+    alt_block: Literal["gat", "sage"] = "sage"
+
     # training
     batch_size: int = 16
     num_workers: int = 4
@@ -101,3 +104,20 @@ class JobSpec(BaseModel):
     @property
     def pooling_feature_multiplier(self) -> int:
         return 4 if self.pooling == "multi" else 1
+
+    @root_validator
+    def if_not_gat_coerce_heads(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Coerce the graph convolution kwargs to be empty if not using GAT."""
+        if values["graph_convolution_type"] != "gat":
+            values["graph_convolution_kwargs"] = {}
+        return values
+
+    @root_validator
+    def if_not_margin_loss_then_del_criterion_kwargs(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Coerce the use_multi_edge flag to False if not using multi pooling."""
+        if values["criterion"] != "margin-loss":
+            values["criterion_kwargs"] = {}
+
+        return values

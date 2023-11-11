@@ -201,9 +201,11 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         pooling_feature_multiplier=spec.pooling_feature_multiplier,
         graph_conv=spec.graph_convolution_type,
         graph_conv_kwargs=spec.graph_convolution_kwargs,
-        use_multi_edge=spec.use_multi_edge,
         graph_norm=spec.graph_norm,
         linear_norm=spec.linear_norm,
+        use_multi_edge=spec.use_multi_edge,
+        main_block=spec.main_block,
+        alt_block=spec.alt_block,
     )
     model = torch_geometric.compile(model)  # type: ignore
     model = cast(GraphMLP, model)  # technically no, but it's fine
