@@ -349,7 +349,7 @@ class LayoutDataset(Dataset):
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
             edge_index_attr=edge_index_attr,
-            edge_attr=edge_index_alt_mask,
+            edge_index_alt_mask=edge_index_alt_mask,
         )
 
         # I think this is a bug in torch_geometric, but it's not a big deal
