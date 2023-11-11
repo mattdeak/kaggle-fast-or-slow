@@ -68,7 +68,7 @@ class GraphProcessor:
         alternate_edge_index, _ = remap_edges(alternate_edge_index, node_mapping)
         node_features, opcodes = remap_nodes(node_features, opcodes, node_mapping)
 
-        total_edge_index = np.stack([new_edge_index, alternate_edge_index])
+        total_edge_index = np.vstack([new_edge_index, alternate_edge_index])
 
         alt_edge_mask = np.zeros(total_edge_index.shape[0], dtype=np.bool_)
         alt_edge_mask[new_edge_index.shape[0] :] = True
