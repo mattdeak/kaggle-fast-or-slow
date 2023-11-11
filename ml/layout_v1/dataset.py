@@ -7,7 +7,7 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import numpy.typing as npt
 import torch
-from torch_geometric.data import Data, Dataset
+from torch_geometric.data import Batch, Data, Dataset
 from tqdm.auto import tqdm
 from tqdm.contrib.concurrent import process_map
 
@@ -343,14 +343,18 @@ class LayoutDataset(Dataset):
                 torch.bool
             )
 
-        return Data(
+        data = Data(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
             edge_index_attr=edge_index_attr,
-            edge_index_alt_mask=edge_index_alt_mask,
         )
+
+        # I think this is a bug in torch_geometric, but it's not a big deal
+        data.edge_index_alt_mask = edge_index_alt_mask
+
+        return data
 
     def process_to_npy(self, source_file_path: str, target_file_path: str) -> None:
         d = np.load(source_file_path)
