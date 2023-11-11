@@ -135,7 +135,6 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
-        collate_fn: Any | None = None,
     ):
         """Directories should be a list of directories to load from.
 
@@ -179,7 +178,7 @@ class LayoutDataset(Dataset):
 
         self.load()
 
-        super().__init__(collate_fn=collate_fn)
+        super().__init__()
 
     def len(self):
         return len(self.idx_to_config)
