@@ -12,7 +12,8 @@ from torch_geometric import torch_geometric
 from torch_geometric.loader import DataLoader
 
 from ml.layout_v1.dataset import (ConcatenatedDataset, DataTransform,
-                                  LayoutDataset, LayoutTransforms)
+                                  LayoutDataset, LayoutTransforms,
+                                  OpcodeEmbedder)
 from ml.layout_v1.job.constants import (CONFIG_PROCESSORS, CRITERIONS,
                                         GLOBAL_POOLINGS, GLOBAL_PROCESSORS,
                                         GRAPH_PROCESSORS, NODE_PROCESSORS,
@@ -82,6 +83,18 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         if hasattr(postprocessors.node_transform, "fit"):
             postprocessors.node_transform = fit_node_processor(
                 train_data_dirs_list, postprocessors.node_transform
+            )
+
+    if preprocessors.opcode_transform:
+        if hasattr(preprocessors.opcode_transform, "fit"):
+            preprocessors.opcode_transform = fit_opcode_processor(
+                train_data_dirs_list, preprocessors.opcode_transform
+            )
+
+    if postprocessors.opcode_transform:
+        if hasattr(postprocessors.opcode_transform, "fit"):
+            postprocessors.opcode_transform = fit_opcode_processor(
+                train_data_dirs_list, postprocessors.opcode_transform
             )
 
     # we have to readjust the global processors because they can depend
@@ -207,8 +220,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         main_block=spec.main_block,
         alt_block=spec.alt_block,
     )
-    # model = torch_geometric.compile(model)  # type: ignore
-    print(model)
+    model = torch_geometric.compile(model)  # type: ignore
     model = cast(GraphMLP, model)  # technically no, but it's fine
 
     optimizer = OPTIMIZERS[spec.optimizer](model.parameters(), **spec.optimizer_kwargs)
@@ -355,4 +367,31 @@ def fit_node_processor(
     node_features = np.vstack(node_features)  # type: ignore
 
     processor.fit(node_features)
+    return processor
+
+
+def fit_opcode_processor(
+    directories: list[str], processor: OpcodeEmbedder
+) -> OpcodeEmbedder:
+    """This isn't the smartest way to do this, but whatever who knows
+    how long it'll even last.
+    """
+
+    assert hasattr(processor, "fit"), "Processor does not have a fit method"
+    print("Fitting opcode processor")
+
+    opcode_features: list[npt.NDArray[np.float_]] = []
+
+    for directory in directories:
+        files = os.listdir(directory)
+
+        # load npz
+        for f in files:
+            if f.endswith(".npz"):
+                d = np.load(os.path.join(directory, f))
+                of = d["node_opcode"]
+                opcode_features.append(of)
+
+    opcode_features = np.vstack(opcode_features)  # type: ignore
+    processor.fit(opcode_features)
     return processor

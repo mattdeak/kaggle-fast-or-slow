@@ -62,7 +62,26 @@ class OpcodeGroupOHEEmbedder:
 
 
 class OpcodeOHEEmbedder:
+    def __init__(self, ohe_drop_threshold: float = 0.1) -> None:
+        self._fitted = False
+        self.ohe_drop_threshold = ohe_drop_threshold
+
+    def fit(self, opcodes: npt.NDArray[Any]) -> None:
+        opcode_counts = np.zeros(NUM_OPCODES)
+        for opcode in opcodes:
+            opcode_counts[opcode] += 1
+
+        self._opcode_counts = opcode_counts
+        self.drop_mask = opcode_counts < self.ohe_drop_threshold * np.sum(opcode_counts)
+        self._fitted = True
+
     def __call__(self, opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        if not self._fitted:
+            raise RuntimeError("OpcodeOHEEmbedder not fitted")
+
         ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
         ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
+
+        ohe_opcodes = ohe_opcodes[:, ~self.drop_mask]
+
         return ohe_opcodes
