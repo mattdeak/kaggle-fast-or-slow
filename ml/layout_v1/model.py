@@ -165,6 +165,11 @@ class MultiEdgeGATBlock(nn.Module):
             edge_index=alternate_edge_index,
             batch=data.batch,
         )
+        print("Main x: main_edge_data.x.shape")
+        print("Main x: alternate_edge_data.x.shape")
+
+        print(main_edge_data.edge_index.shape)
+        print(alternate_edge_data.edge_index.shape)
 
         main_edge_data = self.main_edge_block(main_edge_data)
         alternate_edge_data = self.alternate_edge_block(alternate_edge_data)
