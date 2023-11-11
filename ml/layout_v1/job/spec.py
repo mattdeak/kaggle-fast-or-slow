@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from ml.layout_v1.job.constants import (ConfigProcessorName, DatasetSubtype,
                                         DatasetType, GlobalProcessorName,
