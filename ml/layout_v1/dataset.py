@@ -62,6 +62,18 @@ def get_file_id(file_path: str) -> str:
     return os.path.basename(file_path).removesuffix(".npz")
 
 
+class EdgeMaskData(Data):
+    def __inc__(self, key, value, *args, **kwargs):  # type: ignore
+        if "edge_mask" in key:
+            return 0
+        return super().__inc__(key, value, *args, **kwargs)  # type: ignore
+
+    def __cat_dim__(self, key, value, *args, **kwargs):  # type: ignore
+        if "edge_mask" in key:
+            return 1
+        return super().__inc__(key, value, *args, **kwargs)  # type: ignore
+
+
 @dataclass
 class GraphNumpyData:
     node_features: npt.NDArray[Any]
@@ -343,13 +355,13 @@ class LayoutDataset(Dataset):
                 torch.bool
             )
 
-        data = Data(
+        data = EdgeMaskData(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
             edge_index_attr=edge_index_attr,
-            alt_index=edge_index_alt_mask,
+            edge_mask=edge_index_alt_mask,
         )
 
         # I think this is a bug in torch_geometric, but it's not a big deal
