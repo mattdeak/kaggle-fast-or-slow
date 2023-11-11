@@ -340,7 +340,7 @@ class LayoutDataset(Dataset):
 
         if graph_data.edge_index_alt_mask is not None:
             edge_index_alt_mask = torch.from_numpy(graph_data.edge_index_alt_mask).to(
-                torch.uint8
+                torch.bool
             )
 
         data = Data(
