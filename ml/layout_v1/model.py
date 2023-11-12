@@ -36,6 +36,7 @@ class SAGEBlock(nn.Module):
     ):
         super().__init__()
         self.conv = SAGEConv(input_dim, output_dim)
+        self.norm_type = graph_norm
         self.norm = build_norm(graph_norm, output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
@@ -47,7 +48,12 @@ class SAGEBlock(nn.Module):
 
         f = self.conv(x, edge_index)
         f = F.gelu(f)
-        f = self.norm(f)
+
+        if self.norm_type == "graph":
+            f = self.norm(f, batch)
+        else:
+            f = self.norm(f)
+
         f = self.dropout(f)
 
         if self.with_residual:
@@ -72,6 +78,7 @@ class GATBlock(nn.Module):
         gat_output_dim = output_dim // heads
 
         self.conv = GATConv(input_dim, gat_output_dim, heads=heads)
+        self.norm_type = graph_norm
         self.norm = build_norm(graph_norm, output_dim)
         self.with_residual = with_residual
         self.dropout = nn.Dropout(dropout)
@@ -83,7 +90,12 @@ class GATBlock(nn.Module):
 
         f = self.conv(x, edge_index)
         f = F.gelu(f)
-        f = self.norm(f)
+
+        if self.norm_type == "graph":
+            f = self.norm(f, batch)
+        else:
+            f = self.norm(f)
+
         f = self.dropout(f)
 
         if self.with_residual:
