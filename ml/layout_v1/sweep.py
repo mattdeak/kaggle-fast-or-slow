@@ -1,9 +1,12 @@
 import wandb
 
+PROGRAM_PATH = "ml/layout_v1/train.py"
+
 # from ml.layout_v1.train import DEFAULT_CONFIG, run
 
 SWEEP_CONFIG_XLA_ONLY = {
-    "program": "train.py",
+    "program": PROGRAM_PATH,
+    "command": ["${env}", "${interpreter}", "${program}"],
     "method": "random",
     "name": "hp-sweep-xla-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
@@ -24,24 +27,15 @@ SWEEP_CONFIG_XLA_ONLY = {
         },
         "graph_norm": {"values": ["graph", "layer"]},
         "linear_norm": {"values": ["layer", "batch"]},
-        "optimizer": {"value": ["adamw"]},
+        "optimizer": {"value": "adamw"},
         "optimizer_kwargs": {
             "parameters": {
                 "lr": {"max": 5e-3, "min": 1e-4},
                 "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
-        "epochs": {"values": [6]},
+        "epochs": {"value": 6},
         "batch_size": {"values": [8, 16]},
-        "preprocessors": {
-            "parameters": {
-                "global_kwargs": {
-                    "parameters": {
-                        "subtype_indicator": {"values": [True, False]},
-                    },
-                },
-            }
-        },
         "crossover": {"min": 0.0, "max": 0.2},
         "use_distribution_flag": {"values": [True, False]},
         "use_multi_edge": {"values": [True, False]},
@@ -53,7 +47,8 @@ SWEEP_CONFIG_XLA_ONLY = {
 }
 
 SWEEP_CONFIG_NLP_ONLY = {
-    "program": "train.py",
+    "program": PROGRAM_PATH,
+    "command": ["${env}", "${interpreter}", "${program}"],
     "method": "random",
     "name": "hp-sweep-nlp-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
@@ -74,14 +69,14 @@ SWEEP_CONFIG_NLP_ONLY = {
         },
         "graph_norm": {"values": ["graph", "layer"]},
         "linear_norm": {"values": ["layer", "batch"]},
-        "optimizer": {"value": ["adamw"]},
+        "optimizer": {"value": "adamw"},
         "optimizer_kwargs": {
             "parameters": {
                 "lr": {"max": 5e-3, "min": 1e-4},
                 "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
-        "epochs": {"values": [6]},
+        "epochs": {"value": 6},
         "batch_size": {"values": [8, 16]},
         "preprocessors": {
             "parameters": {
@@ -103,7 +98,8 @@ SWEEP_CONFIG_NLP_ONLY = {
 }
 
 SWEEP_CONFIG_ALL_DATA = {
-    "program": "train.py",
+    "program": PROGRAM_PATH,
+    "command": ["${env}", "${interpreter}", "${program}"],
     "method": "random",
     "name": "hp-sweep-nlp-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
@@ -124,14 +120,14 @@ SWEEP_CONFIG_ALL_DATA = {
         },
         "graph_norm": {"values": ["graph", "layer"]},
         "linear_norm": {"values": ["layer", "batch"]},
-        "optimizer": {"value": ["adamw"]},
+        "optimizer": {"value": "adamw"},
         "optimizer_kwargs": {
             "parameters": {
                 "lr": {"max": 5e-3, "min": 1e-4},
                 "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
-        "epochs": {"values": [6]},
+        "epochs": {"value": 6},
         "batch_size": {"values": [8, 16]},
         "preprocessors": {
             "parameters": {
@@ -164,4 +160,4 @@ def define_sweeps() -> None:
 
 
 if __name__ == "__main__":
-    define_sweep()
+    define_sweeps()
