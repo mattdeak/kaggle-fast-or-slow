@@ -62,13 +62,7 @@ class OpcodeGroupOHEEmbedder:
 
 
 class OpcodeOHEEmbedder:
-    def __init__(self) -> None:
-        self._fitted = False
-
     def __call__(self, opcodes: npt.NDArray[Any]) -> npt.NDArray[Any]:
-        if not self._fitted:
-            raise RuntimeError("OpcodeOHEEmbedder not fitted")
-
         ohe_opcodes = np.zeros((opcodes.shape[0], NUM_OPCODES))
         ohe_opcodes[np.arange(opcodes.shape[0]), opcodes] = 1
 
