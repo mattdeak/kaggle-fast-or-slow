@@ -78,15 +78,6 @@ SWEEP_CONFIG_NLP_ONLY = {
         },
         "epochs": {"value": 6},
         "batch_size": {"values": [8, 16]},
-        "preprocessors": {
-            "parameters": {
-                "global_kwargs": {
-                    "parameters": {
-                        "subtype_indicator": {"values": [True, False]},
-                    },
-                },
-            }
-        },
         "crossover": {"min": 0.0, "max": 0.2},
         "use_distribution_flag": {"values": [True, False]},
         "use_multi_edge": {"values": [True, False]},
@@ -101,7 +92,7 @@ SWEEP_CONFIG_ALL_DATA = {
     "program": PROGRAM_PATH,
     "command": ["${env}", "${interpreter}", "${program}"],
     "method": "random",
-    "name": "hp-sweep-nlp-only",
+    "name": "hp-sweep-all-data",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
     "parameters": {
         "dataset_types": {"value": ["nlp", "xla"]},
@@ -129,15 +120,6 @@ SWEEP_CONFIG_ALL_DATA = {
         },
         "epochs": {"value": 6},
         "batch_size": {"values": [8, 16]},
-        "preprocessors": {
-            "parameters": {
-                "global_kwargs": {
-                    "parameters": {
-                        "subtype_indicator": {"values": [True, False]},
-                    },
-                },
-            }
-        },
         "crossover": {"min": 0.0, "max": 0.2},
         "use_distribution_flag": {"values": [True, False]},
         "use_multi_edge": {"values": [True, False]},
