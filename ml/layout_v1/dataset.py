@@ -581,6 +581,13 @@ class LayoutDataset(Dataset):
         # Create global. We can have different results before and after the graph transform,
         # so we concatenate them.
         if pre_global_features is not None and post_global_features is not None:
+            # There is definitely one global feature which is identical - the subtype indicator.
+            # We can just drop one of them.
+            # we have to check if the tranfsorms have that field
+            if getattr(transforms.global_transform, "subtype_indicator", True):
+                # Then we drop the last entry of post
+                post_global_features = post_global_features[:-1]
+
             global_features = np.hstack([pre_global_features, post_global_features])
 
         elif pre_global_features is not None:
