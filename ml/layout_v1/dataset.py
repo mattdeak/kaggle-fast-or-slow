@@ -7,7 +7,7 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import numpy.typing as npt
 import torch
-from torch_geometric.data import Batch, Data, Dataset
+from torch_geometric.data import Data, Dataset
 from tqdm.auto import tqdm
 from tqdm.contrib.concurrent import process_map
 
@@ -536,6 +536,8 @@ class LayoutDataset(Dataset):
         *,
         graph_data: GraphNumpyData,
         transforms: LayoutTransforms,
+        pre_global: bool = True,
+        post_global: bool = True,
     ) -> GraphNumpyData:
         # aliasing. unpacking is annoying cause type hints
         node_features = graph_data.node_features
@@ -547,6 +549,14 @@ class LayoutDataset(Dataset):
         global_features = graph_data.global_features
         edge_index_alt_mask = graph_data.edge_index_alt_mask
         edge_index_attr = graph_data.edge_index_attr
+
+        pre_global_features = None
+        post_global_features = None
+
+        if pre_global and transforms.global_transform:
+            pre_global_features = transforms.global_transform(
+                node_features, edge_index, node_config_ids
+            )
 
         if transforms.graph_transform:
             gt = transforms.graph_transform(
@@ -572,10 +582,22 @@ class LayoutDataset(Dataset):
         if transforms.config_transform:
             config_features = transforms.config_transform(config_features)
 
-        if transforms.global_transform:
-            global_features = transforms.global_transform(
+        if post_global and transforms.global_transform:
+            post_global = transforms.global_transform(
                 node_features, edge_index, node_config_ids
             )
+
+        # Create global. We can have different results before and after the graph transform,
+        # so we concatenate them.
+        if pre_global_features is not None and post_global_features is not None:
+            global_features = np.concatenate(
+                [pre_global_features, post_global_features], axis=1
+            )
+
+        elif pre_global_features is not None:
+            global_features = pre_global_features
+        elif post_global_features is not None:
+            global_features = post_global_features
 
         if transforms.target_transform:
             config_runtime = transforms.target_transform(config_runtime)
@@ -584,7 +606,6 @@ class LayoutDataset(Dataset):
             node_features=node_features,
             opcode_embeds=opcodes,
             edge_index=edge_index,
-            edge_index_alt_mask=edge_index_alt_mask,
             edge_index_attr=edge_index_attr,
             node_config_ids=node_config_ids,
             config_features=config_features,
