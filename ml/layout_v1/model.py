@@ -351,16 +351,6 @@ class GraphMLP(nn.Module):
         return build_conv
 
     def forward(self, data: Data) -> torch.Tensor:
-        if not self.use_multi_edge and hasattr(data, "edge_mask"):
-            # Then we need to remove the edge mask and the alt
-            # edge index from the data object
-            data = data.update(
-                Data(
-                    edge_index=data.edge_index[:, ~data.edge_mask],
-                    edge_mask=None,
-                )
-            )
-
         d = data
         for gcn_block in self.gcns:
             d = gcn_block(d)
