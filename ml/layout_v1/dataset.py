@@ -581,9 +581,7 @@ class LayoutDataset(Dataset):
         # Create global. We can have different results before and after the graph transform,
         # so we concatenate them.
         if pre_global_features is not None and post_global_features is not None:
-            global_features = np.concatenate(
-                [pre_global_features, post_global_features], axis=1
-            )
+            global_features = np.hstack([pre_global_features, post_global_features])
 
         elif pre_global_features is not None:
             global_features = pre_global_features
