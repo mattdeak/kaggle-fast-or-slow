@@ -137,7 +137,6 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
-        nan_debug: bool = True,
     ):
         """Directories should be a list of directories to load from.
 
@@ -156,10 +155,14 @@ class LayoutDataset(Dataset):
         self.pretransforms = pretransforms or LayoutTransforms()
         self.posttransforms = posttransforms or LayoutTransforms()
 
+        self.has_posttransforms = any(
+            getattr(self.posttransforms, x) is not None
+            for x in self.posttransforms.__annotations__
+        )
+
         self.progress = progress
         self.multiprocess = multiprocess
         self.max_workers = max_workers
-        self.nan_debug = nan_debug
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -303,10 +306,11 @@ class LayoutDataset(Dataset):
             "Applying post-transforms to graph data.",
         )
 
-        graph_data = self.apply_transforms(
-            graph_data=graph_data,
-            transforms=self.posttransforms,
-        )
+        if self.has_posttransforms:
+            graph_data = self.apply_transforms(
+                graph_data=graph_data,
+                transforms=self.posttransforms,
+            )
 
         processed_config_features = np.zeros(
             (graph_data.node_features.shape[0], graph_data.config_features.shape[-1])
@@ -486,31 +490,6 @@ class LayoutDataset(Dataset):
                 os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
                 mmap_mode="r",
             )
-
-        if self.nan_debug:
-            if np.isnan(node_features).any():
-                raise ValueError("Nans in node features on file {}".format(file_path))
-
-            if np.isnan(opcodes).any():
-                raise ValueError("Nans in opcodes on file {}".format(file_path))
-
-            if np.isnan(edge_index).any():
-                raise ValueError("Nans in edge index on file {}".format(file_path))
-
-            if np.isnan(config_features).any():
-                raise ValueError(
-                    "Nans in config features on file {}".format(file_path),
-                )
-
-            if np.isnan(config_runtime).any():
-                raise ValueError(
-                    "Nans in config runtime on file {}".format(file_path),
-                )
-
-            if global_features is not None and np.isnan(global_features).any():
-                raise ValueError(
-                    "Nans in global features on file {}".format(file_path),
-                )
 
         return GraphNumpyData(
             node_features=node_features,
