@@ -149,6 +149,7 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
+        nan_debug: bool = True,
     ):
         """Directories should be a list of directories to load from.
 
@@ -170,6 +171,7 @@ class LayoutDataset(Dataset):
         self.progress = progress
         self.multiprocess = multiprocess
         self.max_workers = max_workers
+        self.nan_debug = nan_debug
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -496,6 +498,39 @@ class LayoutDataset(Dataset):
                 os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
                 mmap_mode="r",
             )
+
+        if self.nan_debug:
+            if np.isnan(node_features).any():
+                raise ValueError("Nans in node features on file {}".format(file_path))
+
+            if np.isnan(opcodes).any():
+                raise ValueError("Nans in opcodes on file {}".format(file_path))
+
+            if np.isnan(edge_index).any():
+                raise ValueError("Nans in edge index on file {}".format(file_path))
+
+            if np.isnan(config_features).any():
+                raise ValueError(
+                    "Nans in config features on file {}".format(file_path),
+                )
+
+            if np.isnan(config_runtime).any():
+                raise ValueError(
+                    "Nans in config runtime on file {}".format(file_path),
+                )
+
+            if global_features is not None and np.isnan(global_features).any():
+                raise ValueError(
+                    "Nans in global features on file {}".format(file_path),
+                )
+
+            if (
+                alternate_edge_index_mask is not None
+                and np.isnan(alternate_edge_index_mask).any()
+            ):
+                raise ValueError(
+                    "Nans in edge mask on file {}".format(file_path),
+                )
 
         return GraphNumpyData(
             node_features=node_features,
