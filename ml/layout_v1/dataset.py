@@ -117,7 +117,7 @@ class LayoutDataset(Dataset):
     OPCODE_EMBEDDINGS_FILE = "node_opcode.npy"
     EDGE_INDEX_FILE = "edge_index.npy"
     EDGE_INDEX_ATTR_FILE = "edge_index_attr.npy"
-    EDGE_INDEX_ALT_MASK_FILE = "edge_index_alt_mask.npy"
+    EDGE_INDEX_ALT_FILE = "edge_index_alt.npy"
     CONFIG_FEATURES_FILE = "node_config_feat.npy"
     NODE_IDS_FILE = "node_config_ids.npy"
     CONFIG_RUNTIME_FILE = "config_runtime.npy"
@@ -415,10 +415,10 @@ class LayoutDataset(Dataset):
                 os.path.join(target_file_path, self.GLOBAL_FEATURES_FILE),
                 graph_data.global_features.astype(np.float32),
             )
-        if graph_data.edge_index_alt_mask is not None:
+        if graph_data.alt_edge_index is not None:
             np.save(
-                os.path.join(target_file_path, self.EDGE_INDEX_ALT_MASK_FILE),
-                graph_data.edge_index_alt_mask.astype(np.bool_),
+                os.path.join(target_file_path, self.EDGE_INDEX_ALT_FILE),
+                graph_data.alt_edge_index.astype(np.int64),
             )
         if graph_data.edge_index_attr is not None:
             np.save(
@@ -459,8 +459,8 @@ class LayoutDataset(Dataset):
             os.path.join(file_path, self.EDGE_INDEX_FILE),
         )
 
-        alternate_edge_index_mask = np.load(
-            os.path.join(file_path, self.EDGE_INDEX_ALT_MASK_FILE),
+        alternate_edge_index = np.load(
+            os.path.join(file_path, self.EDGE_INDEX_ALT_FILE),
         )
 
         node_config_ids = np.load(
@@ -512,14 +512,6 @@ class LayoutDataset(Dataset):
                     "Nans in global features on file {}".format(file_path),
                 )
 
-            if (
-                alternate_edge_index_mask is not None
-                and np.isnan(alternate_edge_index_mask).any()
-            ):
-                raise ValueError(
-                    "Nans in edge mask on file {}".format(file_path),
-                )
-
         return GraphNumpyData(
             node_features=node_features,
             opcode_embeds=opcodes,
@@ -528,7 +520,7 @@ class LayoutDataset(Dataset):
             config_features=config_features,
             config_runtime=config_runtime,
             global_features=global_features,
-            edge_index_alt_mask=alternate_edge_index_mask,
+            alt_edge_index=alternate_edge_index,
         )
 
     def apply_transforms(
@@ -547,8 +539,8 @@ class LayoutDataset(Dataset):
         config_features = graph_data.config_features
         config_runtime = graph_data.config_runtime
         global_features = graph_data.global_features
-        edge_index_alt_mask = graph_data.edge_index_alt_mask
         edge_index_attr = graph_data.edge_index_attr
+        alt_edge_index = graph_data.alt_edge_index
 
         pre_global_features = None
         post_global_features = None
@@ -567,9 +559,8 @@ class LayoutDataset(Dataset):
             opcodes = gt.opcodes
             edge_index = gt.edge_index
             node_config_ids = gt.node_config_ids
-
-            edge_index_alt_mask = gt.edge_index_alt_mask
             edge_index_attr = gt.edge_index_attr
+            alt_edge_index = gt.alt_edge_index
 
         if transforms.node_transform:
             node_features, edge_index, node_config_ids = transforms.node_transform(
@@ -583,7 +574,7 @@ class LayoutDataset(Dataset):
             config_features = transforms.config_transform(config_features)
 
         if post_global and transforms.global_transform:
-            post_global = transforms.global_transform(
+            post_global_features = transforms.global_transform(
                 node_features, edge_index, node_config_ids
             )
 
@@ -607,6 +598,7 @@ class LayoutDataset(Dataset):
             opcode_embeds=opcodes,
             edge_index=edge_index,
             edge_index_attr=edge_index_attr,
+            alt_edge_index=alt_edge_index,
             node_config_ids=node_config_ids,
             config_features=config_features,
             config_runtime=config_runtime,
