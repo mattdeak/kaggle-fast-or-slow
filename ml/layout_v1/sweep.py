@@ -7,14 +7,14 @@ PROGRAM_PATH = "ml/layout_v1/train.py"
 SWEEP_CONFIG_XLA_ONLY = {
     "program": PROGRAM_PATH,
     "command": ["${env}", "${interpreter}", "${program}"],
-    "method": "random",
+    "method": "bayes",
     "name": "hp-sweep-xla-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
     "parameters": {
         "dataset_types": {"value": ["xla"]},
         "dataset_subtypes": {"value": ["default", "random"]},
         "graph_layers": {"values": [3, 4, 5]},
-        "graph_channels": {"values": [64, 128, 256]},
+        "graph_channels": {"values": [128, 256]},
         "linear_layers": {"values": [2, 3, 4, 5]},
         "linear_channels": {"values": [64, 128, 256]},
         "dropout": {"values": [0.0, 0.05, 0.1, 0.2]},
