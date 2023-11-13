@@ -347,7 +347,9 @@ class LayoutDataset(Dataset):
         edge_index_alt_mask = None
 
         if graph_data.global_features is not None:
-            global_features = torch.from_numpy(graph_data.global_features)
+            global_features = torch.from_numpy(graph_data.global_features).reshape(
+                1, -1
+            )
 
         if graph_data.edge_index_attr is not None:
             edge_index_attr = torch.from_numpy(
