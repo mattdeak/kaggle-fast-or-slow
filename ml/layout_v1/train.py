@@ -24,7 +24,7 @@ torch.set_float32_matmul_precision("high")
 print("Using device:", device)
 
 DEFAULT_CONFIG = JobSpec(
-    dataset_types=["xla"],
+    dataset_types=["nlp"],
     dataset_subtypes=["default", "random"],
     processed_directory="data/processed",
     log_interval=1000,

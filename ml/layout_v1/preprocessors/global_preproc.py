@@ -39,7 +39,7 @@ class GlobalFeatureGenerator:
 
         longest_path_count = nx.dag_longest_path_length(digraph)  # type: ignore
         longest_path_count = cast(float, longest_path_count)
-        longest_path_normalized = longest_path_count / x.shape[0]
+        longest_path_normalized = longest_path_count / (x.shape[0] + 1)
         component_count = 0
 
         component_shortest_paths: list[int] = []
@@ -55,7 +55,7 @@ class GlobalFeatureGenerator:
         component_shortest_paths_mean = np.mean(component_shortest_paths)
         component_shortest_paths_std = np.std(component_shortest_paths)
 
-        log_num_nodes = np.log(x.shape[0])
+        log_num_nodes = np.log(x.shape[0] + 1e-4)
 
         final = np.array(
             [

@@ -9,54 +9,6 @@ from lib.feature_name_mapping import NODE_FEATURE_IX_LOOKUP
 EPSILON = 1e-4
 
 
-# These features have no variance in the test set
-XLA_TEST_NOVAR_IX = [
-    1,
-    2,
-    4,
-    5,
-    8,
-    9,
-    11,
-    12,
-    14,
-    16,
-    17,
-    19,
-    41,
-    42,
-    49,
-    50,
-    55,
-    56,
-    57,
-    58,
-    64,
-    65,
-    66,
-    73,
-    74,
-    81,
-    82,
-    87,
-    88,
-    89,
-    90,
-    97,
-    98,
-    103,
-    104,
-    116,
-    121,
-    122,
-    123,
-    124,
-    125,
-    126,
-    139,
-]
-
-
 class NodeProcessor:
     NODE_FEAT_INDEX = np.arange(140)
     SHAPE_DIM_FEATURES = np.arange(21, 27)
@@ -85,6 +37,7 @@ class NodeProcessor:
                 self.padding_proportions(x),
                 self.effective_window(x),
                 self.reversal_ratio(x),
+                self.is_configurable(x, node_config_ids),
             )
         )
 
@@ -95,6 +48,7 @@ class NodeProcessor:
 
         # log transform specific features
         x = np.hstack((x, engineered))
+
         return x, edge_index, node_config_ids
 
     def calculate_shape_sparsity(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
@@ -127,6 +81,14 @@ class NodeProcessor:
     def reversal_ratio(self, x: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Calculate reversal ratio of node features shape"""
         return (x[:, 91] / (x[:, 91:93].sum(axis=1) + EPSILON)).reshape(-1, 1)
+
+    def is_configurable(
+        self, x: npt.NDArray[Any], config_node_ids: npt.NDArray[np.int_]
+    ) -> npt.NDArray[Any]:
+        is_configurable = np.zeros((x.shape[0], 1))
+        is_configurable[config_node_ids] = 1
+
+        return is_configurable
 
 
 class NodeStandardizer:

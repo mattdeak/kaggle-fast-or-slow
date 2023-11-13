@@ -62,20 +62,6 @@ def get_file_id(file_path: str) -> str:
     return os.path.basename(file_path).removesuffix(".npz")
 
 
-class EdgeMaskData(Data):
-    def __inc__(self, key, value, *args, **kwargs):  # type: ignore
-        if key == "edge_mask":
-            return 0
-
-        return super().__inc__(key, value, *args, **kwargs)  # type: ignore
-
-    def __cat_dim__(self, key, value, *args, **kwargs):  # type: ignore
-        if key == "edge_mask":
-            return 0
-
-        return super().__cat_dim__(key, value, *args, **kwargs)  # type: ignore
-
-
 @dataclass
 class GraphNumpyData:
     node_features: npt.NDArray[Any]
@@ -86,7 +72,7 @@ class GraphNumpyData:
     config_runtime: npt.NDArray[Any]
     global_features: npt.NDArray[Any] | None = None
     edge_index_attr: npt.NDArray[Any] | None = None
-    edge_index_alt_mask: npt.NDArray[Any] | None = None
+    alt_edge_index: npt.NDArray[Any] | None = None
 
     def __iter__(self):
         return iter(
@@ -98,6 +84,8 @@ class GraphNumpyData:
                 self.config_features,
                 self.config_runtime,
                 self.global_features,
+                self.edge_index_attr,
+                self.alt_edge_index,
             )
         )
 
@@ -344,7 +332,7 @@ class LayoutDataset(Dataset):
         # Load optional features
         global_features = None
         edge_index_attr = None
-        edge_index_alt_mask = None
+        alt_edge_index = None
 
         if graph_data.global_features is not None:
             global_features = torch.from_numpy(graph_data.global_features).reshape(
@@ -356,18 +344,16 @@ class LayoutDataset(Dataset):
                 graph_data.edge_index_attr
             ).T.contiguous()
 
-        if graph_data.edge_index_alt_mask is not None:
-            edge_index_alt_mask = torch.from_numpy(graph_data.edge_index_alt_mask).to(
-                torch.bool
-            )
+        if graph_data.alt_edge_index is not None:
+            alt_edge_index = torch.from_numpy(graph_data.alt_edge_index).T.contiguous()
 
-        data = EdgeMaskData(
+        data = Data(
             x=torch.from_numpy(all_features),  # type: ignore
             edge_index=torch.from_numpy(graph_data.edge_index).T.contiguous(),
+            alt_edge_index=alt_edge_index,
             y=torch.tensor(graph_data.config_runtime),
             global_features=global_features,
             edge_index_attr=edge_index_attr,
-            edge_mask=edge_index_alt_mask,
         )
 
         # I think this is a bug in torch_geometric, but it's not a big deal

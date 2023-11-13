@@ -13,7 +13,7 @@ class GraphTransformReturnType:
     edge_index: npt.NDArray[Any]
     node_config_ids: npt.NDArray[Any]
     edge_index_attr: npt.NDArray[Any] | None = None
-    edge_index_alt_mask: npt.NDArray[Any] | None = None
+    alt_edge_index: npt.NDArray[Any] | None = None
 
 
 # Node Features, Opcodes, Edge Index, Node Config Ids, Alternate Edge Index
@@ -67,20 +67,15 @@ class GraphProcessor:
         alternate_edge_index = remap_edges(alternate_edge_index, node_mapping)
         node_features, opcodes = remap_nodes(node_features, opcodes, node_mapping)
 
-        total_edge_index = np.vstack([new_edge_index, alternate_edge_index])
-
-        alt_edge_mask = np.zeros(total_edge_index.shape[0], dtype=np.bool_)
-        alt_edge_mask[new_edge_index.shape[0] :] = True
-
         new_config_ids = remap_node_config_ids(node_config_ids, node_mapping)
 
         return GraphTransformReturnType(
             node_features=node_features,
             opcodes=opcodes,
-            edge_index=total_edge_index,
+            edge_index=new_edge_index,
             node_config_ids=new_config_ids,
             edge_index_attr=None,
-            edge_index_alt_mask=alt_edge_mask,
+            alt_edge_index=alternate_edge_index,
         )
 
     def __repr__(self) -> str:

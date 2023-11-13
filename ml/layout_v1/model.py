@@ -163,9 +163,8 @@ class MultiEdgeGATBlock(nn.Module):
         self.output_dim = output_dim
 
     def forward(self, data: Data):
-        alternate_edge_mask = data.edge_mask
-        main_edge_index = data.edge_index[:, ~alternate_edge_mask]
-        alternate_edge_index = data.edge_index[:, alternate_edge_mask]
+        main_edge_index = data.edge_index
+        alternate_edge_index = data.alt_edge_index
 
         main_edge_data = Data(
             x=data.x,
