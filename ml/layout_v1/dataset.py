@@ -149,7 +149,6 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
-        config_saved_dtype: npt.DTypeLike = np.float16,  # saves memory at the cost of precision
     ):
         """Directories should be a list of directories to load from.
 
@@ -171,7 +170,6 @@ class LayoutDataset(Dataset):
         self.progress = progress
         self.multiprocess = multiprocess
         self.max_workers = max_workers
-        self.config_saved_dtype = config_saved_dtype
 
         if mode == "memmapped":
             if processed_dir is None:
@@ -415,7 +413,7 @@ class LayoutDataset(Dataset):
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_FEATURES_FILE),
-            graph_data.config_features.astype(self.config_saved_dtype),
+            graph_data.config_features.astype(np.float16),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
@@ -485,9 +483,7 @@ class LayoutDataset(Dataset):
                 os.path.join(file_path, self.CONFIG_FEATURES_FILE),
                 mmap_mode="r+",
             )[config_idx, :, :]
-        ).astype(
-            np.float32
-        )  # have to reconvert to float32 cause it could be float16
+        )
 
         config_runtime = np.load(
             os.path.join(file_path, self.CONFIG_RUNTIME_FILE),

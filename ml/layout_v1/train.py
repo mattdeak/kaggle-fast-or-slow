@@ -54,7 +54,7 @@ DEFAULT_CONFIG = JobSpec(
     # processors
     preprocessors=ProcessorSpec(
         graph="config-communities",
-        graph_kwargs={"hops": 2},
+        graph_kwargs={"hops": 1},
         node="node-processor",
         config="config-feature-generator",
         global_="global-processor",

@@ -36,7 +36,7 @@ SWEEP_CONFIG_XLA_ONLY = {
         },
         "epochs": {"value": 5},
         "batch_size": {"value": 16},
-        "crossover": {"min": 0.0, "max": 0.2},
+        "crossover": {"values": [0.0, 0.1]},
         "use_distribution_flag": {"values": [True, False]},
         "use_multi_edge": {"values": [True, False]},
         "alt_block": {"values": ["sage", "gat"]},  # main block is always gat
@@ -78,8 +78,8 @@ SWEEP_CONFIG_NLP_ONLY = {
             },
         },
         "epochs": {"value": 1},  # nlp is big, so we only do 1 epoch during a sweep
-        "batch_size": {"values": 16},
-        "crossover": {"min": 0.0, "max": 0.2},
+        "batch_size": {"value": 16},
+        "crossover": {"values": [0.0, 0.1, 0.2]},
         "use_distribution_flag": {"values": [True, False]},
         "use_multi_edge": {"values": [True, False]},
         "alt_block": {"values": ["sage", "gat"]},  # main block is always gat
