@@ -415,7 +415,7 @@ class LayoutDataset(Dataset):
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_FEATURES_FILE),
-            graph_data.config_features.astype(np.float16),
+            graph_data.config_features.astype(self.config_saved_dtype),
         )
         np.save(
             os.path.join(target_file_path, self.CONFIG_RUNTIME_FILE),
