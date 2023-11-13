@@ -528,7 +528,7 @@ class LayoutDataset(Dataset):
         *,
         graph_data: GraphNumpyData,
         transforms: LayoutTransforms,
-        pre_global: bool = True,
+        pre_global: bool = False,
         post_global: bool = True,
     ) -> GraphNumpyData:
         # aliasing. unpacking is annoying cause type hints
@@ -584,7 +584,7 @@ class LayoutDataset(Dataset):
             # There is definitely one global feature which is identical - the subtype indicator.
             # We can just drop one of them.
             # we have to check if the tranfsorms have that field
-            if getattr(transforms.global_transform, "subtype_indicator", True):
+            if getattr(transforms.global_transform, "subtype_indicator", False):
                 # Then we drop the last entry of post
                 post_global_features = post_global_features[:-1]
 
