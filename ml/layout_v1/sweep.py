@@ -50,7 +50,7 @@ SWEEP_CONFIG_XLA_ONLY = {
 SWEEP_CONFIG_NLP_ONLY = {
     "program": PROGRAM_PATH,
     "command": ["${env}", "${interpreter}", "${program}"],
-    "method": "random",
+    "method": "bayes",
     "name": "hp-sweep-nlp-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
     "parameters": {
