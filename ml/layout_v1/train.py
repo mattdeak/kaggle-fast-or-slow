@@ -391,6 +391,9 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
                 )
             log_eval_metrics(results=metrics, is_full=True)
 
+        # Save the final model
+        checkpointer.save_checkpoint(iteration=start_iter, epoch=run_config.epochs)
+
 
 def run_from_config(config: dict[str, Any]):
     # Base on default
