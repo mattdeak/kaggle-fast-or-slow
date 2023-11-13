@@ -11,7 +11,7 @@ from ml.layout_v1.job.constants import (ConfigProcessorName, DatasetSubtype,
 
 class ProcessorSpec(BaseModel):
     graph: GraphProcessorName | None = "config-communities"
-    graph_kwargs: dict[str, Any] = {"hops": 2}
+    graph_kwargs: dict[str, Any] = {"hops": 1}
 
     node: NodeProcessorName | None = "node-processor"
     node_kwargs: dict[str, Any] = {}
