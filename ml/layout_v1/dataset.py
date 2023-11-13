@@ -58,6 +58,18 @@ class TargetTransform(Protocol):
         ...
 
 
+@dataclass
+class CachedData:
+    """We can keep graph-level data cached in memory to speed up loading."""
+
+    node_features: npt.NDArray[Any]
+    opcode_embeds: npt.NDArray[Any]
+    edge_index: npt.NDArray[Any]
+    node_config_ids: npt.NDArray[Any]
+    global_features: npt.NDArray[Any] | None = None
+    alt_edge_index: npt.NDArray[Any] | None = None
+
+
 def get_file_id(file_path: str) -> str:
     return os.path.basename(file_path).removesuffix(".npz")
 
@@ -137,6 +149,7 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
+        cache_graphs: bool = True,
     ):
         """Directories should be a list of directories to load from.
 
@@ -154,6 +167,9 @@ class LayoutDataset(Dataset):
 
         self.pretransforms = pretransforms or LayoutTransforms()
         self.posttransforms = posttransforms or LayoutTransforms()
+        self.cache_graphs = cache_graphs
+
+        self.graph_cache: dict[str, CachedData] = {}
 
         self.has_posttransforms = any(
             getattr(self.posttransforms, x) is not None
@@ -451,27 +467,59 @@ class LayoutDataset(Dataset):
 
     def extract_from_npy(self, idx: int) -> GraphNumpyData:
         file_path, config_idx = self.idx_to_config[idx]
-        node_features = np.load(
-            os.path.join(file_path, self.NODE_FEATURES_FILE),
-        )
 
-        opcodes = np.load(
-            os.path.join(file_path, self.OPCODE_EMBEDDINGS_FILE),
-        )
+        if not self.cache_graphs:
+            cached = None
 
-        edge_index = np.load(
-            os.path.join(file_path, self.EDGE_INDEX_FILE),
-        )
+        else:
+            cached = self.graph_cache.get(file_path, None)
 
-        alternate_edge_index = np.load(
-            os.path.join(file_path, self.EDGE_INDEX_ALT_FILE),
-        )
+        if not cached:
+            node_features = np.load(
+                os.path.join(file_path, self.NODE_FEATURES_FILE),
+            )
 
-        node_config_ids = np.load(
-            os.path.join(file_path, self.NODE_IDS_FILE),
-        )
+            opcodes = np.load(
+                os.path.join(file_path, self.OPCODE_EMBEDDINGS_FILE),
+            )
 
-        # debug
+            edge_index = np.load(
+                os.path.join(file_path, self.EDGE_INDEX_FILE),
+            )
+
+            alternate_edge_index = np.load(
+                os.path.join(file_path, self.EDGE_INDEX_ALT_FILE),
+            )
+
+            node_config_ids = np.load(
+                os.path.join(file_path, self.NODE_IDS_FILE),
+            )
+
+            global_features = np.load(
+                os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
+            )
+
+            if self.cache_graphs:
+                cached = CachedData(
+                    node_features=node_features,
+                    opcode_embeds=opcodes,
+                    edge_index=edge_index,
+                    node_config_ids=node_config_ids,
+                    alt_edge_index=alternate_edge_index,
+                    global_features=global_features,
+                )
+                self.graph_cache[file_path] = cached
+        else:
+            node_features = cached.node_features
+            opcodes = cached.opcode_embeds
+            edge_index = cached.edge_index
+            alternate_edge_index = cached.alt_edge_index
+            node_config_ids = cached.node_config_ids
+            global_features = cached.global_features
+
+        #  We need to load the config features and runtime
+        # from the file, as they are huge and we don't want to
+        # load them all into memory.
         config_features = np.array(
             np.load(
                 os.path.join(file_path, self.CONFIG_FEATURES_FILE),
@@ -483,13 +531,6 @@ class LayoutDataset(Dataset):
             os.path.join(file_path, self.CONFIG_RUNTIME_FILE),
             mmap_mode="r",
         )[config_idx]
-
-        global_features = None
-        if os.path.exists(os.path.join(file_path, self.GLOBAL_FEATURES_FILE)):
-            global_features = np.load(
-                os.path.join(file_path, self.GLOBAL_FEATURES_FILE),
-                mmap_mode="r",
-            )
 
         return GraphNumpyData(
             node_features=node_features,
