@@ -6,6 +6,7 @@ from typing import Any, cast
 import numpy as np
 import scipy.stats as ss
 import torch
+import torch.multiprocessing
 import torch.nn as nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch_geometric.loader import DataLoader
@@ -21,6 +22,7 @@ from ml.layout_v1.utils import get_rank
 # ---- Config ---- #
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch.set_float32_matmul_precision("high")
+torch.multiprocessing.set_sharing_strategy("file_system")
 print("Using device:", device)
 
 DEFAULT_CONFIG = JobSpec(
