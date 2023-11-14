@@ -1,8 +1,10 @@
 import heapq
 import os
-from typing import Any, Self
+from typing import Any
 
 import torch
+# 3.10 compat
+from typing_extensions import Self
 
 
 class Checkpointer:
