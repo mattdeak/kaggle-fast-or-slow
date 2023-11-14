@@ -149,7 +149,7 @@ class LayoutDataset(Dataset):
         progress: bool = True,
         multiprocess: bool = True,
         max_workers: int = 3,  # has to be pretty low, memory intensive
-        cache_graphs: bool = True,
+        cache_graphs: bool = False,
     ):
         """Directories should be a list of directories to load from.
 
