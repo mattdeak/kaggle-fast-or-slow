@@ -139,6 +139,7 @@ class NodeStandardizer:
             raise RuntimeError("Standardizer not fitted")
 
         x = _log_transform_specific_features(x)
+
         standardized = self.standardizer.transform(x[:, self._norm_mask])  #
         x[:, self._norm_mask] = standardized
         x = x[:, ~self._drop_mask]
