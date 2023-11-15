@@ -73,11 +73,28 @@ class Checkpointer:
             _, oldest_checkpoint = heapq.heappop(self._heap)
             os.remove(os.path.join(self.checkpoint_dir, oldest_checkpoint))
 
-        neg_epoch = -epoch if epoch is not None else epoch
-
         # negation is used because heapq is a min heap
+        neg_epoch = -epoch if epoch is not None else epoch
         iter_count = _ComparableIter(-iteration, neg_epoch)
         heapq.heappush(self._heap, (iter_count, checkpoint_name))
+
+    def save_named_checkpoint(
+        self, iteration: int, epoch: int | None = None, name: str = "checkpoint.pt"
+    ) -> None:
+        """Saves a checkpoint. Does not use the heap."""
+        checkpoint = {
+            "model_state_dict": self._model.state_dict(),
+            "optimizer_state_dict": self._optimizer.state_dict(),
+            "iteration": iteration,
+        }
+
+        if epoch:
+            checkpoint["epoch"] = epoch
+        if self._scheduler:
+            checkpoint["scheduler_state_dict"] = self._scheduler.state_dict()
+
+        checkpoint_path = os.path.join(self.checkpoint_dir, name)
+        torch.save(checkpoint, checkpoint_path)
 
     def load_checkpoint(self, state_dict: dict[str, Any]) -> dict[str, Any] | None:
         """Loads the most recent checkpoint.

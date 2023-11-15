@@ -298,7 +298,9 @@ def run_full_epoch(
             model.train()
 
         if run_config.save_checkpoints:
-            checkpointer.save_checkpoint(iteration=iter_count, epoch=epoch)
+            checkpointer.save_named_checkpoint(
+                iteration=iter_count, epoch=epoch, name=f"end_of_epoch_{epoch}.pt"
+            )
 
 
 def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None):
@@ -381,9 +383,6 @@ def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None
                     use_amp=run_config.use_amp,
                 )
             log_eval_metrics(results=metrics, is_full=True)
-
-        # Save the final model
-        checkpointer.save_checkpoint(iteration=start_iter, epoch=run_config.epochs)
 
 
 def run_from_config(config: dict[str, Any]):
