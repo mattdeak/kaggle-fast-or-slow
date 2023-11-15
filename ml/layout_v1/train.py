@@ -8,6 +8,7 @@ import scipy.stats as ss
 import torch
 import torch.multiprocessing
 import torch.nn as nn
+from sklearn.externals._packaging.version import PrePostDevType
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader.dataloader import Batch
@@ -16,7 +17,8 @@ from tqdm.auto import tqdm
 import wandb
 from ml.layout_v1.checkpointer import Checkpointer
 from ml.layout_v1.job.builder import RunConfig, instantiate_from_spec
-from ml.layout_v1.job.spec import JobSpec, ProcessorSpec
+from ml.layout_v1.job.spec import (JobSpec, PostprocessorSpec,
+                                   PreprocessorSpec, ProcessorSpec)
 from ml.layout_v1.utils import get_rank
 
 # ---- Config ---- #
@@ -54,24 +56,8 @@ DEFAULT_CONFIG = JobSpec(
     scheduler=None,
     scheduler_kwargs={"max_lr": 0.005, "pct_start": 0.2},
     # processors
-    preprocessors=ProcessorSpec(
-        graph="config-communities",
-        graph_kwargs={"hops": 1},
-        node="node-processor",
-        config="config-feature-generator",
-        global_="global-processor",
-        global_kwargs={"subtype_indicator": True},
-        opcode="ohe",
-        target=None,
-    ),
-    postprocessors=ProcessorSpec(
-        graph=None,
-        node=None,
-        config=None,
-        opcode=None,
-        global_=None,
-        target=None,
-    ),
+    preprocessors=PreprocessorSpec(),
+    postprocessors=PostprocessorSpec(),
     # crossover
     crossover=0.0,
 )
