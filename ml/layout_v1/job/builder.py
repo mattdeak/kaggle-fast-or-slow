@@ -64,6 +64,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         ["train"] if spec.train_on_validation else ["train", "valid"]
     )
 
+    print(train_splits)
+
     train_data_directories = generate_dataset_dirs(
         dataset_types=spec.dataset_types,
         dataset_subtypes=spec.dataset_subtypes,
