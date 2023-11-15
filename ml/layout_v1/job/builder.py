@@ -20,7 +20,7 @@ from ml.layout_v1.job.constants import (CONFIG_PROCESSORS, CRITERIONS,
                                         OPCODE_PROCESSORS, OPTIMIZERS,
                                         SCHEDULERS, TARGET_PROCESSORS,
                                         DatasetSubtype, DatasetType)
-from ml.layout_v1.job.spec import JobSpec, ProcessorSpec
+from ml.layout_v1.job.spec import DEFAULT_PREPROCESSORS, JobSpec, ProcessorSpec
 from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
@@ -56,6 +56,12 @@ def generate_from_config(config: dict[str, Any]) -> RunData:
 
 def instantiate_from_spec(spec: JobSpec) -> RunData:
     """Generate the actual job config for a specific run."""
+
+    preprocessor_spec = DEFAULT_PREPROCESSORS
+    preprocessor_spec.update(spec.preprocessors)
+
+    postprocessor_spec = DEFAULT_PREPROCESSORS
+    postprocessor_spec.update(spec.postprocessors)
 
     preprocessors = build_processors(spec.preprocessors)
     postprocessors = build_processors(spec.postprocessors)

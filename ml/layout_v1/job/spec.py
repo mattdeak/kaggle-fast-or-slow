@@ -29,6 +29,27 @@ class ProcessorSpec(BaseModel):
     target_kwargs: dict[str, Any] = {}
 
 
+DEFAULT_PREPROCESSORS = ProcessorSpec(
+    graph="config-communities",
+    graph_kwargs={"hops": 2},
+    node="node-processor",
+    config="config-feature-generator",
+    global_="global-processor",
+    global_kwargs={"subtype_indicator": True},
+    opcode="ohe",
+    target=None,
+)
+
+
+DEFAULT_POSTPROCESSORS = ProcessorSpec(
+    graph=None,
+    node=None,
+    config=None,
+    opcode=None,
+    global_=None,
+)
+
+
 class JobSpec(BaseModel):
     """Configuration for a training/evaluation job.
 
