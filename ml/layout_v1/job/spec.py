@@ -38,6 +38,11 @@ class JobSpec(BaseModel):
     the `generate` method.
     """
 
+    class Config:
+        """Pydantic config."""
+
+        extra = "forbid"
+
     # Dataset
     dataset_types: list[DatasetType] = ["xla"]
     dataset_subtypes: list[DatasetSubtype] = ["default", "random"]
