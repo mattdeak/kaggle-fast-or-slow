@@ -14,8 +14,8 @@ SWEEP_CONFIG_XLA_ONLY = {
         "dataset_types": {"value": ["xla"]},
         "dataset_subtypes": {"value": ["default", "random"]},
         "graph_layers": {"values": [3, 4, 5]},
-        "graph_channels": {"values": [128, 256]},
-        "linear_layers": {"values": [2, 3, 4]},
+        "graph_channels": {"values": [128, 256, 512]},
+        "linear_layers": {"values": [1, 2]},
         "linear_channels": {"values": [64, 128, 256]},
         "dropout": {"values": [0.0, 0.05, 0.1, 0.2]},
         "pooling": {"values": ["mean", "max", "multi"]},
@@ -23,6 +23,21 @@ SWEEP_CONFIG_XLA_ONLY = {
         "graph_convolution_kwargs": {
             "parameters": {
                 "heads": {"values": [1, 2, 4, 8]},
+            },
+        },
+        "preprocessors": {
+            "parameters": {
+                "graph_kwargs": {
+                    "parameters": {
+                        "hops": {"value": 2},
+                    },
+                },
+                "opcode": {"value": None},
+            },
+        },
+        "postprocessors": {
+            "parameters": {
+                "opcode": {"values": ["ohe", "group-ohe-embedder"]},
             },
         },
         "graph_norm": {"values": ["graph", "layer"]},
@@ -34,9 +49,9 @@ SWEEP_CONFIG_XLA_ONLY = {
                 "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
-        "epochs": {"value": 5},
+        "epochs": {"value": 3},
         "batch_size": {"value": 16},
-        "crossover": {"values": [0.0, 0.1, 0.2]},
+        "crossover": {"values": [0.0, 0.1, 0.2, 0.3]},
         "use_multi_edge": {"value": True},
         "alt_block": {"values": ["sage", "gat"]},  # main block is always gat
         "criterion": {"values": ["listMLE", "margin-loss"]},
@@ -141,15 +156,14 @@ SWEEP_CONFIG_DEFAULT_XLA_ONLY = {
 
 
 def define_sweeps() -> None:
-    # sweep_id1 = wandb.sweep(SWEEP_CONFIG_XLA_ONLY, project="kaggle-fast-or-slow")
+    sweep_id1 = wandb.sweep(SWEEP_CONFIG_XLA_ONLY, project="kaggle-fast-or-slow")
     # sweep_id2 = wandb.sweep(SWEEP_CONFIG_NLP_ONLY, project="kaggle-fast-or-slow")
-    sweep_id3 = wandb.sweep(
-        SWEEP_CONFIG_DEFAULT_XLA_ONLY, project="kaggle-fast-or-slow"
-    )
+    # sweep_id3 = wandb.sweep(
+    #     SWEEP_CONFIG_DEFAULT_XLA_ONLY, project="kaggle-fast-or-slow"
+    # )
 
-    # print(f"XLA-only sweep: {sweep_id1}")
+    print(f"XLA-only sweep: {sweep_id1}")
     # print(f"NLP-only sweep: {sweep_id2}")
-    print(f"Default XLA-only sweep: {sweep_id3}")
 
 
 if __name__ == "__main__":

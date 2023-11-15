@@ -10,19 +10,19 @@ from ml.layout_v1.job.constants import (ConfigProcessorName, DatasetSubtype,
 
 
 class ProcessorSpec(BaseModel):
-    graph: GraphProcessorName | None = "config-communities"
-    graph_kwargs: dict[str, Any] = {"hops": 1}
+    graph: GraphProcessorName | None = None
+    graph_kwargs: dict[str, Any] = {}
 
-    node: NodeProcessorName | None = "node-processor"
+    node: NodeProcessorName | None = None
     node_kwargs: dict[str, Any] = {}
 
-    config: ConfigProcessorName | None = "config-feature-generator"
+    config: ConfigProcessorName | None = None
     config_kwargs: dict[str, Any] = {}
 
-    opcode: OpcodeProcessorName | None = "group-ohe-embedder"
+    opcode: OpcodeProcessorName | None = None
     opcode_kwargs: dict[str, Any] = {}
 
-    global_: GlobalProcessorName | None = "global-processor"
+    global_: GlobalProcessorName | None = None
     global_kwargs: dict[str, Any] = {}
 
     target: TargetProcessorName | None = None
