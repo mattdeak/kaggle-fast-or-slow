@@ -20,9 +20,7 @@ from ml.layout_v1.job.constants import (CONFIG_PROCESSORS, CRITERIONS,
                                         OPCODE_PROCESSORS, OPTIMIZERS,
                                         SCHEDULERS, TARGET_PROCESSORS,
                                         DatasetSubtype, DatasetType)
-from ml.layout_v1.job.spec import (DEFAULT_POSTPROCESSORS,
-                                   DEFAULT_PREPROCESSORS, JobSpec,
-                                   ProcessorSpec)
+from ml.layout_v1.job.spec import JobSpec, ProcessorSpec
 from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
@@ -59,21 +57,8 @@ def generate_from_config(config: dict[str, Any]) -> RunData:
 def instantiate_from_spec(spec: JobSpec) -> RunData:
     """Generate the actual job config for a specific run."""
 
-    preprocessor_spec = DEFAULT_PREPROCESSORS.model_dump()
-    preprocessor_spec.update(
-        {k: v for k, v in spec.preprocessors.model_dump().items() if v is not None}
-    )
-
-    # Replace any non-null values in the default spec with the
-    # values from the job spec
-
-    postprocessor_spec = DEFAULT_POSTPROCESSORS.model_dump()
-    postprocessor_spec.update(
-        {k: v for k, v in spec.postprocessors.model_dump().items() if v is not None}
-    )
-
-    preprocessors = build_processors(ProcessorSpec(**preprocessor_spec))
-    postprocessors = build_processors(ProcessorSpec(**postprocessor_spec))
+    preprocessors = build_processors(spec.preprocessors)
+    postprocessors = build_processors(spec.postprocessors)
 
     train_splits: list[Literal["train", "valid", "test"]] = (
         ["train"] if not spec.train_on_validation else ["train", "valid"]

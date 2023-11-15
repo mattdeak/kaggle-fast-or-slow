@@ -29,25 +29,44 @@ class ProcessorSpec(BaseModel):
     target_kwargs: dict[str, Any] = {}
 
 
-DEFAULT_PREPROCESSORS = ProcessorSpec(
-    graph="config-communities",
-    graph_kwargs={"hops": 2},
-    node="node-processor",
-    config="config-feature-generator",
-    global_="global-processor",
-    global_kwargs={"subtype_indicator": True},
-    opcode="ohe",
-    target=None,
-)
+class PreprocessorSpec(ProcessorSpec):
+    graph: GraphProcessorName | None = "config-communities"
+    graph_kwargs: dict[str, Any] = {"hops": 2}
+
+    node: NodeProcessorName | None = "node-processor"
+    node_kwargs: dict[str, Any] = {}
+
+    config: ConfigProcessorName | None = "config-feature-generator"
+    config_kwargs: dict[str, Any] = {}
+
+    opcode: OpcodeProcessorName | None = "ohe"
+    opcode_kwargs: dict[str, Any] = {}
+
+    global_: GlobalProcessorName | None = "global-processor"
+    global_kwargs: dict[str, Any] = {"subtype_indicator": True}
+
+    target: TargetProcessorName | None = None
+    target_kwargs: dict[str, Any] = {}
 
 
-DEFAULT_POSTPROCESSORS = ProcessorSpec(
-    graph=None,
-    node=None,
-    config=None,
-    opcode=None,
-    global_=None,
-)
+class PostprocessorSpec(ProcessorSpec):
+    graph: GraphProcessorName | None = None
+    graph_kwargs: dict[str, Any] = {}
+
+    node: NodeProcessorName | None = None
+    node_kwargs: dict[str, Any] = {}
+
+    config: ConfigProcessorName | None = None
+    config_kwargs: dict[str, Any] = {}
+
+    opcode: OpcodeProcessorName | None = None
+    opcode_kwargs: dict[str, Any] = {}
+
+    global_: GlobalProcessorName | None = None
+    global_kwargs: dict[str, Any] = {}
+
+    target: TargetProcessorName | None = None
+    target_kwargs: dict[str, Any] = {}
 
 
 class JobSpec(BaseModel):
@@ -117,10 +136,8 @@ class JobSpec(BaseModel):
     scheduler_kwargs: dict[str, Any] = {"max_lr": 0.01, "pct_start": 0.1}
 
     # processors
-    preprocessors: ProcessorSpec = ProcessorSpec()
-    postprocessors: ProcessorSpec = ProcessorSpec(
-        graph=None, node=None, config=None, opcode=None, global_=None, target=None
-    )
+    preprocessors: PreprocessorSpec = PreprocessorSpec()
+    postprocessors: PostprocessorSpec = PostprocessorSpec()
 
     use_distribution_flag: bool = True
 
