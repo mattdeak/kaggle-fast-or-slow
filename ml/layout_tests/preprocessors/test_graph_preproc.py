@@ -3,6 +3,7 @@ import pytest
 
 from ml.layout_v1.preprocessors import (CommunityNodeRemapper, ConfigMetaGraph,
                                         remap_edges, remap_nodes)
+from ml.layout_v1.preprocessors.graph_preproc import remap_node_config_ids
 
 
 def test_community_node_remapper_1hop():
@@ -73,7 +74,7 @@ def test_remap_edges_noedges():
         [[0, 1], [1, 2], [1, 3], [2, 4], [2, 5], [3, 6], [5, 7], [6, 8]]
     )
     node_mapping = np.array([0, 2, 7])
-    new_edge_index, _ = remap_edges(edge_index, node_mapping)
+    new_edge_index = remap_edges(edge_index, node_mapping)
 
     expected_index = np.array([]).reshape(0, 2)
     np.testing.assert_array_equal(new_edge_index, expected_index)
@@ -83,16 +84,9 @@ def test_remap_edges_someedges():
     edge_index = np.array(
         [[0, 1], [1, 2], [1, 3], [2, 4], [2, 5], [3, 6], [5, 7], [6, 8]]
     )
-    edge_index_attrs = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     node_mapping = np.array([0, 5, 6, 7, 8])
-    new_edge_index, new_index_attrs = remap_edges(
-        edge_index, node_mapping, edge_index_attrs
-    )
+    new_edge_index = remap_edges(edge_index, node_mapping)
 
     expected_index = np.array([[1, 3], [2, 4]])  # Expected output
-    expected_index_attrs = np.array([7, 8])  # Expected output
-
-    assert new_index_attrs is not None
 
     np.testing.assert_array_equal(new_edge_index, expected_index)
-    np.testing.assert_array_equal(new_index_attrs, expected_index_attrs)
