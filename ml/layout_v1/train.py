@@ -305,7 +305,10 @@ def run_full_epoch(
                     device,
                     use_amp=run_config.use_amp,
                 )
-            log_eval_metrics(results=metrics)
+
+            if len(eval_loaders) > 1:
+                log_eval_metrics(results=metrics)
+
             model.train()
 
         if run_config.save_checkpoints:

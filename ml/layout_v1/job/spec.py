@@ -101,6 +101,9 @@ class JobSpec(BaseModel):
     # crossover
     crossover: float = 0.0
 
+    # validation or train on validation
+    train_on_validation: bool = False
+
     @property
     def pooling_feature_multiplier(self) -> int:
         return 4 if self.pooling == "multi" else 1

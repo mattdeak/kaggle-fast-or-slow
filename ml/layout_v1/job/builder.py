@@ -65,6 +65,18 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
         dataset_subtypes=spec.dataset_subtypes,
         split="train",
     )
+
+    if spec.train_on_validation:
+        valid_data_directories = generate_dataset_dirs(
+            dataset_types=spec.dataset_types,
+            dataset_subtypes=spec.dataset_subtypes,
+            split="valid",
+        )
+        train_data_directories = {
+            **train_data_directories,
+            **valid_data_directories,
+        }
+
     train_data_dirs_list = [
         d
         for ds_subtypes in train_data_directories.values()
@@ -150,6 +162,9 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                     ds_postprocessors,
                 )
             )
+
+            if spec.train_on_validation:
+                continue
 
             valid_dir = get_dataset_dir(ds_type, ds_subtype, split="valid")
             valid_identifier = f"{ds_type}-{ds_subtype}"
