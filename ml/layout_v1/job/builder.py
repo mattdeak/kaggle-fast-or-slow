@@ -101,6 +101,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
                 train_data_dirs_list, postprocessors.opcode_transform
             )
 
+    print("Preprocessors: ", preprocessors)
+    print("Postprocessors: ", postprocessors)
     # we have to readjust the global processors because they can depend
     # on the dataset type and subtype. We'll make copies of the processors
     # and then set the dataset type and subtype on them.
