@@ -57,14 +57,21 @@ def generate_from_config(config: dict[str, Any]) -> RunData:
 def instantiate_from_spec(spec: JobSpec) -> RunData:
     """Generate the actual job config for a specific run."""
 
-    preprocessor_spec = DEFAULT_PREPROCESSORS
-    preprocessor_spec.update(spec.preprocessors)
+    preprocessor_spec = DEFAULT_PREPROCESSORS.model_dump()
+    preprocessor_spec.update(
+        {k: v for k, v in spec.preprocessors.model_dump().items() if v is not None}
+    )
 
-    postprocessor_spec = DEFAULT_PREPROCESSORS
-    postprocessor_spec.update(spec.postprocessors)
+    # Replace any non-null values in the default spec with the
+    # values from the job spec
 
-    preprocessors = build_processors(spec.preprocessors)
-    postprocessors = build_processors(spec.postprocessors)
+    postprocessor_spec = DEFAULT_PREPROCESSORS.model_dump()
+    postprocessor_spec.update(
+        {k: v for k, v in spec.postprocessors.model_dump().items() if v is not None}
+    )
+
+    preprocessors = build_processors(ProcessorSpec(**preprocessor_spec))
+    postprocessors = build_processors(ProcessorSpec(**postprocessor_spec))
 
     train_splits: list[Literal["train", "valid", "test"]] = (
         ["train"] if not spec.train_on_validation else ["train", "valid"]
