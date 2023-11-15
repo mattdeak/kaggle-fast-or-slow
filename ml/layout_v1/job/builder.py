@@ -108,9 +108,12 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     train_datasets: list[LayoutDataset] = []
     valid_datasets: dict[str, LayoutDataset] = {}
 
+    print("Train Data Dirs: ", train_data_dirs_list)
+    print("Train Data Dirs Len: ", len(train_data_dirs_list))
+
     # Set up the global preprocessors
     for ds_type, ds_subtypes in train_data_directories.items():
-        for ds_subtype, ds_dir in ds_subtypes.items():
+        for ds_subtype, ds_dirs in ds_subtypes.items():
             global_preprocessor = (
                 GLOBAL_PROCESSORS[spec.preprocessors.global_](
                     **spec.preprocessors.global_kwargs,
@@ -146,7 +149,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
             if ds_postprocessors is None:
                 ds_postprocessors = postprocessors
 
-            for dir in ds_dir:
+            for dir in ds_dirs:
                 train_datasets.append(
                     build_dataset(
                         dir,
