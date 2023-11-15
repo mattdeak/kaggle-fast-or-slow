@@ -61,10 +61,8 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     postprocessors = build_processors(spec.postprocessors)
 
     train_splits: list[Literal["train", "valid", "test"]] = (
-        ["train"] if spec.train_on_validation else ["train", "valid"]
+        ["train"] if not spec.train_on_validation else ["train", "valid"]
     )
-
-    print(train_splits)
 
     train_data_directories = generate_dataset_dirs(
         dataset_types=spec.dataset_types,
