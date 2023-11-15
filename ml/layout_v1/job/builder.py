@@ -20,7 +20,9 @@ from ml.layout_v1.job.constants import (CONFIG_PROCESSORS, CRITERIONS,
                                         OPCODE_PROCESSORS, OPTIMIZERS,
                                         SCHEDULERS, TARGET_PROCESSORS,
                                         DatasetSubtype, DatasetType)
-from ml.layout_v1.job.spec import DEFAULT_PREPROCESSORS, JobSpec, ProcessorSpec
+from ml.layout_v1.job.spec import (DEFAULT_POSTPROCESSORS,
+                                   DEFAULT_PREPROCESSORS, JobSpec,
+                                   ProcessorSpec)
 from ml.layout_v1.model import GraphMLP
 from ml.layout_v1.sampler import ConfigCrossoverBatchSampler
 
@@ -65,7 +67,7 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     # Replace any non-null values in the default spec with the
     # values from the job spec
 
-    postprocessor_spec = DEFAULT_PREPROCESSORS.model_dump()
+    postprocessor_spec = DEFAULT_POSTPROCESSORS.model_dump()
     postprocessor_spec.update(
         {k: v for k, v in spec.postprocessors.model_dump().items() if v is not None}
     )
