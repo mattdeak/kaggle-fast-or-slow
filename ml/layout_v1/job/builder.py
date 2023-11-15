@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from copy import copy, deepcopy
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -60,28 +60,20 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
     preprocessors = build_processors(spec.preprocessors)
     postprocessors = build_processors(spec.postprocessors)
 
+    train_splits: list[Literal["train", "valid", "test"]] = (
+        ["train"] if spec.train_on_validation else ["train", "valid"]
+    )
+
     train_data_directories = generate_dataset_dirs(
         dataset_types=spec.dataset_types,
         dataset_subtypes=spec.dataset_subtypes,
-        split="train",
+        splits=train_splits,
     )
 
-    if spec.train_on_validation:
-        valid_data_directories = generate_dataset_dirs(
-            dataset_types=spec.dataset_types,
-            dataset_subtypes=spec.dataset_subtypes,
-            split="valid",
-        )
-        train_data_directories = {
-            **train_data_directories,
-            **valid_data_directories,
-        }
-
-    train_data_dirs_list = [
-        d
-        for ds_subtypes in train_data_directories.values()
-        for d in ds_subtypes.values()
-    ]
+    train_data_dirs_list: list[str] = []
+    for ds_type, ds_subtypes in train_data_directories.items():
+        for ds_subtype, ds_dirs in ds_subtypes.items():
+            train_data_dirs_list.extend(ds_dirs)
 
     # Fit the preprocessors on the training data
     # before they can be used on the validation data
@@ -154,14 +146,15 @@ def instantiate_from_spec(spec: JobSpec) -> RunData:
             if ds_postprocessors is None:
                 ds_postprocessors = postprocessors
 
-            train_datasets.append(
-                build_dataset(
-                    ds_dir,
-                    spec.processed_directory,
-                    ds_preprocessors,
-                    ds_postprocessors,
+            for dir in ds_dir:
+                train_datasets.append(
+                    build_dataset(
+                        dir,
+                        spec.processed_directory,
+                        ds_preprocessors,
+                        ds_postprocessors,
+                    )
                 )
-            )
 
             if spec.train_on_validation:
                 continue
@@ -302,15 +295,19 @@ def get_dataset_dir(
 def generate_dataset_dirs(
     dataset_types: list[DatasetType],
     dataset_subtypes: list[DatasetSubtype],
-    split: Literal["train", "valid", "test"] = "train",
-) -> dict[DatasetType, dict[DatasetSubtype, str]]:
+    splits: list[Literal["train", "valid", "test"]] = ["train"],
+) -> dict[DatasetType, dict[DatasetSubtype, list[str]]]:
     """Return a list of dataset directories for training and validation."""
-    datasets: dict[DatasetType, dict[DatasetSubtype, str]] = defaultdict(dict)
+    datasets: dict[DatasetType, dict[DatasetSubtype, list[str]]] = defaultdict(dict)
     for dataset_type in dataset_types:
         for dataset_subtype in dataset_subtypes:
-            datasets[dataset_type][dataset_subtype] = get_dataset_dir(
-                dataset_type, dataset_subtype, split=split
-            )
+            split_dirs: list[str] = []
+            for split in splits:
+                split_dirs.append(
+                    get_dataset_dir(dataset_type, dataset_subtype, split=split)
+                )
+
+            datasets[dataset_type][dataset_subtype] = split_dirs
 
     return datasets
 
