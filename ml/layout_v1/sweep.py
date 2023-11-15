@@ -29,7 +29,7 @@ SWEEP_CONFIG_XLA_ONLY = {
             "parameters": {
                 "graph_kwargs": {
                     "parameters": {
-                        "hops": {"value": 2},
+                        "hops": {"value": 3},
                     },
                 },
                 "opcode": {"value": None},
