@@ -365,3 +365,11 @@ class GraphMLP(nn.Module):
             pool = torch.cat([pool, data.global_features], dim=1)
 
         return self.mlp(pool)
+
+    def get_graph_embedding(self, data: Data) -> torch.Tensor:
+        d = data
+        for gcn_block in self.gcns:
+            d = gcn_block(d)
+
+        pool = self.pooling_fn(d.x, d.batch)  # type: ignore
+        return pool
