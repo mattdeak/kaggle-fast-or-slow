@@ -245,6 +245,7 @@ def run_full_epoch(
     train_loader.batch_sampler.reset()  # type: ignore
 
     avg_loss = 0
+    iter_count = 0  # to handle unboundedness in type checking
 
     for iter_count, batch in tqdm(
         enumerate(train_loader, start=start_iter),
@@ -297,10 +298,10 @@ def run_full_epoch(
 
             model.train()
 
-        if run_config.save_checkpoints:
-            checkpointer.save_named_checkpoint(
-                iteration=iter_count, epoch=epoch, name=f"end_of_epoch_{epoch}.pt"
-            )
+    if run_config.save_checkpoints:
+        checkpointer.save_named_checkpoint(
+            iteration=iter_count, epoch=epoch, name=f"end_of_epoch_{epoch}.pt"
+        )
 
 
 def run(config: dict[str, Any] | JobSpec = DEFAULT_CONFIG, id: str | None = None):

@@ -74,7 +74,7 @@ class Checkpointer:
             os.remove(os.path.join(self.checkpoint_dir, oldest_checkpoint))
 
         # negation is used because heapq is a min heap
-        neg_epoch = -epoch if epoch is not None else epoch
+        neg_epoch = epoch if epoch is not None else epoch
         iter_count = _ComparableIter(-iteration, neg_epoch)
         heapq.heappush(self._heap, (iter_count, checkpoint_name))
 
