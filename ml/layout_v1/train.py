@@ -296,6 +296,13 @@ def run_full_epoch(
             if len(eval_loaders) > 1:
                 log_eval_metrics(results=metrics)
 
+            # Save checkpoint
+            if run_config.save_checkpoints:
+                checkpointer.save_checkpoint(
+                    iteration=iter_count,
+                    epoch=epoch,
+                )
+
             model.train()
 
     if run_config.save_checkpoints:
