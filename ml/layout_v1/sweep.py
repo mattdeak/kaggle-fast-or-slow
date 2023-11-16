@@ -29,7 +29,7 @@ SWEEP_CONFIG_XLA_ONLY = {
             "parameters": {
                 "graph_kwargs": {
                     "parameters": {
-                        "hops": {"value": 3},
+                        "hops": {"value": 3},  # takes a while, but seems to be the best
                     },
                 },
                 "opcode": {"value": None},
@@ -94,6 +94,21 @@ SWEEP_CONFIG_NLP_ONLY = {
                 "weight_decay": {"max": 0.01, "min": 0.0, "distribution": "uniform"},
             },
         },
+        "preprocessors": {
+            "parameters": {
+                "graph_kwargs": {
+                    "parameters": {
+                        "hops": {"value": 3},  # takes a while, but seems to be the best
+                    },
+                },
+                "opcode": {"value": None},
+            },
+        },
+        "postprocessors": {
+            "parameters": {
+                "opcode": {"values": ["ohe", "group-ohe-embedder"]},
+            },
+        },
         "epochs": {"value": 1},  # nlp is big, so we only do 1 epoch during a sweep
         "batch_size": {"value": 16},  # smaller cause bigger graphs
         "crossover": {"value": 0.0},
@@ -112,10 +127,7 @@ SWEEP_CONFIG_NLP_ONLY = {
 
 def define_sweeps() -> None:
     sweep_id1 = wandb.sweep(SWEEP_CONFIG_XLA_ONLY, project="kaggle-fast-or-slow")
-    # sweep_id2 = wandb.sweep(SWEEP_CONFIG_NLP_ONLY, project="kaggle-fast-or-slow")
-    # sweep_id3 = wandb.sweep(
-    #     SWEEP_CONFIG_DEFAULT_XLA_ONLY, project="kaggle-fast-or-slow"
-    # )
+    sweep_id2 = wandb.sweep(SWEEP_CONFIG_NLP_ONLY, project="kaggle-fast-or-slow")
 
     print(f"XLA-only sweep: {sweep_id1}")
     # print(f"NLP-only sweep: {sweep_id2}")
