@@ -15,11 +15,10 @@ SWEEP_CONFIG_XLA_ONLY = {
         "dataset_subtypes": {"value": ["default", "random"]},
         "graph_layers": {"values": [3, 4, 5]},
         "graph_channels": {"values": [128, 256, 512]},
-        "linear_layers": {"values": [1, 2]},
+        "linear_layers": {"values": [1, 2, 3]},
         "linear_channels": {"values": [64, 128, 256]},
-        "dropout": {"values": [0.0, 0.05, 0.1, 0.2]},
+        "dropout": {"values": [0.0, 0.1, 0.2, 0.3]},
         "pooling": {"values": ["mean", "max", "multi"]},
-        "graph_convolution_type": {"values": ["sage", "gat"]},
         "graph_convolution_kwargs": {
             "parameters": {
                 "heads": {"values": [1, 2, 4, 8]},
@@ -67,19 +66,18 @@ SWEEP_CONFIG_XLA_ONLY = {
 SWEEP_CONFIG_NLP_ONLY = {
     "program": PROGRAM_PATH,
     "command": ["${env}", "${interpreter}", "${program}"],
-    "method": "bayes",
+    "method": "random",
     "name": "hp-sweep-nlp-only",
     "metric": {"name": "full/avg/kendall_tau", "goal": "maximize"},
     "parameters": {
         "dataset_types": {"value": ["nlp"]},
         "dataset_subtypes": {"value": ["default", "random"]},
         "graph_layers": {"values": [3, 4, 5]},
-        "graph_channels": {"values": [128, 256]},
-        "linear_layers": {"values": [1, 2, 4]},
-        "linear_channels": {"values": [64, 128, 256, 512]},
+        "graph_channels": {"values": [128, 256, 512]},
+        "linear_layers": {"values": [1, 2, 3]},
+        "linear_channels": {"values": [64, 128, 256]},
         "dropout": {"values": [0.0, 0.1, 0.2, 0.3]},
         "pooling": {"values": ["mean", "max", "multi"]},
-        "graph_convolution_type": {"values": ["sage", "gat"]},
         "graph_convolution_kwargs": {
             "parameters": {
                 "heads": {"values": [1, 2, 4, 8]},
