@@ -1,4 +1,4 @@
-# Google - Fast or Slow
+# Google - Fast or Slow (Top 3%)
 This repo contains the code used to get the 14th place (top 3%) solution. Since it's kaggle and therefor a bit ad-hoc, some of it is a little messy. The bulk of the relevant code is in the `layout_v1` folder.
 
 ## Problem Definition
