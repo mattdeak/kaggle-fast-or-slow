@@ -1,5 +1,5 @@
 # Google - Fast or Slow (Top 3%)
-This repo contains the code used to get the 14th place (top 3%) solution. Since it's kaggle and therefor a bit ad-hoc, some of it is a little messy. The bulk of the relevant code is in the `layout_v1` folder.
+This repo contains the code used to get the 14th place (top 3%) solution. Since it's kaggle and therefor a bit ad-hoc, some of it is a little messy. The bulk of the relevant code is in the `ml/layout_v1` folder.
 
 ## Problem Definition
 A detailed explanation of the competition can be found [here](https://www.kaggle.com/competitions/predict-ai-model-runtime/overview). In summary, we need to rank configurations for different neural networks to optimize runtime. 
